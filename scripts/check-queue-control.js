@@ -280,6 +280,16 @@ function stateOf(card) {
   (card ? card.children : []).forEach((c) => { if (c.getAttribute && c.getAttribute("data-queue-state") !== null) out.push(c); });
   return out;
 }
+function countText(card, text) {
+  let n = 0;
+  walk(card, (el) => { if (!el.children.length && String(el.text || "") === text) n += 1; });
+  return n;
+}
+function statusNodes(card) {
+  const out = [];
+  (card ? card.children : []).forEach((c) => { if (c.getAttribute && c.getAttribute("data-queue-status") !== null) out.push(c); });
+  return out;
+}
 function tapsOf(card) {
   const out = { yes: [], stop: [], kill: [], all: [] };
   walk(card, (el) => {
@@ -476,6 +486,9 @@ async function suite(src, liveSyncText, loginText) {
   ok(allowed && loadCalls.every((c) => allowed(c)), "[load] every load call is on main's live-sync allowlist");
   ok(!p.writes.length, "[load] no localStorage or sessionStorage write on load (" + p.writes.join("; ") + ")");
   ok(srv.saves() === savesBefore && srv.mem() === memBefore, "[load] the store is not saved or changed by opening the Queue");
+  // First paint, before any live refresh: a fresh waiting card already shows "Needs you" once.
+  const first = p.article("a_wait@qc-a");
+  ok(first && countText(first, "Needs you") === 1 && statusNodes(first).length === 0, "[once] first paint: a_wait shows \"Needs you\" once with no old status line (" + (first ? countText(first, "Needs you") + " / " + statusNodes(first).map((n) => n.textContent).join("|") : "no card") + ")");
   const before = p.calls.length;
   ok(p.fireIdle() > 0, "[live] a live refresh timer is armed after the good load");
   await settle();
@@ -516,6 +529,20 @@ async function suite(src, liveSyncText, loginText) {
     });
   });
   ["a_ship@qc-a", "a_dead@qc-a", "c_wait@qc-c", "d_wait@qc-d"].forEach((k) => ok(!p.article(k), "[cards] " + k + " is not on the Queue"));
+  // "Needs you" once: a waiting card that needs you shows the label only, never the old status line too.
+  ["a_wait@qc-a", "a_kill_me@qc-a", "b_wait@qc-b"].forEach((k) => {
+    const card = p.article(k);
+    ok(card && countText(card, "Needs you") === 1, "[once] " + k + " shows \"Needs you\" exactly once (" + (card ? countText(card, "Needs you") : "no card") + ")");
+    ok(card && statusNodes(card).length === 0, "[once] " + k + " has no old status line (" + (card ? statusNodes(card).map((n) => n.textContent).join("|") : "") + ")");
+    ok(card && stateOf(card).length === 1 && stateOf(card)[0].textContent === "Needs you", "[once] " + k + " keeps the Needs you label");
+  });
+  p.articles().forEach((a) => ok(countText(a, "Needs you") <= 1, "[once] " + a.getAttribute("data-queue-card") + " never shows \"Needs you\" twice"));
+  // Every other status line stays as it was.
+  [["a_held@qc-a", "Waiting on the owner"], ["a_exc@qc-a", "Waiting on a person"], ["a_out@qc-a", "Open"], ["a_info@qc-a", "Needs you"]].forEach(([k, line]) => {
+    const card = p.article(k);
+    const lines = card ? statusNodes(card).map((n) => n.textContent) : [];
+    ok(lines.length === 1 && lines[0] === line, "[once] " + k + " keeps its status line " + JSON.stringify(line) + " (" + lines.join("|") + ")");
+  });
   const allText = p.articles().map((a) => a.textContent).join(" ");
   ok(allText.indexOf("SECRET-C") < 0 && allText.indexOf("SECRET-D") < 0, "[cards] no card from a desk with no seat or a closed seat");
   // Kill one tap away, for every desk whose cards list Kill for this seat.
@@ -670,10 +697,12 @@ async function suite(src, liveSyncText, loginText) {
   p.fireIdle(); await settle();
   const info = p.article("a_info@qc-a");
   ok(info && stateOf(info).length === 1 && stateOf(info)[0].textContent === "Needs you" && tapsOf(info).yes.length === 1 && tapsOf(info).kill.length === 1, "[live] a card that turns Needs you gains its label and taps on the next refresh");
+  ok(info && countText(info, "Needs you") === 1 && statusNodes(info).length === 0, "[live] that card drops the old status line and shows \"Needs you\" once (" + (info ? countText(info, "Needs you") + " / " + statusNodes(info).map((n) => n.textContent).join("|") : "") + ")");
   srv.jobOf("a_info").status = "out"; srv.jobOf("a_info").awaiting = "writeback";
   p.fireIdle(); await settle();
   const info2 = p.article("a_info@qc-a");
   ok(info2 && stateOf(info2).length === 1 && stateOf(info2)[0].textContent === "Running" && tapsOf(info2).all.length === 0, "[live] a card that goes Running loses its taps");
+  ok(info2 && countText(info2, "Needs you") === 0 && statusNodes(info2).length === 1 && statusNodes(info2)[0].textContent === "Open", "[live] a card that leaves Needs you gets its status line back (" + (info2 ? statusNodes(info2).map((n) => n.textContent).join("|") : "") + ")");
 
   // ---------- 9. nothing for a stranger, 401/403, empty or failed reads ----------
   const deskCard = { id: "x1", title: "X", status: "waiting", decide: true, slug: "north", desk: "north", needs: [{ id: "yes" }, { id: "stop" }, { id: "kill" }] };
@@ -720,6 +749,11 @@ const MUTANTS = [
   ["Pause for a closed seat", "queue-login.js", ' && row.status !== "denied" && row.status !== "pending" });', ' });'],
   ["Pause posts from the Queue", "queue-login.js", '        pause.textContent = "Pause";', '        pause.textContent = "Pause";\n        pause.addEventListener("click", function () { postJob(d.slug, { action: "pause", target: "desk", desk: d.slug }); });'],
   ["refused tap still rereads", "queue-login.js", '    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); return; }\n    await refreshCards();\n  }\n  // Stop and Kill', '    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); }\n    await refreshCards();\n  }\n  // Stop and Kill'],
+  ["old Needs you status line restored", "queue-login.js", '    return text === queueState(j) ? "" : text;', '    return text;'],
+  ["label removed instead of the old line", "queue-login.js", '    var label = queueState(j);\n    if (!label) return null;', '    var label = queueState(j);\n    if (!label || label === STATE_NEEDS) return null;'],
+  ["label doubled", "queue-login.js", '    if (state) card.appendChild(state);', '    if (state) { card.appendChild(state); card.appendChild(buildState(j)); }'],
+  ["live update keeps the old line", "queue-login.js", '    if (statusEl && !wantStatus) { el.removeChild(statusEl); statusEl = null; }', '    if (false) { el.removeChild(statusEl); statusEl = null; }'],
+  ["old line always built on a fresh card", "queue-login.js", '    if (meta.textContent) card.appendChild(meta);', '    meta.textContent = plainStatus(j.status); card.appendChild(meta);'],
   ["refused tap says nothing", "queue-login.js", '    note.textContent = status ? NOTHING_CHANGED : NO_REACH;', '    note.textContent = "";'],
   ["invented state: killed says Stopped", "queue-login.js", '    if (!open) return "";\n    if (j.awaiting', '    if (st === "killed") return "Stopped";\n    if (!open) return "";\n    if (j.awaiting'],
   ["guess on unknown: no match says Drafted", "queue-login.js", '    if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;\n    return "";', '    if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;\n    return STATE_DRAFTED;'],

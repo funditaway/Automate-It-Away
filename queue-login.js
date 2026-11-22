@@ -510,6 +510,13 @@
     return id ? id + "@" + desk : "";
   }
 
+  // The old status line, except where it would only repeat the card's state label
+  // (a waiting card that needs you shows "Needs you" once, as the label).
+  function statusLine(j) {
+    var text = plainStatus(j && j.status);
+    return text === queueState(j) ? "" : text;
+  }
+
   function buildCard(j) {
     var card = document.createElement("article");
     card.className = "item";
@@ -524,7 +531,7 @@
     var meta = document.createElement("p");
     meta.className = "meta";
     meta.setAttribute("data-queue-status", "1");
-    meta.textContent = plainStatus(j.status);
+    meta.textContent = statusLine(j);
     var title = document.createElement("h3");
     title.textContent = j.title || "Card";
     var next = document.createElement("p");
@@ -535,7 +542,7 @@
     go.type = "button";
     go.setAttribute("data-queue-desk", j.deskSlug || j.slug || j.desk || j.workspace || "");
     go.textContent = "Show this desk";
-    card.appendChild(meta);
+    if (meta.textContent) card.appendChild(meta);
     var state = buildState(j);
     if (state) card.appendChild(state);
     card.appendChild(title);
@@ -562,7 +569,7 @@
     var wantLab = mode === "all" ? deskLabelText(j) : "";
     var haveLab = lab ? lab.textContent : "";
     if (wantLab && haveLab !== wantLab) return false;
-    if ((status ? status.textContent : "") !== plainStatus(j.status)) return false;
+    if ((status ? status.textContent : "") !== statusLine(j)) return false;
     if ((title ? title.textContent : "") !== (j.title || "Card")) return false;
     var wantNext = j.needLine || j.next || "Pick this desk in the Queue to decide.";
     if ((next ? next.textContent : "") !== wantNext) return false;
@@ -574,7 +581,7 @@
 
   function updateCard(el, j) {
     var kids = el.children || [];
-    var oldState = null, oldTaps = null, statusEl = null, nextEl = null;
+    var oldState = null, oldTaps = null, statusEl = null, nextEl = null, titleEl = null;
     for (var s = 0; s < kids.length; s++) {
       var k = kids[s];
       if (!k || !k.getAttribute) continue;
@@ -582,10 +589,20 @@
       else if (k.getAttribute("data-queue-controls") !== null) oldTaps = k;
       else if (k.getAttribute("data-queue-status") === "1") statusEl = k;
       else if (k.getAttribute("data-queue-next") === "1") nextEl = k;
+      else if (!titleEl && k.tagName === "H3") titleEl = k;
     }
     var wantState = queueState(j);
     if (oldState && (!wantState || oldState.textContent !== wantState)) { el.removeChild(oldState); oldState = null; }
-    if (!oldState && wantState && statusEl) el.insertBefore(buildState(j), statusEl.nextSibling);
+    if (!oldState && wantState && titleEl) { oldState = buildState(j); el.insertBefore(oldState, titleEl); }
+    var wantStatus = statusLine(j);
+    if (statusEl && !wantStatus) { el.removeChild(statusEl); statusEl = null; }
+    if (!statusEl && wantStatus && (oldState || titleEl)) {
+      statusEl = document.createElement("p");
+      statusEl.className = "meta";
+      statusEl.setAttribute("data-queue-status", "1");
+      statusEl.textContent = wantStatus;
+      el.insertBefore(statusEl, oldState || titleEl);
+    }
     if (oldTaps && oldTaps.getAttribute("data-queue-controls") !== controlsSig(j)) { el.removeChild(oldTaps); oldTaps = null; }
     if (!oldTaps && nextEl) {
       var taps = buildControls(j);
@@ -595,7 +612,7 @@
     for (var i = 0; i < kids.length; i++) {
       var n = kids[i];
       if (n.className === "queue-desk-label") n.textContent = deskLabelText(j);
-      else if (n.getAttribute && n.getAttribute("data-queue-status") === "1") n.textContent = plainStatus(j.status);
+      else if (n.getAttribute && n.getAttribute("data-queue-status") === "1") n.textContent = statusLine(j);
       else if (n.tagName === "H3") n.textContent = j.title || "Card";
       else if (n.getAttribute && n.getAttribute("data-queue-next") === "1") n.textContent = j.needLine || j.next || "Pick this desk in the Queue to decide.";
     }
