@@ -1,6 +1,7 @@
 require("./_env-guard");
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
 
 function fail(msg) {
   console.error("FAIL " + msg);
@@ -196,6 +197,269 @@ if (!createJs.includes('addEventListener("pageshow"') || !/pageshow[\s\S]{0,80}p
     fail("create-desk.js must paintStartDesk after same-page Workspace open");
   } else pass("Create start clears Open/Unlock after same-page open");
 })();
+
+
+function workspacePinTag(js) {
+  const at = js.indexOf("<label>Desk code</label>");
+  if (at < 0) return "";
+  const start = js.indexOf("<input", at);
+  const end = js.indexOf(">", start);
+  return start > at && end > start ? js.slice(start, end + 1) : "";
+}
+function teammatePinTag(js) {
+  const at = js.indexOf("<label>Their desk code</label>");
+  if (at < 0) return "";
+  const start = js.indexOf("<input", at);
+  const end = js.indexOf(">", start);
+  return start > at && end > start ? js.slice(start, end + 1) : "";
+}
+function createDeskFaults(js) {
+  const bad = [];
+  if (!/\btype="password"/.test(workspacePinTag(js))) bad.push("field type=text");
+  if (js.indexOf('localStorage.setItem("aia_pin"') >= 0) bad.push("pin stored");
+  const from = js.indexOf('localStorage.setItem("aia_ws"');
+  const to = js.indexOf('return done("Workspace is open');
+  const openBlock = from >= 0 && to > from ? js.slice(from, to) : "";
+  const keeps = openBlock.indexOf('localStorage.setItem("aia_session"') >= 0 || openBlock.indexOf("keepSession") >= 0;
+  if (!keeps) bad.push("session not kept");
+  return bad;
+}
+function applyCreateDeskMutant(js, kind) {
+  if (kind === "field type=text") {
+    return js.replace(
+      '<label>Desk code</label><input name="pin" required type="password"',
+      '<label>Desk code</label><input name="pin" required type="text"'
+    );
+  }
+  if (kind === "pin stored") {
+    return js
+      .replace(
+        'localStorage.setItem("aia_ws", slug);',
+        'localStorage.setItem("aia_ws", slug);\n        localStorage.setItem("aia_pin", pin);'
+      )
+      .replace("try { localStorage.removeItem(\"aia_pin\"); } catch (e) {}", "");
+  }
+  if (kind === "session not kept") {
+    return js
+      .replace("if (data.session && data.session.token) localStorage.setItem(\"aia_session\", data.session.token);\n", "")
+      .replace("        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data);\n", "")
+      .replace(/        if \(window\.AIADesks && AIADesks\.open\) \{\n          AIADesks\.open\(\{[\s\S]*?\}\);\n        \}\n/, "");
+  }
+  return js;
+}
+
+const liveCreateFaults = createDeskFaults(createJs);
+if (liveCreateFaults.length) fail("create-desk.js leftover desk code faults: " + liveCreateFaults.join("; "));
+else pass("create-desk.js keeps a leftover desk code out of storage after Open");
+if (!/\btype="password"/.test(workspacePinTag(createJs)) || !/\bautocomplete="new-password"/.test(workspacePinTag(createJs))) {
+  fail("create-desk.js Workspace desk code field must be type=password autocomplete=new-password");
+} else pass("create-desk.js Workspace desk code field is masked");
+if (!/\btype="password"/.test(teammatePinTag(createJs)) || !/\bautocomplete="new-password"/.test(teammatePinTag(createJs))) {
+  fail("create-desk.js teammate pin field must be type=password autocomplete=new-password");
+} else pass("create-desk.js teammate pin field is masked");
+
+["field type=text", "pin stored", "session not kept"].forEach(function (kind) {
+  const faults = createDeskFaults(applyCreateDeskMutant(createJs, kind));
+  if (faults.indexOf(kind) < 0) fail("create-desk leftover-pin mutant survived: " + kind);
+  else pass("create-desk leftover-pin mutant caught: " + kind);
+});
+
+function memStore(seed) {
+  const m = Object.assign({}, seed || {});
+  return {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? String(m[k]) : null; },
+    setItem: function (k, v) { m[k] = String(v); },
+    removeItem: function (k) { delete m[k]; },
+    _raw: m
+  };
+}
+function makeClassList() {
+  const set = {};
+  return {
+    add: function (c) { set[c] = true; },
+    remove: function (c) { delete set[c]; },
+    contains: function (c) { return !!set[c]; },
+    toggle: function (c, on) {
+      if (on === false) delete set[c];
+      else if (on === true) set[c] = true;
+      else if (set[c]) delete set[c];
+      else set[c] = true;
+      return !!set[c];
+    }
+  };
+}
+function makeEl(id) {
+  return {
+    id: id,
+    value: "",
+    textContent: "",
+    innerHTML: "",
+    hidden: false,
+    disabled: false,
+    style: {},
+    classList: makeClassList(),
+    _fields: {},
+    _on: {},
+    setAttribute: function () {},
+    getAttribute: function () { return null; },
+    addEventListener: function (type, fn) {
+      this._on[type] = this._on[type] || [];
+      this._on[type].push(fn);
+    },
+    querySelector: function (sel) {
+      if (sel === ".go") {
+        if (!this._go) this._go = makeEl("go");
+        return this._go;
+      }
+      return null;
+    },
+    closest: function () { return null; },
+    reset: function () {},
+    appendChild: function () {},
+    parentNode: { appendChild: function () {} }
+  };
+}
+function bootCreateDesk(src, seed, opts) {
+  const store = memStore(seed);
+  const fetches = [];
+  const els = {};
+  function el(id) {
+    if (!els[id]) els[id] = makeEl(id);
+    return els[id];
+  }
+  ["picks", "form", "ok", "err", "mine", "mode-simple", "mode-advanced", "start-open", "start-note"].forEach(el);
+  const modes = makeEl("modes");
+  const pickFns = [];
+  const submitFns = [];
+  el("picks").addEventListener = function (type, fn) { if (type === "click") pickFns.push(fn); };
+  el("form").addEventListener = function (type, fn) { if (type === "submit") submitFns.push(fn); };
+  const ctx = {
+    Promise: Promise,
+    JSON: JSON,
+    Object: Object,
+    Array: Array,
+    String: String,
+    Number: Number,
+    Boolean: Boolean,
+    Date: Date,
+    Error: Error,
+    Math: Math,
+    parseInt: parseInt,
+    parseFloat: parseFloat,
+    isNaN: isNaN,
+    encodeURIComponent: encodeURIComponent,
+    decodeURIComponent: decodeURIComponent,
+    URLSearchParams: URLSearchParams,
+    setTimeout: setTimeout,
+    clearTimeout: clearTimeout,
+    console: console,
+    localStorage: store,
+    location: { search: "", hash: "" },
+    addEventListener: function () {},
+    FormData: function (form) {
+      const fields = (form && form._fields) || {};
+      return { get: function (k) { return Object.prototype.hasOwnProperty.call(fields, k) ? fields[k] : ""; } };
+    },
+    document: {
+      body: { classList: makeClassList() },
+      getElementById: function (id) { return el(id); },
+      querySelector: function (sel) { return sel === ".modes" ? modes : null; },
+      createElement: function (tag) { return makeEl(tag); },
+      addEventListener: function () {}
+    },
+    fetch: function (url, init) {
+      fetches.push({ url: String(url), headers: (init && init.headers) || {}, body: init && init.body, method: (init && init.method) || "GET" });
+      const status = opts && opts.status != null ? opts.status : 201;
+      const body = (opts && opts.body) || {
+        ok: true,
+        session: { token: "sess-create-1" },
+        you: { name: "Owner", role: "owner" },
+        workspace: { slug: "rivera-resale", biz: "Rivera Resale", name: "Rivera Resale" }
+      };
+      return Promise.resolve({
+        ok: status < 400,
+        status: status,
+        json: function () { return Promise.resolve(body); }
+      });
+    }
+  };
+  ctx.window = ctx;
+  ctx.globalThis = ctx;
+  const deskSwitch = fs.readFileSync(path.join(root, "desk-switch.js"), "utf8");
+  vm.runInNewContext(deskSwitch + "\n" + src, ctx, { timeout: 4000 });
+  const btn = { closest: function () { return { getAttribute: function () { return "workspace"; } }; } };
+  pickFns.forEach(function (fn) { fn({ target: btn }); });
+  el("form")._fields = { name: "Owner", biz: "Rivera Resale", pin: "4821" };
+  return Promise.resolve()
+    .then(function () { return submitFns[0]({ preventDefault: function () {} }); })
+    .then(function () { return Promise.resolve(); })
+    .then(function () {
+      return {
+        store: store,
+        fetches: fetches,
+        els: els,
+        ctx: ctx,
+        shopOpen: !!(ctx.AIADesks && ctx.AIADesks.shopOpen && ctx.AIADesks.shopOpen())
+      };
+    });
+}
+
+async function runCreateDeskPinTests() {
+  const openOk = await bootCreateDesk(createJs, {});
+  const authPosts = openOk.fetches.filter(function (f) {
+    return String(f.url).indexOf("/api/auth") >= 0 && String(f.method).toUpperCase() === "POST";
+  });
+  if (!authPosts.length) fail("create Workspace Open must POST /api/auth");
+  else pass("create Workspace Open POSTs /api/auth");
+  const sentPin = authPosts.some(function (f) {
+    const h = f.headers || {};
+    const pinHdr = h["X-Pin"] || h["x-pin"];
+    let bodyPin = "";
+    try { bodyPin = (JSON.parse(f.body || "{}") || {}).pin; } catch (e) {}
+    return pinHdr === "4821" && bodyPin === "4821";
+  });
+  if (!sentPin) fail("create Workspace Open must still send the typed desk code on the open request");
+  else pass("create Workspace Open still sends the typed desk code");
+  if (openOk.store.getItem("aia_pin")) fail("create Workspace Open must not store aia_pin, got " + openOk.store.getItem("aia_pin"));
+  else pass("create Workspace Open does not store aia_pin");
+  if (openOk.store.getItem("aia_session") !== "sess-create-1") fail("create Workspace Open must keep the returned session");
+  else pass("create Workspace Open keeps the returned session");
+  if (openOk.store.getItem("aia_ws") !== "rivera-resale") fail("create Workspace Open must keep the desk name");
+  else pass("create Workspace Open keeps the desk name");
+  if (!openOk.shopOpen) fail("shopOpen must be true after create Workspace Open with a session");
+  else pass("shopOpen is true after create Workspace Open");
+  let desks = [];
+  try { desks = JSON.parse(openOk.store.getItem("aia_desks") || "[]"); } catch (e) { desks = []; }
+  if (desks.some(function (d) { return d && "pin" in d && d.pin; })) fail("create Workspace Open must not leave a desk code on aia_desks");
+  else pass("create Workspace Open does not leave a desk code on aia_desks");
+  if (openOk.els["start-open"] && !openOk.els["start-open"].hidden) fail("create start gate must hide after Workspace Open");
+  else pass("create start gate hides after Workspace Open");
+
+  const leftover = await bootCreateDesk(createJs, {
+    aia_desks: JSON.stringify([{ slug: "rivera-resale", name: "Rivera Resale", pin: "6612" }])
+  });
+  if (leftover.store.getItem("aia_pin")) fail("create Workspace Open must drop a leftover aia_pin");
+  else pass("create Workspace Open drops a leftover aia_pin");
+  let leftoverDesks = [];
+  try { leftoverDesks = JSON.parse(leftover.store.getItem("aia_desks") || "[]"); } catch (e) { leftoverDesks = []; }
+  if (leftoverDesks.some(function (d) { return d && d.slug === "rivera-resale" && "pin" in d; })) {
+    fail("create Workspace Open must strip a leftover aia_desks pin");
+  } else pass("create Workspace Open strips a leftover aia_desks pin");
+
+  const denied = await bootCreateDesk(createJs, {}, { status: 401, body: { ok: false, error: "Desk code does not match this shop" } });
+  if (denied.store.getItem("aia_pin") || denied.store.getItem("aia_session") || denied.store.getItem("aia_ws")) {
+    fail("failed Workspace Open must not write session, pin, or desk name");
+  } else pass("failed Workspace Open does not write session, pin, or desk name");
+
+  const storedMutant = await bootCreateDesk(applyCreateDeskMutant(createJs, "pin stored"), {});
+  if (storedMutant.store.getItem("aia_pin") !== "4821") fail("pin stored mutant must write aia_pin");
+  else pass("pin stored mutant still caught on Open");
+
+  const sessionMutant = await bootCreateDesk(applyCreateDeskMutant(createJs, "session not kept"), {});
+  if (sessionMutant.store.getItem("aia_session")) fail("session not kept mutant must not write aia_session");
+  else pass("session not kept mutant still caught on Open");
+}
+
 if (createJs.includes("Put the work on the queue, or Stop")) fail("create-desk.js drafts-off start still says Put the work, or Stop");
 else pass("Create drafts-off start does not say Put the work, or Stop");
 if (!createJs.includes("Yes puts the work on the queue. Stop discards it.")) {
@@ -328,8 +592,13 @@ const grok = fs.readFileSync(path.join(root, "api/_grok.js"), "utf8");
 if (!grok.includes("normalizeCites") || !grok.includes("search_parameters")) fail("grok must keep citations and optional web search");
 else pass("Grok stores citations when the web was used");
 
-if (process.exitCode) {
-  console.error("check-desk-nav failed");
+runCreateDeskPinTests().then(function () {
+  if (process.exitCode) {
+    console.error("check-desk-nav failed");
+    process.exit(1);
+  }
+  console.log("check-desk-nav passed");
+}).catch(function (err) {
+  console.error(err);
   process.exit(1);
-}
-console.log("check-desk-nav passed");
+});
