@@ -73,7 +73,7 @@
     <label>Email <span class="meta">optional</span> <button type="button" class="aia-tip" data-aia-tip="email" aria-label="More about Email">?</button></label>
     <input type="email" name="email" placeholder="you@shop.com">
     <label>Desk code <button type="button" class="aia-tip" data-aia-tip="desk-code" aria-label="More about Desk code">?</button></label>
-    <input name="pin" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
+    <input name="pin" type="password" required inputmode="numeric" minlength="4" placeholder="Your code" autocomplete="new-password">
     <button class="btn" type="submit" id="go">Open my Queue</button>
     <p class="hint" id="hint">Owner: full admin, free now. Member: join an existing desk. Shop name and code open this Queue. You do not sign in again to switch desks.</p>
     <p class="err" id="err"></p>
@@ -139,9 +139,8 @@
           err.textContent = data.hint || "On the book. Owner approves your member seat on People, then you sign in.";
           return;
         }
-        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data, pin);
+        if (window.AIADesks && AIADesks.keepSession) AIADesks.keepSession(data);
         localStorage.setItem("aia_ws", slug);
-        localStorage.setItem("aia_pin", pin);
         localStorage.setItem("aia_role", (data.you && data.you.role) || (isMember ? "member" : "owner"));
         localStorage.setItem("aia_name", (data.you && data.you.name) || f.get("name") || "");
         localStorage.setItem("aia_desk_name", (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug));
@@ -149,12 +148,20 @@
           AIADesks.open({
             slug: (data.workspace && data.workspace.slug) || slug,
             name: (data.workspace && (data.workspace.biz || data.workspace.name)) || String(f.get("biz") || slug),
-            pin: pin,
             token: data.session && data.session.token,
             role: (data.you && data.you.role) || (isMember ? "member" : "owner"),
             who: (data.you && data.you.name) || f.get("name") || ""
           });
         }
+        localStorage.removeItem("aia_pin");
+        try {
+          const opened = (data.workspace && data.workspace.slug) || slug;
+          const rows = JSON.parse(localStorage.getItem("aia_desks") || "[]");
+          if (Array.isArray(rows) && rows.some(function (d) { return d && d.slug === opened && "pin" in d; })) {
+            rows.forEach(function (d) { if (d && d.slug === opened) delete d.pin; });
+            localStorage.setItem("aia_desks", JSON.stringify(rows));
+          }
+        } catch (e) {}
         location.href = "desk.html";
       } catch (ex) {
         err.textContent = "Could not reach your Queue.";
