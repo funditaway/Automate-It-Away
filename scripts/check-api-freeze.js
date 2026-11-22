@@ -58,6 +58,7 @@ const LANDED = [
   "api/migrate-uploads.js"
 ];
 const MOVED = [
+  "api/_account-settings.js",
   "api/_engine.js",
   "api/_job-mask.js",
   "api/_lib.js",
