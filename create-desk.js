@@ -388,20 +388,23 @@
       }
       return n;
     }
+    // Reads this desk's own /api/status. Only deskAi.on === true counts as can draft.
     function deskAiFromHealth(h) {
       const a = (h && h.automation) || {};
-      const g = a.deskAi || a.grok || {};
-      const drafts = a.drafts || {};
-      const on = !!(g && g.on) || !!drafts.included;
-      const note = (g && g.note) || (on
+      const g = a.deskAi || {};
+      const on = g.on === true;
+      // When off, a server note that still says "can draft" is not shown.
+      const said = (typeof g.note === "string" && !(!on && /\bcan draft\b/i.test(g.note))) ? g.note : "";
+      const note = said || (on
         ? "A Desk AI can draft. You still tap Yes or Stop."
         : "A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.");
       return { on: on, note: note };
     }
-    // The health check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
+    // The status check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
+    // It asks /api/status for this desk (same X-Workspace / X-Session / X-Pin headers as the rest of Create).
     const AIA_WAIT_MS = 7000;
     const AIA_NO_ANSWER = "Could not reach the desk. A Desk AI can't draft yet. You can still type the work below and put it in your Queue.";
-    function healthWithin(ms) {
+    function healthWithin(ms, hdrs) {
       return new Promise(function (resolve, reject) {
         const ctl = typeof AbortController === "function" ? new AbortController() : null;
         const timer = setTimeout(function () {
@@ -409,7 +412,12 @@
           reject(new Error("timeout"));
         }, ms);
         Promise.resolve()
-          .then(function () { return fetch("/api/health", ctl ? { signal: ctl.signal } : undefined); })
+          .then(function () {
+            const opts = { method: "GET" };
+            if (hdrs) opts.headers = hdrs;
+            if (ctl) opts.signal = ctl.signal;
+            return fetch("/api/status", opts);
+          })
           .then(function (r) {
             // A 500 or other error status is "no answer", not a desk that says drafts are off.
             if (r && r.ok === false) throw new Error("health " + r.status);
@@ -422,7 +430,7 @@
       const el = document.getElementById("aia-line");
       if (!el) return;
       try {
-        const h = await healthWithin(AIA_WAIT_MS);
+        const h = await healthWithin(AIA_WAIT_MS, typeof headers === "function" ? headers() : undefined);
         const face = deskAiFromHealth(h);
         grokOn = !!face.on;
         el.classList.toggle("off", !grokOn);
