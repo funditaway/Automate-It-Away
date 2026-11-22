@@ -399,7 +399,9 @@
       const key = (document.getElementById("ai-key") || {}).value || "";
       const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "ai", provider: aiPick, key }) });
       const data = await r.json().catch(() => ({}));
-      if (flash) flash.textContent = r.ok ? (data.next || "Connected.") : (data.error || "Could not connect.");
+      // A refused save shows the server's plain note, never a one-word code.
+      const plain = (t) => (typeof t === "string" && /\S\s+\S/.test(t.trim()) ? t.trim() : "");
+      if (flash) flash.textContent = r.ok ? (data.next || "Connected.") : (plain(data.note) || plain(data.error) || "Could not connect.");
       if (r.ok) {
         const box = document.getElementById("ai-box");
         if (box) box.hidden = true;
