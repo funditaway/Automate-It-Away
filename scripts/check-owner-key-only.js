@@ -40,7 +40,10 @@ const SLUG_B = "owner-key-b";
 const PIN = "4821";
 const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
-const NOTE = "A Desk AI can't draft on this phone yet.";
+const NOTE = "A Desk AI can't draft on this account yet.";
+const OLD_NOTE = "A Desk AI can't draft on this phone yet.";
+// api/_packs.js grok note was not part of #587 and keeps its own words.
+const PACKS_NOTE = "A Desk AI can't draft on this phone yet.";
 const ON_NOTE = "A Desk AI can draft.";
 const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this account yet. You can still put the work on the queue.";
 const PHONE_SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
@@ -142,6 +145,8 @@ function assertDraftsOff(body, label) {
     eq(auto.drafts.included, false, label + ": drafts.included is false");
   }
   eq(desk.note, NOTE, label + ": deskAi note does not claim drafting");
+  if (JSON.stringify(body || {}).indexOf(OLD_NOTE) >= 0) fail(label + ": still says the old on-this-phone note");
+  else pass(label + ": old on-this-phone note is gone");
   if (JSON.stringify(auto).indexOf(ON_NOTE) >= 0) fail(label + ": note says a Desk AI can draft");
   else pass(label + ": notes do not say a Desk AI can draft");
 }
@@ -279,7 +284,7 @@ async function main() {
   const listed = await call(packs, "GET", owner, {}, {});
   eq(listed.statusCode, 200, "packs list answers");
   eq(listed.body && listed.body.grok && listed.body.grok.on, false, "packs list is off without a desk key");
-  eq(listed.body && listed.body.grok && listed.body.grok.note, NOTE, "packs list uses the drafts-off note");
+  eq(listed.body && listed.body.grok && listed.body.grok.note, PACKS_NOTE, "packs list uses the drafts-off note");
   if (JSON.stringify(listed.body && listed.body.grok || {}).indexOf("XAI_API_KEY") >= 0) fail("packs list still names XAI_API_KEY");
   else pass("packs list does not name XAI_API_KEY");
 

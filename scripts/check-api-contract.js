@@ -69,7 +69,8 @@ async function main() {
  const grokOn = !!deskAi.on;
  if (envJargon.test(healthJson)) fail("env jargon");
  else if (grokOn && grokNote !== "A Desk AI can draft.") fail("deskAi on note " + JSON.stringify(grokNote));
- else if (!grokOn && grokNote !== "A Desk AI can't draft on this phone yet.") fail("deskAi off note " + JSON.stringify(grokNote));
+ else if (!grokOn && grokNote !== "A Desk AI can't draft on this account yet.") fail("deskAi off note " + JSON.stringify(grokNote));
+ else if (healthJson.indexOf("A Desk AI can't draft on this phone yet.") >= 0) fail("deskAi old phone note");
  else if ((res.body.automation || {}).grok && !(res.body.automation || {}).deskAi) fail("need deskAi not grok");
  else pass("deskAi");
  if (strangerJargon.test(healthJson) || (res.body.store && res.body.store.blob)) fail("stranger dump");
@@ -114,7 +115,8 @@ async function main() {
  else if (!stDesk.note) fail("status deskAi.note");
  else if ((st.body.automation || {}).grok && !(st.body.automation || {}).deskAi) fail("status need deskAi");
  else if (stDesk.on && stDesk.note !== "A Desk AI can draft.") fail("status deskAi on note");
- else if (!stDesk.on && stDesk.note !== "A Desk AI can't draft on this phone yet.") fail("status deskAi off note");
+ else if (!stDesk.on && stDesk.note !== "A Desk AI can't draft on this account yet.") fail("status deskAi off note");
+ else if (statusJson.indexOf("A Desk AI can't draft on this phone yet.") >= 0) fail("status deskAi old phone note");
  else pass("st.deskAi");
  const statusTldFace = JSON.stringify(st.body.aiaTld || {});
  if (/decentraweb|approveUrl|registerUrl|lockDomain|oidc|\bblob\b/i.test(statusTldFace)) fail("status aiaTld dump");
@@ -147,7 +149,8 @@ async function main() {
  // Drafting uses the desk owner's own key (#462). A server key does not make
  // public health claim drafting, and public health has no desk to ask about.
  if (!onRes.body.automation || onDesk.on !== false) fail("drafts on without an owner key");
- else if ((onDesk.note || "") !== "A Desk AI can't draft on this phone yet.") fail("drafts off note");
+ else if ((onDesk.note || "") !== "A Desk AI can't draft on this account yet.") fail("drafts off note");
+ else if (onJson.indexOf("A Desk AI can't draft on this phone yet.") >= 0) fail("drafts old phone note");
  else if (onDrafts.included !== false) fail("drafts.included without an owner key");
  else if (onJson.indexOf("A Desk AI can draft.") >= 0) fail("drafts claim");
  else if (envJargon.test(onJson) || strangerJargon.test(onJson) || (onRes.body.store && onRes.body.store.blob)) fail("drafts on dump");
@@ -164,7 +167,8 @@ async function main() {
   const d2 = ((st2.body && st2.body.automation) || {}).deskAi || {};
   const tag = hdr["x-workspace"] ? "desk" : "stranger";
   if (d2.on !== false) fail("status drafts on without an owner key (" + tag + ")");
-  else if (d2.note !== "A Desk AI can't draft on this phone yet.") fail("status drafts off note (" + tag + ")");
+  else if (d2.note !== "A Desk AI can't draft on this account yet.") fail("status drafts off note (" + tag + ")");
+  else if (JSON.stringify(st2.body || {}).indexOf("A Desk AI can't draft on this phone yet.") >= 0) fail("status drafts old phone note (" + tag + ")");
   else if (JSON.stringify(st2.body || {}).indexOf("A Desk AI can draft.") >= 0) fail("status drafts claim (" + tag + ")");
   else pass("st.off." + tag);
  }
