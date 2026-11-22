@@ -98,4 +98,13 @@ if (packMd.indexOf("Open Stop leftover:") < 0) throw new Error("PACK.md must nam
   }
 })();
 
+// Connections refused key save shows the server's plain note, never a code like keyLocked. That
+// check rides this npm entry (package.json is not touched): run it as a clean child; fail if it fails.
+(function () {
+  const saveNote = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-connections-save-note.js")], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
+  if (saveNote.status !== 0 || !/PASS check-connections-save-note/.test(saveNote.stdout || "")) {
+    throw new Error("check-connections-save-note failed:\n" + String(saveNote.stderr || saveNote.stdout || "").slice(0, 2000));
+  }
+})();
+
 console.log("check-pipes-switch: ok");
