@@ -384,7 +384,7 @@
   function ensureFixCss() {
     if (!document.getElementById("aia-ui-fix-link")) {
       var l = document.createElement("link");
-      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261008";
+      l.id = "aia-ui-fix-link"; l.rel = "stylesheet"; l.href = "/ui-fix.css?v=20261121";
       document.head.appendChild(l);
     }
     return;

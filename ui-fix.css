@@ -1009,3 +1009,59 @@ pre, .file-list, #drop-link { overflow-x: auto; }
   color: #fff !important;
   box-shadow: inset 0 -3px 0 #f39c12 !important;
 }
+
+/* 2026-11-21 phone + desktop. Light theme was flipping the page to paper
+   while status greens, orange labels, and teal fills stayed tuned for night.
+   Orange stays a button fill. Small text uses a darker ink that still reads in dark. */
+html.light .up { color: #0a5c45 !important; }
+html.dark .up { color: #3dd68c !important; }
+html.light .down { color: #b42318 !important; }
+html.dark .down { color: #ff8f73 !important; }
+html.light .oauth-tag.hold { color: #7a4a00 !important; }
+html.dark .oauth-tag.hold { color: #ffd089 !important; }
+html.light .part small,
+html.light .step i,
+html.light .tap,
+html.light .taps,
+html.light .aia-playbook .pb-step:nth-child(even) .pb-tag,
+html.light .aia-playbook .pb-also,
+html.light .aia-playbook .pb-hold a,
+html.light .q-state-cap .q-state-mark,
+html.light .cap-card .q-state-mark { color: #7a4a00 !important; }
+html.dark .part small,
+html.dark .step i,
+html.dark .tap,
+html.dark .taps,
+html.dark .aia-playbook .pb-step:nth-child(even) .pb-tag,
+html.dark .aia-playbook .pb-also,
+html.dark .aia-playbook .pb-hold a,
+html.dark .q-state-cap .q-state-mark,
+html.dark .cap-card .q-state-mark { color: #ffd089 !important; }
+.aia-playbook .pb-n,
+.yes,
+#custom-yes {
+  background: #0d6b6b !important;
+  color: #fff !important;
+}
+.aia-playbook .pb-step:nth-child(even) .pb-n {
+  background: #f39c12 !important;
+  color: #0c1116 !important;
+}
+html.dark .ok,
+html.dark .new-here a,
+html.dark .oauth-tag.now,
+html.dark .aia-playbook .pb-tag {
+  color: #9ee0e0 !important;
+}
+.chip.on,
+.niche-chips button.on,
+.kinds button.on {
+  background: #0d6b6b !important;
+  color: #fff !important;
+  border-color: #0d6b6b !important;
+}
+.status-legend, main .wrap > p { overflow-wrap: anywhere; }
+@media (max-width: 520px) {
+  .row { align-items: flex-start; }
+}
+
