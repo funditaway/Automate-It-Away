@@ -2,13 +2,16 @@
 require("./_env-guard");
 // Queue step 1: the all-desks Queue as the control center (queue-login.js, screens only).
 // - Each card shows one plain state, "Needs you", "Drafted", "Running" or "Done", mapped only from
-//   fields the card already stores (status, carried, waitingOn, why, awaiting, offDesk, draft).
+//   fields GET /api/jobs?desks=all already returns (status, decide, awaiting, offDesk, draft).
 //   A card that fits none shows no label. Every stored combination is checked against the spec below.
 // - Yes and Stop sit on a card that needs you and call the desk's own POST /api/jobs taps with that
 //   card's id and its own desk in X-Workspace: Yes is action "ship" with confirm false (the desk's ship()),
 //   Stop is the desk's "Stop?" sheet first, then action "kill" with confirm true (the desk's kill() /
 //   confirmKill()). Kill is the same desk flow behind the same sheet; it never fires on one tap.
 //   The taps show only when that seat's own card lists them (a helper seat gets no Stop or Kill).
+//   A refused tap (403 helper Kill, 404 other desk / no seat, 409 no confirm) or no answer: no reread,
+//   the card stays and says "Nothing changed." The desk-wide control is a Pause link to the account
+//   page's own desk row; there is no desk-wide Kill.
 // - A stranger, a desk with no open seat, a closed seat, a 401/403, an empty or failed read: no cards
 //   and no taps. Opening the Queue writes nothing: no job POST, no PUT/DELETE, no localStorage write,
 //   no store save. Text goes in with textContent only.
@@ -178,8 +181,7 @@ function spec(j) {
   if (st === "out") return "Running";
   if (["waiting", "held", "exception"].indexOf(st) < 0) return "";
   if (j.awaiting === "writeback" || j.offDesk === true) return "Running";
-  const decide = (st === "waiting" || st === "held") && !j.carried && j.waitingOn !== "info" && !/Need .+ before/i.test(String(j.why || ""));
-  if (decide) return "Needs you";
+  if ((st === "waiting" || st === "held") && j.decide === true) return "Needs you";
   if (typeof j.draft === "string" && j.draft.trim()) return "Drafted";
   return "";
 }
@@ -379,16 +381,17 @@ async function suite(src, liveSyncText, loginText) {
   ok(typeof map === "function", "[map] queue-login.js has one pure queueState(card)");
   if (typeof map !== "function") return;
   const rows = [
-    [{ status: "waiting" }, "Needs you"],
-    [{ status: "held" }, "Needs you"],
-    [{ status: "waiting", draft: "Hi" }, "Needs you"],
-    [{ status: "waiting", waitingOn: "owner" }, "Needs you"],
-    [{ status: "waiting", waitingOn: "info" }, ""],
-    [{ status: "waiting", waitingOn: "info", draft: "Hi" }, "Drafted"],
-    [{ status: "waiting", why: "Need a number before this can go." }, ""],
-    [{ status: "held", why: "Need a time before this can go.", draft: "Hi" }, "Drafted"],
-    [{ status: "waiting", carried: true }, ""],
-    [{ status: "waiting", carried: true, draft: "Hi" }, "Drafted"],
+    [{ status: "waiting", decide: true }, "Needs you"],
+    [{ status: "held", decide: true }, "Needs you"],
+    [{ status: "waiting", decide: true, draft: "Hi" }, "Needs you"],
+    [{ status: "waiting" }, ""],
+    [{ status: "held" }, ""],
+    [{ status: "waiting", decide: false }, ""],
+    [{ status: "waiting", decide: "true" }, ""],
+    [{ status: "waiting", decide: false, draft: "Hi" }, "Drafted"],
+    [{ status: "held", draft: "Hi" }, "Drafted"],
+    [{ status: "exception", decide: true }, ""],
+    [{ status: "exception", decide: true, draft: "Hi" }, "Drafted"],
     [{ status: "exception" }, ""],
     [{ status: "exception", draft: "Hi" }, "Drafted"],
     [{ status: "exception", draft: "   " }, ""],
@@ -397,11 +400,14 @@ async function suite(src, liveSyncText, loginText) {
     [{ status: "out", awaiting: "writeback" }, "Running"],
     [{ status: "out" }, "Running"],
     [{ status: "waiting", awaiting: "writeback" }, "Running"],
-    [{ status: "held", offDesk: true }, "Running"],
-    [{ status: "waiting", offDesk: "yes" }, "Needs you"],
+    [{ status: "held", offDesk: true, decide: true }, "Running"],
+    [{ status: "waiting", offDesk: "yes", decide: true }, "Needs you"],
+    [{ status: "out", decide: true }, "Running"],
     [{ status: "shipped" }, "Done"],
     [{ status: "shipped", carried: true, rail: "carried" }, "Done"],
     [{ status: "killed" }, ""],
+    [{ status: "killed", decide: true }, ""],
+    [{ status: "shipped", decide: true }, "Done"],
     [{ status: "killed", draft: "Hi" }, ""],
     [{ status: "open", draft: "Hi" }, ""],
     [{ status: "Shipped" }, ""],
@@ -410,7 +416,8 @@ async function suite(src, liveSyncText, loginText) {
     [{ draft: "Hi" }, ""],
     [{ awaiting: "writeback" }, ""],
     [{ offDesk: true }, ""],
-    [{ carried: true }, ""],
+    [{ decide: true }, ""],
+    [{ decide: true, draft: "Hi", awaiting: "writeback" }, ""],
     [{ status: 1 }, ""],
     [null, ""],
     ["waiting", ""]
@@ -421,7 +428,7 @@ async function suite(src, liveSyncText, loginText) {
   });
   // Every combination of the stored fields, against the spec.
   const STATUS = [undefined, "", "waiting", "held", "exception", "out", "shipped", "killed", "open", "zzz"];
-  const AXES = { carried: [undefined, true], waitingOn: [undefined, "info", "owner"], why: [undefined, "Need a time before this can go."], awaiting: [undefined, "writeback"], offDesk: [undefined, true], draft: [undefined, "Draft"] };
+  const AXES = { decide: [undefined, true, false, "true", 1], awaiting: [undefined, "writeback", "other"], offDesk: [undefined, true, "true"], draft: [undefined, "Draft", "  ", 3], carried: [undefined, true], waitingOn: [undefined, "info"] };
   let combos = 0, bad = [], neverOff = [], offList = [];
   STATUS.forEach((st) => {
     let list = [{}];
@@ -516,6 +523,20 @@ async function suite(src, liveSyncText, loginText) {
   p.articles().forEach((a) => tapsOf(a).kill.forEach((b) => { killDesks[b.getAttribute("data-queue-on")] = true; }));
   ok(killDesks["qc-a"] === true, "[kill] the owner desk qc-a has Kill on the Queue");
   ok(!killDesks["qc-b"], "[kill] the helper seat at qc-b gets no Kill (its own card lists none)");
+  // Desk-wide control: Pause (a link to the account page's own desk row), never a desk-wide Kill.
+  const picker = p.document.getElementById("queue-desk-picker");
+  const pauses = []; const deskWide = [];
+  walk(picker, (el) => { if (el.getAttribute && el.getAttribute("data-queue-pause") !== null) pauses.push(el); if (!el.children.length && /\bKill\b/.test(el.text || "")) deskWide.push(el); });
+  walk(p.document.getElementById("queue-all-cards"), (el) => {
+    let inCard = false; for (let n = el; n; n = n.parentNode) { if (n.tagName === "ARTICLE" || (n.id === "sheet")) { inCard = true; break; } }
+    if (!inCard && !el.children.length && /\bKill\b/.test(el.text || "")) deskWide.push(el);
+  });
+  ok(!deskWide.length, "[pause] no desk-wide Kill anywhere outside a card (" + deskWide.map((e) => e.tagName + ":" + e.text).join(",") + ")");
+  const pa = pauses.find((e) => e.getAttribute("data-queue-pause") === "qc-a");
+  ok(pauses.length === 1 && pa && pa.tagName === "A" && pa.textContent === "Pause" && pa.href === "/account#acct-desk-qc-a", "[pause] the owned desk qc-a has one Pause link to /account#acct-desk-qc-a (" + pauses.map((e) => e.getAttribute("data-queue-pause") + "=" + e.textContent + ">" + e.href).join(",") + ")");
+  ok(!pauses.some((e) => e.getAttribute("data-queue-pause") === "qc-b"), "[pause] the helper desk qc-b gets no Pause");
+  ok(!pauses.some((e) => e.getAttribute("data-queue-pause") === "qc-d"), "[pause] the closed (denied) seat at qc-d gets no Pause");
+  ok(pa && !(pa.listeners.click || []).length, "[pause] Pause is a plain link: no tap handler, nothing sent from the Queue");
   ok(HTML.length === 0, "[text] no innerHTML / outerHTML / insertAdjacentHTML at runtime (" + HTML.slice(0, 2).join("; ") + ")");
 
   // ---------- 6. Yes ----------
@@ -599,8 +620,53 @@ async function suite(src, liveSyncText, loginText) {
   await stopFlow("a_kill_me@qc-a", "data-queue-kill", "Kill");
   ok(HTML.length === 0, "[text] no HTML sinks during taps (" + HTML.slice(0, 2).join("; ") + ")");
 
+  // ---------- 7b. what the server refuses, and what the Queue shows then ----------
+  const hdrA = (ws) => ({ "X-Session": srv.token, "X-Workspace": ws, "Content-Type": "application/json" });
+  const wrongDesk = await srv.answer({ url: "/api/jobs", method: "POST", headers: hdrA("qc-b"), body: JSON.stringify({ action: "ship", id: "a_need", amount: 0, confirm: false, whoTapped: "Ann" }) });
+  ok(wrongDesk.status === 404 && srv.jobOf("a_need").status === "waiting", "[server] a card sent with another desk's x-workspace gets 404 and does not move (" + wrongDesk.status + ")");
+  const noSeat = await srv.answer({ url: "/api/jobs", method: "POST", headers: hdrA("qc-c"), body: JSON.stringify({ action: "kill", id: "c_wait", confirm: true, whoTapped: "Ann" }) });
+  ok(noSeat.status >= 400 && srv.jobOf("c_wait").status === "waiting", "[server] a desk with no seat refuses (" + noSeat.status + ") and its card does not move");
+  srv.jobOf("b_wait").status = "waiting";
+  const helperKill = await srv.answer({ url: "/api/jobs", method: "POST", headers: hdrA("qc-b"), body: JSON.stringify({ action: "kill", id: "b_wait", confirm: true, whoTapped: "Ann" }) });
+  ok(helperKill.status === 403 && srv.jobOf("b_wait").status === "waiting", "[server] a helper's Kill gets 403 (" + helperKill.status + ")");
+  const noConfirm = await srv.answer({ url: "/api/jobs", method: "POST", headers: hdrA("qc-a"), body: JSON.stringify({ action: "kill", id: "a_need", whoTapped: "Ann" }) });
+  ok(noConfirm.status === 409 && srv.jobOf("a_need").status === "waiting", "[server] kill without confirm gets 409 (" + noConfirm.status + ")");
+  const strangerAll = await srv.answer({ url: "/api/jobs?desks=all", method: "GET", headers: {}, body: "" });
+  ok(strangerAll.status === 403 && !(strangerAll.body && strangerAll.body.jobs), "[server] a stranger reading desks=all gets 403 and no cards");
+  // The Queue on a refusal: nothing moves, no reread, and the card says nothing changed.
+  const forged = { id: "f1", title: "Forged", status: "waiting", decide: true, slug: "north", desk: "north", needs: [{ id: "yes" }, { id: "stop" }, { id: "kill" }] };
+  for (const [name, code, attr, want] of [["helper Kill 403", 403, "data-queue-kill", "Nothing changed."], ["other desk 404 on Yes", 404, "data-queue-yes", "Nothing changed."], ["no seat 404 on Stop", 404, "data-queue-stop", "Nothing changed."], ["409 on Kill", 409, "data-queue-kill", "Nothing changed."], ["no answer on Yes", "network", "data-queue-yes", "Could not reach AIA. Nothing changed."]]) {
+    const posts = [];
+    const r = startPage(src, { token: "sess-x", home: "north", answer: (c) => {
+      if (/\/api\/desks/.test(c.url)) return { status: 200, body: { ok: true, desks: [{ slug: "north", name: "North", yours: "own" }] } };
+      if (c.method === "POST") { posts.push(c); return code === "network" ? "network" : { status: code, body: { ok: false, error: "refused" } }; }
+      if (/desks=all/.test(c.url)) return { status: 200, body: { ok: true, jobs: [forged] } };
+      return { status: 200, body: { jobs: [forged] } };
+    } });
+    await settle();
+    const card = r.article("f1@north");
+    const t = card ? tapsOf(card) : null;
+    const btn = t && (attr === "data-queue-yes" ? t.yes[0] : attr === "data-queue-stop" ? t.stop[0] : t.kill[0]);
+    if (!btn) { fail("[refused] " + name + ": the forged card has the tap"); continue; }
+    const n0 = r.calls.length;
+    r.click(btn); await settle();
+    if (attr !== "data-queue-yes") {
+      ok(posts.length === 0, "[refused] " + name + ": the first tap only asks and sends nothing");
+      const b2 = []; walk(r.sheetCard(), (el) => { if (el.tagName === "BUTTON" && el.textContent === "Stop") b2.push(el); });
+      if (b2[0]) r.clickOwn(b2[0]);
+      await settle();
+    }
+    const after = r.calls.slice(n0);
+    const card2 = r.article("f1@north");
+    const notes = []; walk(card2, (el) => { if (el.getAttribute && el.getAttribute("data-queue-tap-note") !== null) notes.push(el); });
+    ok(posts.length === 1 && (attr === "data-queue-yes" || JSON.parse(posts[0].body).confirm === true), "[refused] " + name + ": one POST (the second tap for Stop/Kill)");
+    ok(!after.some((c) => c.method === "GET"), "[refused] " + name + ": no reread after a refusal");
+    ok(card2 && notes.length === 1 && notes[0].textContent === want && stateOf(card2)[0] && stateOf(card2)[0].textContent === "Needs you", "[refused] " + name + ": the card stays and says " + JSON.stringify(want) + " (" + (notes[0] ? notes[0].textContent : "no note") + ")");
+  }
+
   // ---------- 8. live update gains and loses taps ----------
   srv.jobOf("a_info").waitingOn = "";
+  srv.jobOf("b_wait").status = "shipped";
   p.fireIdle(); await settle();
   const info = p.article("a_info@qc-a");
   ok(info && stateOf(info).length === 1 && stateOf(info)[0].textContent === "Needs you" && tapsOf(info).yes.length === 1 && tapsOf(info).kill.length === 1, "[live] a card that turns Needs you gains its label and taps on the next refresh");
@@ -610,7 +676,7 @@ async function suite(src, liveSyncText, loginText) {
   ok(info2 && stateOf(info2).length === 1 && stateOf(info2)[0].textContent === "Running" && tapsOf(info2).all.length === 0, "[live] a card that goes Running loses its taps");
 
   // ---------- 9. nothing for a stranger, 401/403, empty or failed reads ----------
-  const deskCard = { id: "x1", title: "X", status: "waiting", slug: "north", desk: "north", needs: [{ id: "yes" }, { id: "stop" }, { id: "kill" }] };
+  const deskCard = { id: "x1", title: "X", status: "waiting", decide: true, slug: "north", desk: "north", needs: [{ id: "yes" }, { id: "stop" }, { id: "kill" }] };
   const routes = (all, per, mine) => (c) => {
     if (/\/api\/desks/.test(c.url)) return mine || { status: 200, body: { ok: true, desks: [{ slug: "north", name: "North" }] } };
     if (/desks=all/.test(c.url)) return all;
@@ -643,7 +709,18 @@ async function suite(src, liveSyncText, loginText) {
 
 // ---------- mutants ----------
 const MUTANTS = [
-  ["wrong mapping: held is not Needs you", "queue-login.js", '(st === "waiting" || st === "held") && !j.carried', '(st === "waiting") && !j.carried'],
+  ["wrong mapping: held is not Needs you", "queue-login.js", '(st === "waiting" || st === "held") && j.decide === true', '(st === "waiting") && j.decide === true'],
+  ["map ignores decide", "queue-login.js", '(st === "waiting" || st === "held") && j.decide === true', '(st === "waiting" || st === "held")'],
+  ["map takes a truthy decide", "queue-login.js", '(st === "waiting" || st === "held") && j.decide === true', '(st === "waiting" || st === "held") && !!j.decide'],
+  ["swap states: Needs you and Drafted", "queue-login.js", 'j.decide === true) return STATE_NEEDS;', 'j.decide === true) return STATE_DRAFTED;'],
+  ["confirm:true sent on the first Stop/Kill tap", "queue-login.js", '    var s = stopSheet();\n    if (!s) return;\n    var h = document.createElement("h3");', '    var s = stopSheet();\n    if (!s) return;\n    postJob(desk, { action: "kill", id: id, confirm: true, whoTapped: tapName("owner") });\n    var h = document.createElement("h3");'],
+  ["desk-wide Kill shown", "queue-login.js", 'pause.textContent = "Pause";', 'pause.textContent = "Kill";'],
+  ["Pause link missing", "queue-login.js", '      if (d.own === true) {', '      if (false) {'],
+  ["Pause for a helper desk", "queue-login.js", '      if (d.own === true) {', '      if (true) {'],
+  ["Pause for a closed seat", "queue-login.js", ' && row.status !== "denied" && row.status !== "pending" });', ' });'],
+  ["Pause posts from the Queue", "queue-login.js", '        pause.textContent = "Pause";', '        pause.textContent = "Pause";\n        pause.addEventListener("click", function () { postJob(d.slug, { action: "pause", target: "desk", desk: d.slug }); });'],
+  ["refused tap still rereads", "queue-login.js", '    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); return; }\n    await refreshCards();\n  }\n  // Stop and Kill', '    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); }\n    await refreshCards();\n  }\n  // Stop and Kill'],
+  ["refused tap says nothing", "queue-login.js", '    note.textContent = status ? NOTHING_CHANGED : NO_REACH;', '    note.textContent = "";'],
   ["invented state: killed says Stopped", "queue-login.js", '    if (!open) return "";\n    if (j.awaiting', '    if (st === "killed") return "Stopped";\n    if (!open) return "";\n    if (j.awaiting'],
   ["guess on unknown: no match says Drafted", "queue-login.js", '    if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;\n    return "";', '    if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;\n    return STATE_DRAFTED;'],
   ["swap states: shipped says Running", "queue-login.js", 'if (st === "shipped") return STATE_DONE;', 'if (st === "shipped") return STATE_RUNNING;'],

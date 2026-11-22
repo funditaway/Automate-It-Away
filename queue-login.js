@@ -111,8 +111,8 @@
     return j && j.status !== "shipped" && j.status !== "killed";
   }
 
-  // Queue step 1: one plain state per card, read only from fields the card already stores
-  // (status, carried, waitingOn, why, awaiting, offDesk, draft). A card that fits none shows no label.
+  // Queue step 1: one plain state per card, read only from fields GET /api/jobs?desks=all already
+  // returns (status, decide, awaiting, offDesk, draft). A card that fits none shows no label.
   var STATE_NEEDS = "Needs you";
   var STATE_DRAFTED = "Drafted";
   var STATE_RUNNING = "Running";
@@ -125,7 +125,7 @@
     if (st === "out") return STATE_RUNNING;
     if (!open) return "";
     if (j.awaiting === "writeback" || j.offDesk === true) return STATE_RUNNING;
-    if ((st === "waiting" || st === "held") && !j.carried && j.waitingOn !== "info" && !/Need .+ before/i.test(String(j.why || ""))) return STATE_NEEDS;
+    if ((st === "waiting" || st === "held") && j.decide === true) return STATE_NEEDS;
     if (typeof j.draft === "string" && j.draft.trim()) return STATE_DRAFTED;
     return "";
   }
@@ -221,6 +221,35 @@
     }
   }
   var queueTapping = false;
+  var NOTHING_CHANGED = "Nothing changed.";
+  var NO_REACH = "Could not reach AIA. Nothing changed.";
+  // A refused tap (403, 404, 409, any error) or no answer: the card stays as it was and says so.
+  function tapRefused(id, desk, status) {
+    var box = document.getElementById("queue-all-cards");
+    var key = id + "@" + desk;
+    var card = null;
+    var kids = box ? box.children || [] : [];
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i] && kids[i].getAttribute && kids[i].getAttribute("data-queue-card") === key) card = kids[i];
+    }
+    if (!card) return;
+    var note = null;
+    var parts = card.children || [];
+    for (var n = 0; n < parts.length; n++) {
+      if (parts[n] && parts[n].getAttribute && parts[n].getAttribute("data-queue-tap-note") !== null) note = parts[n];
+    }
+    if (!note) {
+      note = document.createElement("p");
+      note.className = "meta";
+      note.setAttribute("data-queue-tap-note", "1");
+      note.setAttribute("role", "status");
+      card.appendChild(note);
+    }
+    note.textContent = status ? NOTHING_CHANGED : NO_REACH;
+  }
+  function tapOk(out) {
+    return !!(out && out.status >= 200 && out.status < 300);
+  }
   // Yes: the desk's ship tap (confirm false). A held card stays held for the owner; nothing is confirmed here.
   async function queueYes(btn) {
     var id = safeCardId(btn.getAttribute("data-queue-yes"));
@@ -230,12 +259,14 @@
     var amt = Number(j.amount || j.ask || 0);
     queueTapping = true;
     btn.disabled = true;
+    var out = null;
     try {
-      await postJob(desk, { action: "ship", id: id, amount: Number.isFinite(amt) ? amt : 0, confirm: false, whoTapped: tapName("desk") });
+      out = await postJob(desk, { action: "ship", id: id, amount: Number.isFinite(amt) ? amt : 0, confirm: false, whoTapped: tapName("desk") });
     } finally {
       queueTapping = false;
       btn.disabled = false;
     }
+    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); return; }
     await refreshCards();
   }
   // Stop and Kill: the desk's own second tap first (the same "Stop?" sheet), then the desk's kill POST with confirm.
@@ -276,11 +307,13 @@
     var j = cardFor(id, desk);
     if (!j || queueTapping) return;
     queueTapping = true;
+    var out = null;
     try {
-      await postJob(desk, { action: "kill", id: id, confirm: true, whoTapped: tapName("owner") });
+      out = await postJob(desk, { action: "kill", id: id, confirm: true, whoTapped: tapName("owner") });
     } finally {
       queueTapping = false;
     }
+    if (!tapOk(out)) { tapRefused(id, desk, out && out.status); return; }
     await refreshCards();
   }
 
@@ -402,6 +435,15 @@
       btn.textContent = d.name || d.slug;
       if (mode === d.slug) btn.className = "on";
       box.appendChild(btn);
+      // The desk-wide control is Pause, on the account page's own desk row. There is no desk-wide Kill.
+      if (d.own === true) {
+        var pause = document.createElement("a");
+        pause.className = "queue-pause";
+        pause.setAttribute("data-queue-pause", d.slug);
+        pause.href = "/account#acct-desk-" + (String(d.slug).replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "x");
+        pause.textContent = "Pause";
+        box.appendChild(pause);
+      }
     });
   }
 
@@ -816,7 +858,7 @@
     var slug = slugify(row.slug || row.biz || row.name || "");
     if (!slug || seen[slug]) return;
     seen[slug] = true;
-    list.push({ slug: slug, name: String(row.name || row.biz || slug) });
+    list.push({ slug: slug, name: String(row.name || row.biz || slug), own: (row.yours === "own" || row.role === "owner") && row.status !== "denied" && row.status !== "pending" });
   }
 
   function fromMine(data) {
@@ -905,9 +947,7 @@
       desk: (j && j.desk) || slug,
       deskName: (known && known.name) || (desk && desk.name) || slug || "Desk",
       draft: typeof j.draft === "string" ? j.draft : "",
-      carried: !!j.carried,
-      waitingOn: j.waitingOn || "",
-      why: j.why || "",
+      decide: j.decide === true,
       awaiting: j.awaiting || "",
       offDesk: j.offDesk === true,
       needs: Array.isArray(j.needs) ? j.needs.map(function (a) { return { id: a && a.id }; }) : [],
