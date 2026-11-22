@@ -335,6 +335,10 @@ async function main() {
   // not touched): run scripts/check-presence-words.js as a clean child and fail if it fails.
   const words = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-presence-words.js")], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
   if (words.status !== 0 || !/PASS check-presence-words/.test(words.stdout || "")) fail("check-presence-words failed:\n" + String(words.stderr || words.stdout || "").slice(0, 2000));
+  // My account -> Sign-in (Two-factor, Backup codes, Signed-in devices) rides this npm entry too:
+  // run scripts/check-account-security.js --mutants as a clean child and fail if it fails.
+  const security = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-account-security.js"), "--mutants"], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
+  if (security.status !== 0 || !/PASS check-account-security \(\d+ ok, (\d+)\/\1 built-in mutants\)/.test(security.stdout || "")) fail("check-account-security failed:\n" + String(security.stderr || security.stdout || "").slice(0, 2000));
   if (!failed) console.log("check-account-settings: ok");
 }
 
