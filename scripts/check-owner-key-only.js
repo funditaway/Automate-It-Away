@@ -42,7 +42,8 @@ const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
 const NOTE = "A Desk AI can't draft on this phone yet.";
 const ON_NOTE = "A Desk AI can draft.";
-const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this account yet. You can still put the work on the queue.";
+const PHONE_SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const OLD_SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const LOCK_NOTE = "This desk can't save a key yet. Nothing was saved.";
 const GROK_NOTE = "Log in at console.x.ai. Paste the API key. Drafts only. Your key, your xAI bill. AIA charges nothing.";
@@ -250,6 +251,8 @@ async function main() {
   else pass("suggest note starts with the add-your-key step");
   if (suggest.body && suggest.body.note === OLD_SUGGEST_NOTE) fail("suggest still has the old note without the add-your-key step");
   else pass("suggest old note without the add-your-key step is gone");
+  if (!suggest.body || String(suggest.body.note || "").indexOf("on this phone") >= 0 || suggest.body.note === PHONE_SUGGEST_NOTE) fail("suggest still says on this phone");
+  else pass("suggest old on-this-phone note is gone");
   eq(fetches, 0, "suggest did not fetch");
 
   const captured = await call(jobs, "POST", owner, { action: "capture", title: "Capture porch" });
@@ -334,6 +337,8 @@ async function main() {
   eq(sugB.statusCode, 200, "desk B suggest answers");
   eq(sugB.body && sugB.body.grok, "needsKey", "desk B suggest needs a key");
   eq(sugB.body && sugB.body.note, SUGGEST_NOTE, "desk B suggest tells them to add a key");
+  if (!sugB.body || String(sugB.body.note || "").indexOf("on this phone") >= 0) fail("desk B suggest still says on this phone");
+  else pass("desk B suggest old on-this-phone note is gone");
   eq(fetches, beforeB, "desk B suggest did not fetch");
 
   delete process.env.AIA_CONNECT_SECRET;
