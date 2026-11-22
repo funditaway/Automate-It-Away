@@ -65,13 +65,45 @@ if (!create.includes("function deskOpen") || !create.includes("Open or unlock th
 else pass("create gates Desk AI Bind");
 if (!create.includes("if (!deskOpen()) return fail")) fail("create save-ai must refuse without an open desk");
 else pass("create will not Bind without an open desk");
-if (/if \(tok\) h\["X-Session"\] = tok;\s*else if \(pin\)/.test(create)) {
-  fail("create-desk.js headers must still send the open-desk pin when a session token is present");
-} else pass("create-desk.js headers keeps X-Pin with X-Session");
-if (create.indexOf('if (tok) h["X-Session"] = tok') < 0) fail("create-desk.js headers must send leftover X-Session so email-session Bind still opens");
-else pass("create-desk.js headers sends leftover X-Session");
-if (create.indexOf('if (pin) h["X-Pin"] = pin') < 0) fail("create-desk.js headers must send X-Pin");
-else pass("create-desk.js headers sends X-Pin");
+// Session-based: leftover email-session Bind still sends X-Session. A leftover
+// aia_pin is not read or sent when a session is present. Replaces the older
+// source guard that required X-Pin to travel with X-Session.
+(function checkCreateDeskHeaders() {
+  const vm = require("vm");
+  const from = create.indexOf("function headers()");
+  const to = create.indexOf("function deskOpen()");
+  const block = from >= 0 && to > from ? create.slice(from, to) : "";
+  if (!block) {
+    fail("create-desk.js missing headers()");
+    return;
+  }
+  function run(store) {
+    const reads = [];
+    const ctx = {
+      localStorage: {
+        getItem: function (k) {
+          reads.push(k);
+          return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+        },
+        setItem: function () {},
+        removeItem: function () {}
+      }
+    };
+    vm.runInNewContext(block + "\nthis.__headers = headers;", ctx);
+    return { h: ctx.__headers(), reads: reads };
+  }
+  const leftover = run({ aia_ws: "rivera-resale", aia_session: "sess-live", aia_pin: "4821" });
+  if (!(leftover.h["X-Session"] || leftover.h["x-session"])) {
+    fail("create-desk.js headers must send leftover X-Session so email-session Bind still opens");
+  } else pass("create-desk.js headers sends leftover X-Session");
+  if (leftover.h["X-Pin"] || leftover.h["x-pin"] || leftover.reads.indexOf("aia_pin") >= 0) {
+    fail("create-desk.js headers must not read or send a leftover pin when a session is present");
+  } else pass("create-desk.js headers does not send a leftover pin when a session is present");
+  const pinOnly = run({ aia_ws: "rivera-resale", aia_pin: "4821" });
+  if (!(pinOnly.h["X-Pin"] || pinOnly.h["x-pin"])) {
+    fail("create-desk.js headers must still send X-Pin when no session is present");
+  } else pass("create-desk.js headers still sends X-Pin when no session is present");
+})();
 if (!studio.includes("Named desk AIs") || !studio.includes("save-ai") || !studio.includes("install-aia")) fail("Studio naming / .aia install must stay");
 else pass("Studio naming and .aia install stay");
 if (!studio.includes("Drafts the next step and the words. Nothing sent.")) fail("Studio AI 1 does placeholder must be Desk AI canon");
