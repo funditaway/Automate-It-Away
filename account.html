@@ -159,8 +159,8 @@
       </div>
       <div class="card" id="mfa-card">
         <h2>Authenticator</h2>
-        <p class="meta">Off for now. No email codes. No SMS codes.</p>
-        <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
+        <p class="meta">Off for now. No email codes. No SMS codes. Authenticator stays HOLD.</p>
+        <p><button class="edit" type="button" id="mfa-on" disabled>Turn on authenticator</button></p>
         <p class="meta" id="mfa-hint">Authenticator is off for now.</p>
       </div>
     </div>
@@ -351,16 +351,7 @@
         hint.textContent="Exported. No desk code. No password hash. Payments are off for now.";
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
-    document.getElementById("mfa-on").onclick=async function(){
-      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
-      const hint=document.getElementById("mfa-hint");
-      try{
-        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
-        const d=await r.json().catch(function(){return {};});
-        hint.textContent=(d.error||d.hint||"Authenticator is off for now on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
-      }catch(e){hint.textContent="Could not reach the desk.";}
-    };
+    document.getElementById("mfa-on").onclick=function(){ return; };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
       const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value),body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});

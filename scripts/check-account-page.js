@@ -69,6 +69,19 @@ function mfaClickFn(accountSrc) {
   const end = accountSrc.indexOf("async function act(", start);
   return accountSrc.slice(start, end > start ? end : start + 900);
 }
+function mfaOnButton(accountSrc) {
+  const m = accountSrc.match(/<button\b[^>]*id="mfa-on"[^>]*>Turn on authenticator<\/button>/);
+  return m ? m[0] : "";
+}
+function authenticatorTapFaults(accountSrc) {
+  const bad = [];
+  const btn = mfaOnButton(accountSrc);
+  if (!btn || accountSrc.indexOf('id="mfa-card"') < 0) bad.push("authenticator card or button missing");
+  else if (!/\bdisabled\b/.test(btn)) bad.push("button enabled again");
+  const click = mfaClickFn(accountSrc);
+  if (/\bfetch\s*\(/.test(click) || /action:\s*"mfa"/.test(click) || /method:\s*"POST"/.test(click)) bad.push("click still sending mfa");
+  return bad;
+}
 function mfaHttpFn(httpSrc) {
   const start = httpSrc.indexOf('if (action === "mfa")');
   if (start < 0) return "";
@@ -154,7 +167,6 @@ const pkg = read("package.json");
   "action:\"sessions\"",
   "action:\"export\"",
   "logout-all",
-  "action:\"mfa\"",
   "function paintPhones",
   "function leavePhone",
   "Authenticator stays HOLD"
@@ -172,10 +184,16 @@ const mfaPaint = mfaCard(account);
 if (!/off for now/i.test(mfaPaint) || !/Authenticator is off for now/i.test(account)) {
   fail("account.html authenticator card must stay off for now");
 } else pass("account.html authenticator card stays off for now");
-const mfaClick = mfaClickFn(account);
-if (!mfaClick || !/on:\s*true/.test(mfaClick) || !/Authenticator stays HOLD|stays HOLD/.test(mfaClick)) {
-  fail("account.html authenticator click must stay HOLD when the desk holds it");
-} else pass("account.html authenticator click paints HOLD");
+if (!/Authenticator stays HOLD/.test(mfaPaint) && !/Authenticator stays HOLD/.test(account)) {
+  fail("account.html authenticator card must still say Authenticator stays HOLD");
+} else pass("account.html authenticator card still says Authenticator stays HOLD");
+const mfaTap = authenticatorTapFaults(account);
+if (!mfaOnButton(account)) fail("account.html must keep the Turn on authenticator button on the Authenticator card");
+else pass("account.html keeps the Turn on authenticator button");
+if (mfaTap.indexOf("button enabled again") >= 0) fail("Turn on authenticator must be disabled until two-factor works");
+else pass("Turn on authenticator is disabled");
+if (mfaTap.indexOf("click still sending mfa") >= 0) fail("clicking Turn on authenticator must send no request");
+else pass("clicking Turn on authenticator sends no request");
 
 if (account.indexOf("leavePhone(false)") < 0) fail("Leave this phone must call logout");
 else pass("Leave this phone calls logout");
@@ -240,6 +258,32 @@ mutants.forEach(function (kind) {
 });
 if (caught !== mutants.length) fail("mutants: " + caught + "/" + mutants.length + " caught");
 else pass("mutants: " + caught + "/" + mutants.length + " caught");
+
+const tapMutants = [
+  ["button enabled again", function (src) {
+    return src.replace('<button class="edit" type="button" id="mfa-on" disabled>Turn on authenticator</button>', '<button class="edit" type="button" id="mfa-on">Turn on authenticator</button>');
+  }],
+  ["click still sending mfa", function (src) {
+    return src.replace(
+      'document.getElementById("mfa-on").onclick=function(){ return; };',
+      'document.getElementById("mfa-on").onclick=async function(){ await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})}); };'
+    );
+  }]
+];
+let tapCaught = 0;
+tapMutants.forEach(function (pair) {
+  const kind = pair[0];
+  const next = pair[1](account);
+  if (next === account) {
+    fail("mutant did not apply: " + kind);
+    return;
+  }
+  const faults = authenticatorTapFaults(next);
+  if (faults.indexOf(kind) < 0) fail("mutant missed: " + kind + " (got " + JSON.stringify(faults) + ")");
+  else { tapCaught += 1; pass("mutant caught: " + kind); }
+});
+if (tapCaught !== tapMutants.length) fail("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
+else pass("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
 
 delete global.__aia;
 delete global.__aiaHydrate;
