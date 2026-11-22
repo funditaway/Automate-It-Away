@@ -280,7 +280,27 @@ async function runAll(SRC, HTML, LIB, SETTINGS) {
   if (stray !== strayBefore) s.fails.push("a promise was left unhandled");
   s.runtime = s.fails.length - staticCount;
   s.ok(SETTINGS.indexOf("scripts/check-account-security.js") >= 0, "check-account-settings.js runs this check");
+  const hook = proveSettingsHook(SETTINGS);
+  s.ok(hook.ok, hook.ok ? "npm hook honors a failing child, a signal, and a spawn error" : ("npm hook self-test failed: " + hook.detail));
   return s;
+}
+
+function proveSettingsHook(SETTINGS) {
+  const os = require("os");
+  const { spawnSync } = require("child_process");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-settings-hook-"));
+  try {
+    fs.writeFileSync(path.join(dir, "check-account-settings.js"), SETTINGS);
+    fs.copyFileSync(path.join(__dirname, "_env-guard.js"), path.join(dir, "_env-guard.js"));
+    const r = spawnSync(process.execPath, [path.join(dir, "check-account-settings.js"), "--prove-hook"], { encoding: "utf8", env: { PATH: process.env.PATH || "" }, timeout: 15000 });
+    const out = String(r.stderr || "") + String(r.stdout || "");
+    if (r.error) return { ok: false, detail: String(r.error) };
+    if (typeof r.status !== "number" || r.status !== 0 || r.signal) return { ok: false, detail: (out.slice(0, 1500) || ("exit " + r.status + " signal " + r.signal)) };
+    if (!/PASS check-account-settings hook/.test(r.stdout || "")) return { ok: false, detail: out.slice(0, 1500) || "missing PASS" };
+    return { ok: true };
+  } finally {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+  }
 }
 
 const MUTATIONS = [
@@ -305,7 +325,10 @@ const MUTATIONS = [
   ["mfa line dropped", "account-security.js", [['    if (!(d.account && d.account.mfaOn === true)) c.appendChild(el("p", "meta", TWO_FACTOR));\n', ""]]],
   ["mount not hidden", "account.html", [['<section id="acct-security" aria-label="Sign-in" hidden></section>', '<section id="acct-security" aria-label="Sign-in"></section>']]],
   ["script not loaded", "account.html", [['  <script src="account-security.js"></script>\n', ""]]],
-  ["not run by npm", "scripts/check-account-settings.js", [["scripts/check-account-security.js", "scripts/check-account-securityX.js"]]]
+  ["not run by npm", "scripts/check-account-settings.js", [["scripts/check-account-security.js", "scripts/check-account-securityX.js"]]],
+  ["hook ignores child exit", "scripts/check-account-settings.js", [['if (typeof result.status === "number" && result.status !== 0) return name', 'if (false && typeof result.status === "number" && result.status !== 0) return name']]],
+  ["hook treats a signal as a pass", "scripts/check-account-settings.js", [["if (!result || result.status == null || result.signal)", "if (false && (!result || result.status == null || result.signal))"]]],
+  ["hook swallows a spawn error", "scripts/check-account-settings.js", [['if (result && result.error) return name + " could not start: "', 'if (false && result && result.error) return name + " could not start: "']]]
 ];
 
 (async function main() {

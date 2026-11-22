@@ -1,5 +1,49 @@
 #!/usr/bin/env node
 require("./_env-guard");
+const { spawnSync } = require("child_process");
+
+// Hook helper for children that ride this npm entry. A non-zero exit, a signal
+// or missing status, or a spawn error must fail the parent with a clear note.
+function hookSpawn(args, opts) {
+  const cmd = opts && opts.execPath ? opts.execPath : process.execPath;
+  const spawnOpts = { encoding: "utf8", env: { PATH: (opts && opts.env && opts.env.PATH) || process.env.PATH || "" } };
+  try {
+    return spawnSync(cmd, args, spawnOpts);
+  } catch (err) {
+    return { error: err, status: null, signal: null, stdout: "", stderr: "" };
+  }
+}
+function hookChildProblem(result, name) {
+  if (result && result.error) return name + " could not start: " + (result.error.message || String(result.error));
+  if (!result || result.status == null || result.signal) {
+    return name + " did not finish" + (result && result.signal ? " (signal " + result.signal + ")" : " (no exit code)");
+  }
+  if (typeof result.status === "number" && result.status !== 0) return name + " failed:\n" + String(result.stderr || result.stdout || "").slice(0, 2000);
+  return null;
+}
+function proveNpmHookHonorsChild(fail, pass) {
+  const exited = hookSpawn(["-e", "process.exit(1)"]);
+  if (!hookChildProblem(exited, "forced-exit")) fail("hook ignored a child exit code of 1");
+  else if (pass) pass("hook reports a child exit code of 1");
+  const killed = hookSpawn(["-e", "process.kill(process.pid, 'SIGTERM')"]);
+  if (!hookChildProblem(killed, "forced-signal")) fail("hook treated a signal or null status as a pass");
+  else if (pass) pass("hook reports a child signal or null status");
+  const missing = hookSpawn(["-e", "process.exit(0)"], { execPath: "/no/such/aia-node-hook" });
+  if (!hookChildProblem(missing, "forced-spawn")) fail("hook swallowed a spawn error");
+  else if (pass) pass("hook reports a spawn error");
+  const swallowed = hookChildProblem({ error: new Error("spawn ENOENT"), status: 0, signal: null, stdout: "", stderr: "" }, "forced-spawn-status0");
+  if (!swallowed) fail("hook swallowed a spawn error when status was 0");
+  else if (pass) pass("hook reports a spawn error even if status is 0");
+}
+if (process.argv.indexOf("--prove-hook") >= 0) {
+  let hookFailed = false;
+  function fail(msg) { console.error("FAIL " + msg); hookFailed = true; }
+  function pass(msg) { console.log("ok  " + msg); }
+  proveNpmHookHonorsChild(fail, pass);
+  if (!hookFailed) console.log("PASS check-account-settings hook");
+  process.exit(hookFailed ? 1 : 0);
+}
+
 // Proves My account settings on /api/account (no network):
 // own seat reads and writes; other seats, helper seats on the same desk,
 // waiting seats, Desk AI seats, made-up and swapped account ids, and no seat
@@ -337,8 +381,11 @@ async function main() {
   if (words.status !== 0 || !/PASS check-presence-words/.test(words.stdout || "")) fail("check-presence-words failed:\n" + String(words.stderr || words.stdout || "").slice(0, 2000));
   // My account -> Sign-in (Two-factor, Backup codes, Signed-in devices) rides this npm entry too:
   // run scripts/check-account-security.js --mutants as a clean child and fail if it fails.
-  const security = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-account-security.js"), "--mutants"], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
-  if (security.status !== 0 || !/PASS check-account-security \(\d+ ok, (\d+)\/\1 built-in mutants\)/.test(security.stdout || "")) fail("check-account-security failed:\n" + String(security.stderr || security.stdout || "").slice(0, 2000));
+  // The same helper is self-tested first: a forced exit 1, a signal / null status, and a spawn error must be reported.
+  proveNpmHookHonorsChild(fail, pass);
+  const security = hookSpawn([path.join(root, "scripts/check-account-security.js"), "--mutants"]);
+  const securityProblem = hookChildProblem(security, "check-account-security");
+  if (securityProblem || !/PASS check-account-security \(\d+ ok, (\d+)\/\1 built-in mutants\)/.test(security.stdout || "")) fail(securityProblem || ("check-account-security failed:\n" + String(security.stderr || security.stdout || "").slice(0, 2000)));
   if (!failed) console.log("check-account-settings: ok");
 }
 
