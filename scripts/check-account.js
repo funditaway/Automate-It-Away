@@ -179,13 +179,28 @@ async function main() {
 
   const accountHtml = fs.readFileSync(path.join(__dirname, "..", "account.html"), "utf8");
   if (/if\(tok\) h\["X-Session"\]=tok; else if\(pin\)/.test(accountHtml)) {
-    fail("Account hdr must still send the open-desk pin when a session token is present");
-  } else pass("Account hdr keeps X-Pin with X-Session");
-  if (accountHtml.indexOf('if(pin) h["X-Pin"]=pin') < 0) fail("Account hdr must send X-Pin");
-  else pass("Account hdr sends X-Pin");
-  if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') < 0) {
-    fail("Account Open gate must prefill the saved owner code");
-  } else pass("Account Open gate prefills aia_pin");
+    fail("Account sign-in hdr must still send a typed pin even when a leftover session token is present");
+  } else pass("Account sign-in hdr can send a typed pin with a leftover session");
+  if (accountHtml.indexOf('if(pin) h["X-Pin"]=pin') < 0) fail("Account hdr must still send a typed pin on sign-in");
+  else pass("Account hdr sends a typed pin on sign-in");
+  if (!/<input[^>]*id="pin"[^>]*type="password"/.test(accountHtml) && !/<input[^>]*type="password"[^>]*id="pin"/.test(accountHtml)) {
+    fail("Account desk-code field must be type=password");
+  } else pass("Account desk-code field is type=password");
+  if (accountHtml.indexOf('id="pin"') >= 0 && accountHtml.indexOf('autocomplete="current-password"') < 0) {
+    fail("Account desk-code field must use autocomplete=current-password");
+  } else pass("Account desk-code field uses autocomplete=current-password");
+  if (accountHtml.indexOf('pinEl.value=localStorage.getItem("aia_pin")') >= 0) {
+    fail("Account must not prefill the desk code from localStorage");
+  } else pass("Account does not prefill a stored desk code");
+  if (accountHtml.indexOf('localStorage.removeItem("aia_pin")') < 0) {
+    fail("Account must drop a leftover desk code on load");
+  } else pass("Account drops a leftover desk code on load");
+  if (accountHtml.indexOf('localStorage.setItem("aia_pin"') >= 0) {
+    fail("Account must not write a desk code to localStorage");
+  } else pass("Account does not write a desk code to localStorage");
+  if (accountHtml.indexOf('localStorage.getItem("aia_pin")') >= 0) {
+    fail("Account must not read a stored desk code for writes");
+  } else pass("Account does not read a stored desk code for writes");
   if (accountHtml.indexOf("#gate[hidden]") < 0 || accountHtml.indexOf("display:none!important") < 0) {
     fail("Account Open gate must honor hidden after leftover session opens the book");
   } else pass("Account Open gate honors hidden");
