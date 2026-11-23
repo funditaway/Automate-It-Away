@@ -94,7 +94,7 @@
       }
       if (FILTER === "insurance") {
         const blob = [p.id, p.family, p.niche, p.name, p.creatorId].join(" ").toLowerCase();
-        return blob.indexOf("insurance") >= 0 || blob.indexOf("quote") >= 0 || p.id === "vita";
+        return blob.indexOf("insurance") >= 0 || blob.indexOf("quote") >= 0 || p.id === "vita" || p.id === "qia";
       }
       return true;
     });
@@ -135,7 +135,7 @@
       "</div>" +
       "<div class=\"card\"><b>Four steps on this desk · Try it</b>" +
         "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. 1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap. Collect stays HOLD.</p>" +
-        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a><a class=\"use ghost\" href=\"/market?pack=qia\">Quote ops pack</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
       "</div>" +
       "<form class=\"card\" id=\"find\">" +
         "<label>Search packs</label>" +
