@@ -20,7 +20,10 @@ const FACES = {
   fund: { id: "fund", key: "fund", name: "Fund", family: "Fund It Away" },
   land: { id: "land", key: "land", name: "Land", family: "Land It Away" },
   "aia-adoption": { id: "aia-adoption", key: "aia-adoption", name: "Try it on this desk", family: "Automate It Away" },
-  "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" }
+  "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" },
+  qia: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  "quote-ops": { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  quoteops: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" }
 };
 
 function moneyOf(job) {
@@ -107,6 +110,16 @@ const FACE_SPEC = {
     next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
     rails: ["Four steps on this desk.", "Collect stays HOLD. No silent send."],
     keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  qia: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When / SLA" },
+    where: { key: "state", label: "Territory / line" },
+    how: "Draft the next ops step. Match and vetting wait on Yes. Bind stays off. Collect stays HOLD.",
+    next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
+    rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"] }
   }
 };
 
@@ -350,6 +363,20 @@ function brainOf(packId, kind, shop) {
       artifact: "draft on the card",
       draft: "Four steps. Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
       next: "Walk 1→2→3→4. Queue cards count. Yes, Stop, or Kill stay human."
+    };
+  }
+  if (pack === "qia" || face.id === "qia") {
+    const vetting = /\b(vetting|license|agent application)\b/.test(k);
+    const billing = /\b(billing|stripe|renewal|tier)\b/.test(k);
+    return {
+      risk: vetting || billing || k === "match" ? "suitability" : "none",
+      artifact: k === "vetting" ? "vetting checklist" : k === "match" ? "match note" : k === "admin" ? "ops digest" : "quote packet",
+      draft: "Draft the Quote ops next step. Match and vetting wait on Yes. Bind stays off. Collect stays HOLD.",
+      next: vetting
+        ? "Vetting checklist on the Quote ops desk. Approve / deny is an owner tap. Target: 7 business days."
+        : k === "match"
+          ? "Match draft ready. Dispatch waits on Yes. Nothing routes itself."
+          : "Qualify line and territory. Draft only. Owner taps before anything leaves."
     };
   }
   const spec = packSpecOf(pack, shop);

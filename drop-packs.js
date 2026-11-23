@@ -6,7 +6,8 @@
     fund: { id: "fund", name: "Fund", kinds: ["request", "follow", "form"], hint: "Fund desk. Campaign note. Credit decision waits on you." },
     land: { id: "land", name: "Land", kinds: ["quote", "follow", "request"], hint: "Land desk. Lot interest. Cap flood and title." },
     "aia-adoption": { id: "aia-adoption", name: "Try it on this desk", kinds: ["task", "errand", "idea", "project"], hint: "Try first. Drop real work. AIA drafts. You tap Yes or Stop. Collect stays HOLD." },
-    "aia-implement": { id: "aia-implement", name: "Four steps on this desk", kinds: ["leak", "pipe", "agent", "guard"], hint: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD." }
+    "aia-implement": { id: "aia-implement", name: "Four steps on this desk", kinds: ["leak", "pipe", "agent", "guard"], hint: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD." },
+    qia: { id: "qia", name: "Quote ops", kinds: ["intake", "match", "vetting", "nudge", "billing", "admin"], hint: "Quote ops. Intake, match, 7-day vetting. Bind stays off. Collect stays HOLD." }
   };
   function packMeta(id) {
     var key = String(id || "").toLowerCase();
@@ -18,6 +19,7 @@
       var s = String(id || "").toLowerCase();
       if (!s) return;
       if (s === "insurance" || s === "quote") s = "vita";
+      if (s === "quote-ops" || s === "quoteops") s = "qia";
       if (s === "family") s = "home";
       if (s === "resale" || s === "consignment") s = "consign";
       if (listed.indexOf(s) < 0) listed.push(s);

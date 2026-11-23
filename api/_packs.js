@@ -8,6 +8,7 @@ const OFFICIAL = [
   { id: "home", name: "Home & family", type: "work", family: "Automate It Away", aisle: "Home", official: true, price: 0, use: "ok", does: "Reminders, chores, school, same-day.", features: ["reminder", "calendar", "same-day cap"], kinds: ["chore", "school", "pickup", "repair"] },
   { id: "consign", name: "Consignment & resale", type: "work", family: "Consign It Away", aisle: "Consign", official: true, price: 0, use: "ok", does: "Photo in. Listing draft. Collect HOLD until Yes + a real money pipe.", features: ["listing draft", "title hold", "collect hold"], kinds: ["list", "title", "payout"] },
   { id: "quote", name: "Insurance", type: "work", family: "Quote It Away", aisle: "Insurance", official: true, price: 0, use: "ok", does: "Fact-find and packet draft. Bind stays off.", features: ["packet draft", "bind off desk", "year-2 review"], kinds: ["lead", "quote", "call", "review"], face: "Insurance", packId: "vita" },
+  { id: "qia", name: "Quote ops", type: "work", family: "Quote It Away", aisle: "Insurance", official: true, price: 0, use: "ok", does: "Intake, agent match, 7-day vetting, nudges, billing alerts, admin exceptions. Bind off. Collect HOLD.", features: ["quote match", "7-day vetting", "ops digests", "collect hold"], kinds: ["intake", "match", "vetting", "nudge", "billing", "admin"], face: "Quote ops" },
   { id: "fund", name: "Fund raise", type: "work", family: "Fund It Away", aisle: "Fund", official: true, price: 0, use: "ok", does: "Campaign draft. Credit waits on the owner.", features: ["campaign draft", "credit wait"], kinds: ["raise", "credit"] },
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
   { id: "aia", name: "AIA Help", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "World problem in. Card on the AIA Admin Desk. You tap.", features: ["talk drop", "ticket card", "draft reply"], kinds: ["broke", "login", "desk", "account", "pack", "pipe", "idea"], face: "AIA Help" },
@@ -26,6 +27,7 @@ const PACK_FILES = {
   home: function () { return require("../packs/home.json"); },
   consign: function () { return require("../packs/consign.json"); },
   vita: function () { return require("../packs/vita.json"); },
+  qia: function () { return require("../packs/qia.json"); },
   fund: function () { return require("../packs/fund.json"); },
   land: function () { return require("../packs/land.json"); },
   aia: function () { return require("../packs/aia.json"); },
@@ -213,6 +215,9 @@ function findPack(id, opts) {
   const want = String(id || "").toLowerCase();
   if (want === "vita" || want === "insurance" || want === "quoteitaway") {
     return allPacks(opts).find(function (p) { return p.id === "quote"; });
+  }
+  if (want === "qia" || want === "quote-ops" || want === "quoteops") {
+    return allPacks(opts).find(function (p) { return p.id === "qia"; });
   }
   return allPacks(opts).find(function (p) {
     if (!p) return false;

@@ -55,6 +55,14 @@
       next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
       rails: ["Four steps on this desk.", "Webhook only. eBay and mail stay off.", "Collect stays HOLD. No silent send. No fake on-chain."],
       keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
+    },
+    qia: {
+      id: "qia", name: "Quote ops",
+      who: "Who it is for", what: "What the work is", when: "When / SLA", where: "Territory / line",
+      how: "Draft the next ops step. Match and vetting wait on Yes. Bind stays off.",
+      next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
+      rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"], how: ["product", "need"] }
     }
   };
   function first(j, keys) {
@@ -74,6 +82,7 @@
     var raw = j.pack || custom.pack || (custom.packs && custom.packs[0]) || "";
     var s = String(raw || "").toLowerCase();
     if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
+    if (s === "quote-ops" || s === "quoteops") s = "qia";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
     return s;
