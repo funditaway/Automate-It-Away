@@ -87,6 +87,9 @@ if (!/\/api\/queue\/status/.test(serveSrc)) fail("serve-queue missing /api/queue
 else pass("serve-queue status route");
 if (!/gemini-aia-desk\.html/.test(serveSrc)) fail("serve-queue must serve desk HTML");
 else pass("serve-queue desk static");
+if (/Access-Control-Allow-Origin/.test(serveSrc)) {
+  fail("serve-queue must not set CORS (same-origin desk; no wildcard ACAO)");
+} else pass("serve-queue no CORS");
 const deskJs = fs.readFileSync(path.join(packDir, "gemini-aia-desk.js"), "utf8");
 if (/AUTO_APPROVED_AND_COMPLETED/.test(deskJs)) fail("desk must not auto-approve completions");
 else pass("desk HITL voice");

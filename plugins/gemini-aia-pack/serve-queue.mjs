@@ -30,11 +30,11 @@ const MIME = {
 }
 
 function sendJson(res, status, body) {
+  // Same-origin only — desk is served from this daemon. No CORS headers:
+  // wildcard ACAO would let other browser origins hit this unauthenticated
+  // loopback API (confused deputy / GEMINI_API_KEY spend).
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
   })
   res.end(JSON.stringify(body))
 }
@@ -71,11 +71,6 @@ async function readJsonBody(req) {
 async function handleDeskQueueApi(req, res) {
   const url = (req.url || '').split('?')[0]
   const method = req.method || 'GET'
-
-  if (method === 'OPTIONS') {
-    sendJson(res, 204, {})
-    return true
-  }
 
   if (method === 'GET' && (url === '/api/queue/status' || url === '/api/aia/queue/status')) {
     sendJson(res, 200, { items: listQueueItems() })
