@@ -71,6 +71,14 @@
       next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes.",
       rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
       keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
+    },
+    "meta-gemini": {
+      id: "meta-gemini", name: "Meta.aia + Gemini",
+      who: "Who it is for", what: "What the work is", when: "When", where: "Which desk",
+      how: "Meta and Gemini draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD.",
+      next: "Meta + Gemini DRAFT READY. You pick. Copy / Text / Email / Hand after Yes.",
+      rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
     }
   };
   function first(j, keys) {
@@ -92,6 +100,7 @@
     if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
     if (s === "quote-ops" || s === "quoteops") s = "qia";
     if (s === "meta.aia" || s === "meta-ready" || s === "meta-world-desk" || s === "meta-claude" || s === "meta-official" || s === "meta-official-claude-included") s = "meta";
+    if (s === "gemini" || s === "meta-official-gemini-included" || s === "meta-gemini.aia") s = "meta-gemini";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
     return s;

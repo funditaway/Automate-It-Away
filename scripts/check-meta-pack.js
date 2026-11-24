@@ -91,7 +91,8 @@ const satellites = [
   "meta-automations-account.json",
   "meta-creator-studio.json",
   "meta-setup.json",
-  "meta-claude.json"
+  "meta-claude.json",
+  "meta-gemini.json"
 ];
 satellites.forEach(function (name) {
   const p = path.join(root, "packs", name);

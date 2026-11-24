@@ -1,0 +1,22 @@
+[
+  {
+    "item_id": "Q-301",
+    "source": "email",
+    "channel": "support",
+    "text": "Client requested to update their mailing address on file and asked if today's payment cleared."
+  },
+  {
+    "item_id": "Q-302",
+    "source": "webhook",
+    "channel": "web_form",
+    "text": "Need help fixing a workflow step that stopped after the last edit, not sure which card failed."
+  },
+  {
+    "item_id": "Q-303",
+    "card_id": "gemini-draft-card",
+    "source": "queue",
+    "channel": "desk",
+    "priority": "high",
+    "text": "Draft a short, plain follow-up asking the client to confirm their new street address before we submit the endorsement change."
+  }
+]

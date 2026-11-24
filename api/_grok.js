@@ -5,7 +5,8 @@ const crypto = require("crypto");
 const AI_PROVIDERS = {
   grok: { vendor: "xAI", model: "grok-4-fast-non-reasoning" },
   openai: { vendor: "OpenAI", model: "gpt-4o-mini" },
-  anthropic: { vendor: "Anthropic", model: "claude-sonnet-4-20250514" }
+  anthropic: { vendor: "Anthropic", model: "claude-sonnet-4-20250514" },
+  gemini: { vendor: "Google", model: "gemini-2.0-flash" }
 };
 function connectSecret() {
   const s = process.env.AIA_CONNECT_SECRET;
@@ -217,6 +218,29 @@ async function callAnthropic(drafter, job, shop) {
   return { ok: true, text: block && block.text };
 }
 
+async function callGemini(drafter, job, shop) {
+  const model = encodeURIComponent(drafter.model || "gemini-2.0-flash");
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(drafter.key);
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: [{ role: "user", parts: [{ text: JSON.stringify(jobBrief(job, shop)) }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 360 }
+    }),
+    signal: typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = clip((data.error && data.error.message) || (data.error && data.error.status), 120);
+    return { ok: false, reason: "http-" + r.status, error: err };
+  }
+  const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const text = Array.isArray(parts) ? parts.map(function (p) { return p && p.text; }).filter(Boolean).join("\n") : "";
+  return { ok: true, text: text };
+}
+
 async function callGrok(drafter, job, shop, opts) {
   const payload = {
     model: drafter.model || grokModel(),
@@ -255,6 +279,7 @@ async function grokRecommend(job, shop, workspace) {
     let out;
     if (drafter.provider === "openai") out = await callOpenAI(drafter, job, shop);
     else if (drafter.provider === "anthropic") out = await callAnthropic(drafter, job, shop);
+    else if (drafter.provider === "gemini") out = await callGemini(drafter, job, shop);
     else out = await callGrok(drafter, job, shop);
     if (!out || !out.ok) return { ok: false, skipped: false, reason: (out && out.reason) || "http", error: out && out.error, provider: drafter.provider };
     const parsed = parseGrok(out.text) || {};
@@ -298,18 +323,27 @@ async function studioDraft(brief, workspace, opts) {
         { role: "user", content: JSON.stringify({ brief: text, kind: kind, never: ["send", "stop", "pay", "bind", "mail"], collect: "hold", aisBound: "desk", tld: ".aia", internet: "AIA Internet", chain: false }) }
       ]
     };
-    const url = drafter.provider === "openai"
-      ? "https://api.openai.com/v1/chat/completions"
-      : drafter.provider === "anthropic"
-        ? "https://api.anthropic.com/v1/messages"
-        : "https://api.x.ai/v1/chat/completions";
     const headers = { "Content-Type": "application/json" };
+    let url;
     let body = payload;
-    if (drafter.provider === "anthropic") {
+    if (drafter.provider === "openai") {
+      url = "https://api.openai.com/v1/chat/completions";
+      headers.Authorization = "Bearer " + drafter.key;
+    } else if (drafter.provider === "anthropic") {
+      url = "https://api.anthropic.com/v1/messages";
       headers["x-api-key"] = drafter.key;
       headers["anthropic-version"] = "2023-06-01";
       body = { model: drafter.model, max_tokens: 500, temperature: 0.2, system: STUDIO_SYSTEM, messages: [{ role: "user", content: payload.messages[1].content }] };
+    } else if (drafter.provider === "gemini") {
+      const model = encodeURIComponent(drafter.model || "gemini-2.0-flash");
+      url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(drafter.key);
+      body = {
+        systemInstruction: { parts: [{ text: STUDIO_SYSTEM }] },
+        contents: [{ role: "user", parts: [{ text: payload.messages[1].content }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 500 }
+      };
     } else {
+      url = "https://api.x.ai/v1/chat/completions";
       headers.Authorization = "Bearer " + drafter.key;
     }
     const r = await fetch(url, {
@@ -324,6 +358,9 @@ async function studioDraft(brief, workspace, opts) {
     if (drafter.provider === "anthropic") {
       const block = (data.content || []).find((b) => b && b.type === "text");
       raw = block && block.text;
+    } else if (drafter.provider === "gemini") {
+      const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      raw = Array.isArray(parts) ? parts.map(function (p) { return p && p.text; }).filter(Boolean).join("\n") : "";
     } else {
       raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
     }

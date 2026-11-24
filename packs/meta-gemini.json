@@ -1,0 +1,96 @@
+{
+  "id": "meta-gemini",
+  "name": "Meta.aia + Gemini",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-gemini.aia",
+  "file": "meta-gemini.aia",
+  "price": 0,
+  "version": "1.1.0-Official-Gemini-Included",
+  "gemini_included": true,
+  "plugin_pack": "plugins/gemini-aia-pack",
+  "blurb": "Gemini desk AIs draft beside Meta on the same cards. Human picks the draft. Collect stays HOLD. Modular runner lives in plugins/gemini-aia-pack.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "Which desk" },
+    "how": "Meta + Gemini draft side-by-side. You pick. Yes / Stop / Kill stay human."
+  },
+  "capture": ["drop", "call", "hook", "email"],
+  "qualify": ["fit", "which draft"],
+  "do": ["meta draft", "gemini draft"],
+  "collect": ["Collect stays HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["not a fit", "duplicate", "spam"],
+  "pipes": ["webhook"],
+  "artifacts": ["dual draft card"],
+  "kinds": ["lead", "support", "content"],
+  "rails": [
+    "Gemini included drafts only. Never Yes / Stop / pay / send.",
+    "Human picks Meta or Gemini draft on the card.",
+    "Buyer binds their own Google AI / Gemini key on Pipes. AIA charges nothing.",
+    "Collect stays HOLD until Yes + a real money pipe."
+  ],
+  "rules": [
+    { "text": "Draft on new work.", "when": "drop", "then": "draft", "contains": "lead" },
+    { "text": "Cap spam.", "when": "qualify", "then": "cap", "contains": "spam" },
+    { "text": "One nudge then stop.", "when": "follow", "then": "note", "contains": "nudge" }
+  ],
+  "ais": [
+    {
+      "id": "gemini_catch",
+      "name": "Gemini - Catch",
+      "aia": "catch@gemini.aia",
+      "type": "gemini",
+      "included": true,
+      "role": "Catcher",
+      "does": "Fast multimodal catch reasoning. Draft only.",
+      "prompt": "Gemini draft ready. I cannot send, pay, or bind.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "gemini_words",
+      "name": "Gemini - Words",
+      "aia": "words@gemini.aia",
+      "type": "gemini",
+      "included": true,
+      "role": "Writer",
+      "does": "Clear words draft beside Meta. DRAFT READY.",
+      "prompt": "Gemini draft ready. Words only. I cannot send.",
+      "steps": ["do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "gemini_collect_guard",
+      "name": "Gemini - Collect Guard",
+      "aia": "collect@gemini.aia",
+      "type": "gemini",
+      "included": true,
+      "role": "Rail",
+      "does": "Collect HOLD reminder. Never charges.",
+      "prompt": "Collect stays HOLD until Yes + a real money pipe.",
+      "steps": ["collect", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "pay"]
+    }
+  ],
+  "queue": {
+    "badge": "Gemini",
+    "family": "Meta.aia",
+    "empty": "Meta + Gemini draft on the same cards. You pick. Collect stays HOLD.",
+    "chips": ["lead", "support", "content"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Drop work for Meta + Gemini side-by-side drafts. You pick.",
+  "how": {
+    "capture": "Drop a file, forward email, or hook onto the desk.",
+    "qualify": "Gemini Catch drafts FIT beside Meta. You still decide.",
+    "do": "Gemini Words draft side-by-side. DRAFT READY. Copy / Text / Email / Hand after Yes.",
+    "collect": "Invoice / pay stays HOLD until Yes + a real money pipe. Packs never charge.",
+    "follow": "One nudge draft. Then stop. Nothing sends itself."
+  }
+}
