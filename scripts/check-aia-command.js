@@ -33,6 +33,12 @@ function mustExist(rel) {
   'verifyAuditBundle.js',
   'statusSummary.js',
   'archiveLedgerWindow.js',
+  'verifyLedgerSlice.js',
+  'reconcileQueue.js',
+  'flushSpool.js',
+  'requeueDeadletter.js',
+  'watchdog.js',
+  'verifyAllIntegrity.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -41,7 +47,10 @@ function mustExist(rel) {
   'smoke.sh',
   'releaseCheck.sh',
   'backup.sh',
+  'restore.sh',
   'maintain.sh',
+  'installService.sh',
+  'generateRunbook.js',
   '.env.example',
   'public/index.html',
   'lib/decisionCard.js',
@@ -57,8 +66,19 @@ const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
 })
 
 const keys = fs.readFileSync(path.join(command, 'lib', 'keys.js'), 'utf8')
-;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json'].forEach((bit) => {
+;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json', 'dryRun'].forEach((bit) => {
   if (keys.indexOf(bit) < 0) fail('lib/keys.js missing ' + bit)
+})
+
+const rotateKey = fs.readFileSync(path.join(command, 'rotateKey.js'), 'utf8')
+;[
+  '--dry-run',
+  'rotateKeypair',
+  'previousActiveKeyId',
+  'ed25519.pem',
+  'keyring.json',
+].forEach((bit) => {
+  if (rotateKey.indexOf(bit) < 0) fail('rotateKey.js missing ' + bit)
 })
 
 const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
@@ -161,11 +181,20 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'verify-audit',
   'status',
   'archive',
+  'verify-slice',
+  'reconcile',
+  'flush',
+  'requeue',
+  'watchdog',
+  'verify-all',
   'smoke',
   'release',
   'start',
   'backup',
+  'restore',
   'maintain',
+  'install-service',
+  'runbook',
   'test',
 ].forEach((script) => {
   if (!pkg.scripts || !pkg.scripts[script]) fail('package.json missing script ' + script)
@@ -186,11 +215,20 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'verify-audit:',
   'status:',
   'archive:',
+  'verify-slice:',
+  'reconcile:',
+  'flush:',
+  'requeue:',
+  'watchdog:',
+  'verify-all:',
   'smoke:',
   'release:',
   'start:',
   'backup:',
+  'restore:',
   'maintain:',
+  'install-service:',
+  'runbook:',
 ].forEach((target) => {
   if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
 })
@@ -201,10 +239,27 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'ledger.ndjson',
   'make keygen',
   'make rotate',
+  'ROTATE_FLAGS',
   'make export',
   'make verify-audit',
   'make status',
   'make archive',
+  'make verify-slice',
+  'make reconcile',
+  'make flush',
+  'make requeue',
+  'make watchdog',
+  'make verify-all',
+  'make restore',
+  'make backup',
+  'make maintain',
+  'make install-service',
+  'make runbook',
+  'AIA_LOG_MAX_LINES',
+  'installService.sh',
+  'generateRunbook.js',
+  'RUNBOOK.md',
+  'RELEASE_FLAGS',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -214,9 +269,75 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'verifyAuditBundle.js',
   'statusSummary.js',
   'archiveLedgerWindow.js',
+  'verifyLedgerSlice.js',
+  'reconcileQueue.js',
+  'flushSpool.js',
+  'requeueDeadletter.js',
+  'watchdog.js',
+  'verifyAllIntegrity.js',
+  'restore.sh',
+  'aia-state-',
+  'spool.deadletter.ndjson',
+  '/healthz',
+  '/readyz',
   'ledger.anchor.json',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
+})
+
+const flushSpool = fs.readFileSync(path.join(command, 'flushSpool.js'), 'utf8')
+;[
+  'flushSpool',
+  'spool.ndjson',
+  'spool.deadletter.ndjson',
+  '--dry-run',
+  '--quarantine-invalid',
+  'MALFORMED_JSON',
+  'X-AIA-Signature',
+].forEach((bit) => {
+  if (flushSpool.indexOf(bit) < 0) fail('flushSpool.js missing ' + bit)
+})
+
+const requeueDeadletter = fs.readFileSync(path.join(command, 'requeueDeadletter.js'), 'utf8')
+;[
+  'requeueDeadletter',
+  'extractRecoverablePayload',
+  '--inspect',
+  '--send',
+  '--reason',
+  '--limit',
+  'spool.deadletter.ndjson',
+].forEach((bit) => {
+  if (requeueDeadletter.indexOf(bit) < 0) fail('requeueDeadletter.js missing ' + bit)
+})
+
+const watchdog = fs.readFileSync(path.join(command, 'watchdog.js'), 'utf8')
+;[
+  'runWatchdog',
+  '/healthz',
+  '/readyz',
+  '--restart-cmd',
+  '--dry-run',
+  '--no-ingest',
+  'AIA_WATCHDOG_RESTART_CMD',
+].forEach((bit) => {
+  if (watchdog.indexOf(bit) < 0) fail('watchdog.js missing ' + bit)
+})
+if (server.indexOf('/healthz') < 0 || server.indexOf('/readyz') < 0) {
+  fail('server.js missing /healthz or /readyz probe routes')
+}
+
+const verifyAll = fs.readFileSync(path.join(command, 'verifyAllIntegrity.js'), 'utf8')
+;[
+  'verifyAllIntegrity',
+  '--bundle',
+  'reconcileQueue',
+  'verifyLedgerFile',
+  'verifyAuditBundleFile',
+  'buildStatusSummary',
+  'dryRun: true',
+].forEach((bit) => {
+  if (verifyAll.indexOf(bit) < 0) fail('verifyAllIntegrity.js missing ' + bit)
 })
 
 const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')
@@ -236,13 +357,89 @@ const verifyAudit = fs.readFileSync(path.join(command, 'verifyAuditBundle.js'), 
   if (verifyAudit.indexOf(bit) < 0) fail('verifyAuditBundle.js missing ' + bit)
 })
 
-;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'restore.sh', 'maintain.sh', 'installService.sh', 'start.sh'].forEach((name) => {
   try {
     fs.accessSync(path.join(command, name), fs.constants.X_OK)
   } catch {
     fail(name + ' must be executable')
   }
 })
+
+const backupSh = fs.readFileSync(path.join(command, 'backup.sh'), 'utf8')
+;[
+  'aia-state-',
+  '.sha256',
+  'AIA_BACKUP_DIR',
+  'PACKS_DIR',
+  'sha256sum',
+].forEach((bit) => {
+  if (backupSh.indexOf(bit) < 0) fail('backup.sh missing ' + bit)
+})
+
+const restoreSh = fs.readFileSync(path.join(command, 'restore.sh'), 'utf8')
+;[
+  '--dry-run',
+  'pre-restore-',
+  'verifyAllIntegrity.js',
+  '.sha256',
+  'Checksum verification failed',
+].forEach((bit) => {
+  if (restoreSh.indexOf(bit) < 0) fail('restore.sh missing ' + bit)
+})
+
+const maintainSh = fs.readFileSync(path.join(command, 'maintain.sh'), 'utf8')
+;[
+  '--dry-run',
+  'AIA_TMP_MAX_AGE_MIN',
+  'AIA_LOG_MAX_LINES',
+  'verifyAllIntegrity.js',
+  'chmod 700',
+  'chmod 600',
+  '*.tmp',
+].forEach((bit) => {
+  if (maintainSh.indexOf(bit) < 0) fail('maintain.sh missing ' + bit)
+})
+
+const installServiceSh = fs.readFileSync(path.join(command, 'installService.sh'), 'utf8')
+;[
+  '--dry-run',
+  '--enable',
+  '--ingest',
+  'server.js',
+  'systemd',
+  'launchd',
+  'Restart=on-failure',
+].forEach((bit) => {
+  if (installServiceSh.indexOf(bit) < 0) fail('installService.sh missing ' + bit)
+})
+
+const releaseCheckSh = fs.readFileSync(path.join(command, 'releaseCheck.sh'), 'utf8')
+;[
+  'verifyAllIntegrity.js',
+  'maintain.sh',
+  'installService.sh',
+  '--strict-keyring',
+  '--quick',
+  'doctor.js',
+  'PASSED',
+].forEach((bit) => {
+  if (releaseCheckSh.indexOf(bit) < 0) fail('releaseCheck.sh missing ' + bit)
+})
+
+const generateRunbook = fs.readFileSync(path.join(command, 'generateRunbook.js'), 'utf8')
+;[
+  'generateRunbook',
+  'RUNBOOK.md',
+  'ed25519.pem',
+  'activeKeyId',
+  'Never commit',
+  '--out',
+].forEach((bit) => {
+  if (generateRunbook.indexOf(bit) < 0) fail('generateRunbook.js missing ' + bit)
+})
+if (generateRunbook.indexOf('process.env') >= 0 && /AIA_WEBHOOK_SECRET\s*=/.test(generateRunbook)) {
+  fail('generateRunbook.js must not embed webhook secret values')
+}
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {
   const install = spawnSync('npm', ['install'], { cwd: command, encoding: 'utf8' })

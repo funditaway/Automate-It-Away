@@ -6,9 +6,16 @@
  * lines remain verifiable after cutover.
  */
 import { createHash, createPublicKey, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { canonicalJson } from './canonical.js'
+
+function atomicWriteFile(targetPath, content, mode = 0o600) {
+  mkdirSync(dirname(targetPath), { recursive: true, mode: 0o700 })
+  const tmpPath = `${targetPath}.${process.pid}.tmp`
+  writeFileSync(tmpPath, content, { mode })
+  renameSync(tmpPath, targetPath)
+}
 
 export const KEYRING_FILE = 'keyring.json'
 
@@ -56,7 +63,7 @@ export function loadKeyring(keyDir) {
 export function saveKeyring(keyDir, keyring) {
   mkdirSync(keyDir, { recursive: true, mode: 0o700 })
   const path = join(keyDir, KEYRING_FILE)
-  writeFileSync(path, JSON.stringify(keyring, null, 2) + '\n', { mode: 0o600 })
+  atomicWriteFile(path, JSON.stringify(keyring, null, 2) + '\n', 0o600)
 }
 
 function upsertActiveKey(keyring, publicKeyPem, createdAt = new Date().toISOString()) {
@@ -118,8 +125,8 @@ export function loadTrustedPublicKeys(keyDir) {
 
 function writeActiveKeypair(keyDir, publicKeyPem, privateKeyPem) {
   mkdirSync(keyDir, { recursive: true, mode: 0o700 })
-  writeFileSync(join(keyDir, 'ed25519.pub.pem'), publicKeyPem, { mode: 0o600 })
-  writeFileSync(join(keyDir, 'ed25519.pem'), privateKeyPem, { mode: 0o600 })
+  atomicWriteFile(join(keyDir, 'ed25519.pub.pem'), publicKeyPem, 0o600)
+  atomicWriteFile(join(keyDir, 'ed25519.pem'), privateKeyPem, 0o600)
 }
 
 function mintKeypair() {
@@ -155,11 +162,14 @@ export function loadOrCreateKeypair(keyDir) {
 /**
  * Non-destructive rotation: retire the active key in keyring.json (keeping
  * publicKeyPem), mint a new Ed25519 pair, and rewrite the active PEM files.
+ * Pass `{ dryRun: true }` to preview the new keyId without mutating disk.
  */
-export function rotateKeypair(keyDir) {
+export function rotateKeypair(keyDir, opts = {}) {
   mkdirSync(keyDir, { recursive: true, mode: 0o700 })
-  const nowIso = new Date().toISOString()
+  const nowIso = opts.rotatedAt || new Date().toISOString()
+  const dryRun = Boolean(opts.dryRun)
   const keyring = loadKeyring(keyDir)
+  const previousActiveKeyId = keyring.activeKeyId || null
   const pubPath = join(keyDir, 'ed25519.pub.pem')
   const privPath = join(keyDir, 'ed25519.pem')
 
@@ -167,24 +177,56 @@ export function rotateKeypair(keyDir) {
     upsertActiveKey(keyring, readFileSync(pubPath, 'utf8'))
   }
 
+  const previousActive =
+    keyring.keys.find((k) => k.keyId === keyring.activeKeyId) ||
+    keyring.keys.find((k) => k.status === 'ACTIVE') ||
+    null
+
   for (const item of keyring.keys) {
     if (item.status === 'ACTIVE') {
       item.status = 'RETIRED'
-      item.retiredAt = nowIso
+      item.retiredAt = item.retiredAt || nowIso
     }
   }
 
   const keys = mintKeypair()
+  const previewFingerprint = publicKeyFingerprint(keys.publicKeyPem)
+  const previewKeyId = keyIdFor(previewFingerprint, nowIso)
+
+  if (dryRun) {
+    return {
+      dryRun: true,
+      previousActiveKeyId: previousActive?.keyId || previousActiveKeyId,
+      keyId: previewKeyId,
+      fingerprint: previewFingerprint,
+      publicKeyHex: keys.publicKeyHex,
+      publicKeyPem: keys.publicKeyPem,
+      privateKeyPem: null,
+      keyring: loadKeyring(keyDir),
+      rotatedAt: nowIso,
+      keyDir,
+      privateKeyPath: privPath,
+      publicKeyPath: pubPath,
+      keyringPath: join(keyDir, KEYRING_FILE),
+    }
+  }
+
   writeActiveKeypair(keyDir, keys.publicKeyPem, keys.privateKeyPem)
   const record = upsertActiveKey(keyring, keys.publicKeyPem, nowIso)
   saveKeyring(keyDir, keyring)
 
   return {
+    dryRun: false,
+    previousActiveKeyId: previousActive?.keyId || previousActiveKeyId,
     ...keys,
     keyId: record.keyId,
     fingerprint: record.fingerprint,
     keyring,
     rotatedAt: nowIso,
+    keyDir,
+    privateKeyPath: privPath,
+    publicKeyPath: pubPath,
+    keyringPath: join(keyDir, KEYRING_FILE),
   }
 }
 
