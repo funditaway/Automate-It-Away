@@ -35,6 +35,7 @@ const requiredFiles = [
   './serve-queue.mjs',
   './queueApiHandlerV2.mjs',
   './chainCards.mjs',
+  './readBodyLimited.mjs',
   './.env.example',
   './README.md',
 ]
