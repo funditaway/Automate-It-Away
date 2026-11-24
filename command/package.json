@@ -12,6 +12,8 @@
     "replay": "node replayPacks.js",
     "export": "node exportAudit.js",
     "verify-audit": "node verifyAuditBundle.js",
+    "status": "node statusSummary.js",
+    "archive": "node archiveLedgerWindow.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",

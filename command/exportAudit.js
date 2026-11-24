@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { canonicalJson, sha256Text } from './lib/canonical.js'
 import { loadKeyring, loadTrustedPublicKeys } from './lib/keys.js'
-import { Ledger, verifyLedgerEntries } from './lib/ledger.js'
+import { Ledger, loadLedgerAnchor, verifyLedgerEntries } from './lib/ledger.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -68,8 +68,12 @@ export function buildAuditBundle(opts = {}) {
 
   const keyring = publicKeyringView(loadKeyring(keyDir))
   const trust = loadTrustedPublicKeys(keyDir)
-  // Always audit the full chain; --card only filters which lines are exported.
-  const verification = verifyLedgerEntries(allEntries, trust)
+  const anchor = loadLedgerAnchor(ledgerPath)
+  // Always audit the hot chain; --card only filters which lines are exported.
+  const verification = verifyLedgerEntries(allEntries, trust, {
+    expectedPrev: anchor?.expectedPrev,
+    expectedNextSeq: anchor?.expectedNextSeq,
+  })
 
   const unsignedBundle = {
     schemaVersion: '1.0',

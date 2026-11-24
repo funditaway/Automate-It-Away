@@ -24,6 +24,8 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `verifyLedger.js` | Recomputes SHA-256 chain links; verifies signatures against active + retired keyring keys |
 | `exportAudit.js` | Private-key-free audit bundle (ledger + public keyring + verification + `bundleSha256`) |
 | `verifyAuditBundle.js` | Offline verifier for audit bundles (digest + signatures + contiguous `prev` links) |
+| `statusSummary.js` | Read-only queue/spool/keyring/ledger snapshot (no daemon, no mutation) |
+| `archiveLedgerWindow.js` | Archive older ledger lines into hash-indexed slices; writes `ledger.anchor.json` |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -42,7 +44,9 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `data/.keys/ed25519.pem` | Private signing key (mode `0600`) |
 | `data/.keys/ed25519.pub.pem` | Public key |
 | `data/.keys/keyring.json` | Active + retired public keys for historical verification |
-| `data/ledger.ndjson` | Append-only hash-chained audit log |
+| `data/ledger.ndjson` | Append-only hash-chained audit log (hot window) |
+| `data/ledger.anchor.json` | Boundary after archival (`expectedPrev` / `expectedNextSeq`) |
+| `data/ledger-archives/` | Archived ledger slices + manifests |
 | `backups/` | Cold archives from `backup.sh` |
 
 ## Quickstart
@@ -70,6 +74,8 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make replay` / `npm run replay` | Dry-load `../packs/*.json` without mutating state |
 | `make export` / `npm run export` | Write a private-key-free audit JSON under `audits/` (`--card`, `--out`) |
 | `make verify-audit BUNDLE=…` | Offline-verify an audit bundle (`npm run verify-audit -- path.json`) |
+| `make status` / `npm run status` | Queue / spool / keyring / ledger tip snapshot |
+| `make archive` / `npm run archive` | Archive older ledger lines (`ARCHIVE_FLAGS='--keep-last 100 --dry-run'`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |

@@ -3,4 +3,5 @@ data/
 .keys/
 backups/
 audits/
+ledger-archives/
 .env

@@ -34,6 +34,16 @@ if [ -f "$DATA_DIR/ledger.ndjson" ]; then
   cp -p "$DATA_DIR/ledger.ndjson" "$STAGE_DIR/bundle/data/ledger.ndjson"
 fi
 
+if [ -f "$DATA_DIR/ledger.anchor.json" ]; then
+  cp -p "$DATA_DIR/ledger.anchor.json" "$STAGE_DIR/bundle/data/ledger.anchor.json"
+fi
+
+if [ -d "$DATA_DIR/ledger-archives" ]; then
+  mkdir -p "$STAGE_DIR/bundle/data/ledger-archives"
+  find "$DATA_DIR/ledger-archives" -maxdepth 1 -type f \( -name '*.ndjson' -o -name '*.meta.json' \) \
+    -exec cp -p {} "$STAGE_DIR/bundle/data/ledger-archives/" \;
+fi
+
 if [ -d "$DATA_DIR/.keys" ]; then
   find "$DATA_DIR/.keys" -maxdepth 1 -type f \( -name 'ed25519*.pem' -o -name 'keyring.json' -o -name '*.retired-*' \) \
     -exec cp -p {} "$STAGE_DIR/bundle/data/.keys/" \;

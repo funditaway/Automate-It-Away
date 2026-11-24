@@ -31,6 +31,8 @@ function mustExist(rel) {
   'rotateKey.js',
   'exportAudit.js',
   'verifyAuditBundle.js',
+  'statusSummary.js',
+  'archiveLedgerWindow.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -60,7 +62,16 @@ const keys = fs.readFileSync(path.join(command, 'lib', 'keys.js'), 'utf8')
 })
 
 const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
-;['ledger', 'entryHash', 'appendFileSync', 'buildTrustedKeyMap', 'trusted keyring'].forEach((bit) => {
+;[
+  'ledger',
+  'entryHash',
+  'appendFileSync',
+  'buildTrustedKeyMap',
+  'trusted keyring',
+  'ledger.anchor.json',
+  'writeLedgerAnchor',
+  'expectedNextSeq',
+].forEach((bit) => {
   if (ledger.indexOf(bit) < 0) fail('lib/ledger.js missing ' + bit)
 })
 if (ledger.indexOf('sha256') < 0 && ledger.indexOf('payloadHash') < 0) fail('ledger missing hash proof')
@@ -148,6 +159,8 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'replay',
   'export',
   'verify-audit',
+  'status',
+  'archive',
   'smoke',
   'release',
   'start',
@@ -171,6 +184,8 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'replay:',
   'export:',
   'verify-audit:',
+  'status:',
+  'archive:',
   'smoke:',
   'release:',
   'start:',
@@ -188,6 +203,8 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make rotate',
   'make export',
   'make verify-audit',
+  'make status',
+  'make archive',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -195,6 +212,9 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'keyring.json',
   'exportAudit.js',
   'verifyAuditBundle.js',
+  'statusSummary.js',
+  'archiveLedgerWindow.js',
+  'ledger.anchor.json',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
 })
