@@ -26,6 +26,8 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `verifyAuditBundle.js` | Offline verifier for audit bundles (digest + signatures + contiguous `prev` links) |
 | `statusSummary.js` | Read-only queue/spool/keyring/ledger snapshot (no daemon, no mutation) |
 | `archiveLedgerWindow.js` | Archive older ledger lines into hash-indexed slices; writes `ledger.anchor.json` |
+| `verifyLedgerSlice.js` | Verify archived slice `.ndjson` + `.meta.json` (digest, signatures, `prev` continuity) |
+| `reconcileQueue.js` | Sync `active_queue.json` statuses to ledger.ndjson decisions (dry-run + atomic write) |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -76,6 +78,8 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make verify-audit BUNDLE=…` | Offline-verify an audit bundle (`npm run verify-audit -- path.json`) |
 | `make status` / `npm run status` | Queue / spool / keyring / ledger tip snapshot |
 | `make archive` / `npm run archive` | Archive older ledger lines (`ARCHIVE_FLAGS='--keep-last 100 --dry-run'`) |
+| `make verify-slice SLICE=…` | Verify an archived ledger slice (`META=` optional) |
+| `make reconcile` / `npm run reconcile` | Reconcile queue snapshot vs ledger (`RECONCILE_FLAGS=--dry-run`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
