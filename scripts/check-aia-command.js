@@ -241,6 +241,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make install-service',
   'AIA_LOG_MAX_LINES',
   'installService.sh',
+  'RELEASE_FLAGS',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -392,6 +393,19 @@ const installServiceSh = fs.readFileSync(path.join(command, 'installService.sh')
   'Restart=on-failure',
 ].forEach((bit) => {
   if (installServiceSh.indexOf(bit) < 0) fail('installService.sh missing ' + bit)
+})
+
+const releaseCheckSh = fs.readFileSync(path.join(command, 'releaseCheck.sh'), 'utf8')
+;[
+  'verifyAllIntegrity.js',
+  'maintain.sh',
+  'installService.sh',
+  '--strict-keyring',
+  '--quick',
+  'doctor.js',
+  'PASSED',
+].forEach((bit) => {
+  if (releaseCheckSh.indexOf(bit) < 0) fail('releaseCheck.sh missing ' + bit)
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {

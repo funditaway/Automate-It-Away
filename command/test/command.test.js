@@ -892,6 +892,30 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
   })
 })
 
+test('releaseCheck.sh --quick fails fast on missing keyring when --strict-keyring is set', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-rel-'))
+  const missing = spawnSync('bash', [join(commandRoot, 'releaseCheck.sh'), '--quick', '--strict-keyring'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: join(dataDir, '.keys'),
+      AIA_KEYRING_PATH: join(dataDir, '.keys', 'keyring.json'),
+      AIA_LEDGER_PATH: join(dataDir, 'ledger.ndjson'),
+    },
+    encoding: 'utf8',
+  })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr + missing.stdout, /Required keyring missing|ERROR/)
+
+  const ok = spawnSync('bash', [join(commandRoot, 'releaseCheck.sh'), '--quick'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(ok.status, 0, ok.stderr || ok.stdout)
+  assert.match(ok.stdout, /\[AIA ReleaseCheck\] PASSED/)
+})
+
 test('installService.sh dry-run previews a systemd or launchd unit for server.js', () => {
   const result = spawnSync('bash', [join(commandRoot, 'installService.sh'), '--dry-run'], {
     cwd: commandRoot,

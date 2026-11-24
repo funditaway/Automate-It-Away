@@ -57,7 +57,7 @@ smoke:
 	./smoke.sh
 
 release:
-	./releaseCheck.sh
+	./releaseCheck.sh $(RELEASE_FLAGS)
 
 start:
 	./start.sh

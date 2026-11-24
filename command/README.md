@@ -37,7 +37,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
 | `grokBotPrompt.js` | Meta-prompt / decision-card synthesis (live or local fallback) |
 | `replayPacks.js` | Dry pack-registry load — no queue or ledger mutation |
-| `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and pre-release gate (doctor → replay → verify → smoke) |
+| `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and fail-fast pre-flight (doctor → integrity → dry-runs → smoke) |
 | `backup.sh` / `restore.sh` / `maintain.sh` | Checksummed cold state bundles, verified restore, and non-destructive temp/log cleanup |
 | `installService.sh` | Generate systemd user unit (Linux) or launchd agent (macOS) for `server.js` |
 | `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
@@ -92,7 +92,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make requeue` / `npm run requeue` | Inspect/requeue dead-letter (`REQUEUE_FLAGS='--inspect'` or `--reason HTTP_400 --limit 5`) |
 | `make watchdog` / `npm run watchdog` | Probe daemon health/ready (`WATCHDOG_FLAGS='--dry-run --restart-cmd "pm2 restart aia-command"'`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
-| `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
+| `make release` / `npm run release` | Pre-flight gate (`RELEASE_FLAGS='--strict-keyring'` or `--quick`) |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
 | `npm run start:node` | Run `server.js` directly (no PM2) |
 | `make backup` / `npm run backup` | Checksummed cold snapshot of `data/` + packs + `.env` (`BACKUP_FLAGS=--plain`) |
