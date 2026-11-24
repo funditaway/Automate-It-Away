@@ -30,6 +30,7 @@ function mustExist(rel) {
   'keygen.js',
   'rotateKey.js',
   'exportAudit.js',
+  'verifyAuditBundle.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -146,6 +147,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'verify',
   'replay',
   'export',
+  'verify-audit',
   'smoke',
   'release',
   'start',
@@ -168,6 +170,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'verify:',
   'replay:',
   'export:',
+  'verify-audit:',
   'smoke:',
   'release:',
   'start:',
@@ -184,12 +187,14 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make keygen',
   'make rotate',
   'make export',
+  'make verify-audit',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
   'Ed25519',
   'keyring.json',
   'exportAudit.js',
+  'verifyAuditBundle.js',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
 })
@@ -204,6 +209,11 @@ const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8'
   'private material',
 ].forEach((bit) => {
   if (exportAudit.indexOf(bit) < 0) fail('exportAudit.js missing ' + bit)
+})
+
+const verifyAudit = fs.readFileSync(path.join(command, 'verifyAuditBundle.js'), 'utf8')
+;['verifyAuditBundle', 'bundleSha256', 'entryHash', 'Ed25519', 'process.exit'].forEach((bit) => {
+  if (verifyAudit.indexOf(bit) < 0) fail('verifyAuditBundle.js missing ' + bit)
 })
 
 ;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {

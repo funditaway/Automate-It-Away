@@ -11,6 +11,7 @@
     "verify": "node verifyLedger.js",
     "replay": "node replayPacks.js",
     "export": "node exportAudit.js",
+    "verify-audit": "node verifyAuditBundle.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",

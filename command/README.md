@@ -23,6 +23,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `public/index.html` | Dark Tailwind desk — queue + inspector, **Enter** authorize, offline simulation |
 | `verifyLedger.js` | Recomputes SHA-256 chain links; verifies signatures against active + retired keyring keys |
 | `exportAudit.js` | Private-key-free audit bundle (ledger + public keyring + verification + `bundleSha256`) |
+| `verifyAuditBundle.js` | Offline verifier for audit bundles (digest + signatures + contiguous `prev` links) |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -68,6 +69,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make verify` / `npm run verify` | Verify `ledger.ndjson` chain + signatures |
 | `make replay` / `npm run replay` | Dry-load `../packs/*.json` without mutating state |
 | `make export` / `npm run export` | Write a private-key-free audit JSON under `audits/` (`--card`, `--out`) |
+| `make verify-audit BUNDLE=…` | Offline-verify an audit bundle (`npm run verify-audit -- path.json`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |

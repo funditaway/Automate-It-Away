@@ -16,6 +16,7 @@ import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
+import { verifyAuditBundle, verifyAuditBundleFile } from '../verifyAuditBundle.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const commandRoot = join(here, '..')
@@ -479,6 +480,16 @@ test('exportAudit builds a private-key-free bundle with a stable bundleSha256', 
     const written = JSON.parse(readFileSync(outPath, 'utf8'))
     assert.equal(written.bundleSha256, bundle.bundleSha256)
     assert.equal(written.entries[0].record.cardId, queued.body.cardId)
+
+    const verified = verifyAuditBundleFile(outPath)
+    assert.equal(verified.ok, true, verified.issues.join('; '))
+    assert.equal(verified.bundleDigestValid, true)
+    assert.equal(verified.signaturesValid, true)
+
+    written.entries[0].record.payloadHash = 'f'.repeat(64)
+    const tampered = verifyAuditBundle(written)
+    assert.equal(tampered.ok, false)
+    assert.equal(tampered.bundleDigestValid, false)
   })
 })
 
