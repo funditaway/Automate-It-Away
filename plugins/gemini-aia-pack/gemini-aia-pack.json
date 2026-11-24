@@ -65,6 +65,7 @@
     "system_prompt": "./GEMINI_SYSTEM_PROMPT.md",
     "schema": "./queue-card-schema.json",
     "plugin": "./aia-gemini-plugin.yaml",
-    "entry": "./deploy_gemini_aia_pack.mjs"
+    "entry": "./deploy_gemini_aia_pack.mjs",
+    "desk": "./gemini-aia-desk.html"
   }
 }
