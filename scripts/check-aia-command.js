@@ -20,15 +20,22 @@ function mustExist(rel) {
 
 ;[
   'package.json',
+  'Makefile',
   'server.js',
   'webhookIngest.js',
   'grokBotPrompt.js',
   'verifyLedger.js',
   'doctor.js',
+  'keygen.js',
+  'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
   'ecosystem.config.cjs',
   'start.sh',
+  'smoke.sh',
+  'backup.sh',
+  'maintain.sh',
+  '.env.example',
   'public/index.html',
   'lib/decisionCard.js',
   'lib/appliance.js',
@@ -128,15 +135,53 @@ if (start.indexOf('doctor.js') < 0 || start.indexOf('server.js') < 0) fail('star
 
 const pkg = JSON.parse(fs.readFileSync(path.join(command, 'package.json'), 'utf8'))
 if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing express')
+;[
+  'keygen',
+  'doctor',
+  'verify',
+  'replay',
+  'smoke',
+  'start',
+  'backup',
+  'maintain',
+  'test',
+].forEach((script) => {
+  if (!pkg.scripts || !pkg.scripts[script]) fail('package.json missing script ' + script)
+})
 const depNames = Object.keys(Object.assign({}, pkg.dependencies, pkg.devDependencies))
 ;['ethers', 'viem', 'wagmi', 'react', 'vue', 'vite'].forEach((name) => {
   if (depNames.indexOf(name) >= 0) fail('unexpected dependency ' + name)
+})
+
+const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
+;[
+  'keygen:',
+  'doctor:',
+  'verify:',
+  'replay:',
+  'smoke:',
+  'start:',
+  'backup:',
+  'maintain:',
+].forEach((target) => {
+  if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
+})
+
+;['smoke.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+  try {
+    fs.accessSync(path.join(command, name), fs.constants.X_OK)
+  } catch {
+    fail(name + ' must be executable')
+  }
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {
   const install = spawnSync('npm', ['install'], { cwd: command, encoding: 'utf8' })
   if (install.status !== 0) fail('npm install failed: ' + (install.stderr || install.stdout))
 }
+
+const shortcuts = spawnSync('make', ['-n', 'help'], { cwd: command, encoding: 'utf8' })
+if (shortcuts.status !== 0) fail('make help failed:\n' + (shortcuts.stderr || shortcuts.stdout))
 
 const test = spawnSync('npm', ['test'], { cwd: command, encoding: 'utf8' })
 if (test.status !== 0) fail('command tests failed:\n' + (test.stdout || '') + (test.stderr || ''))
