@@ -45,6 +45,7 @@ const required = [
   "validateState.mjs",
   "serve-queue.mjs",
   "chainCards.mjs",
+  "readBodyLimited.mjs",
   ".env.example",
   "README.md"
 ];
@@ -73,6 +74,16 @@ else pass("manifest rails");
 const ui = JSON.parse(fs.readFileSync(path.join(packDir, "queue-ui-model.json"), "utf8"));
 if (/Ready to Send/i.test(JSON.stringify(ui))) fail("UI must not say Ready to Send");
 else pass("UI Draft Ready voice");
+
+const serveSrc = fs.readFileSync(path.join(packDir, "serve-queue.mjs"), "utf8");
+if (!/127\.0\.0\.1/.test(serveSrc) || /listen\(\s*port\s*\)/.test(serveSrc.replace(/\s+/g, " "))) {
+  fail("serve-queue.mjs must bind 127.0.0.1 (not all interfaces)");
+} else pass("serve-queue loopback bind");
+if (!fs.existsSync(path.join(packDir, "readBodyLimited.mjs"))) fail("missing readBodyLimited.mjs");
+else pass("body size cap helper");
+const v2 = fs.readFileSync(path.join(packDir, "queueApiHandlerV2.mjs"), "utf8");
+if (!v2.includes("readBodyLimited")) fail("V2 handler must use readBodyLimited");
+else pass("V2 body size cap");
 
 function run(script) {
   const r = spawnSync(process.execPath, [script], {
