@@ -47,6 +47,7 @@ function mustExist(rel) {
   'smoke.sh',
   'releaseCheck.sh',
   'backup.sh',
+  'restore.sh',
   'maintain.sh',
   '.env.example',
   'public/index.html',
@@ -177,6 +178,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'release',
   'start',
   'backup',
+  'restore',
   'maintain',
   'test',
 ].forEach((script) => {
@@ -208,6 +210,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'release:',
   'start:',
   'backup:',
+  'restore:',
   'maintain:',
 ].forEach((target) => {
   if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
@@ -229,6 +232,8 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make requeue',
   'make watchdog',
   'make verify-all',
+  'make restore',
+  'make backup',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -244,6 +249,8 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'requeueDeadletter.js',
   'watchdog.js',
   'verifyAllIntegrity.js',
+  'restore.sh',
+  'aia-state-',
   'spool.deadletter.ndjson',
   '/healthz',
   '/readyz',
@@ -324,12 +331,34 @@ const verifyAudit = fs.readFileSync(path.join(command, 'verifyAuditBundle.js'), 
   if (verifyAudit.indexOf(bit) < 0) fail('verifyAuditBundle.js missing ' + bit)
 })
 
-;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'restore.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
   try {
     fs.accessSync(path.join(command, name), fs.constants.X_OK)
   } catch {
     fail(name + ' must be executable')
   }
+})
+
+const backupSh = fs.readFileSync(path.join(command, 'backup.sh'), 'utf8')
+;[
+  'aia-state-',
+  '.sha256',
+  'AIA_BACKUP_DIR',
+  'PACKS_DIR',
+  'sha256sum',
+].forEach((bit) => {
+  if (backupSh.indexOf(bit) < 0) fail('backup.sh missing ' + bit)
+})
+
+const restoreSh = fs.readFileSync(path.join(command, 'restore.sh'), 'utf8')
+;[
+  '--dry-run',
+  'pre-restore-',
+  'verifyAllIntegrity.js',
+  '.sha256',
+  'Checksum verification failed',
+].forEach((bit) => {
+  if (restoreSh.indexOf(bit) < 0) fail('restore.sh missing ' + bit)
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {

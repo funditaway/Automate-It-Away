@@ -38,7 +38,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `grokBotPrompt.js` | Meta-prompt / decision-card synthesis (live or local fallback) |
 | `replayPacks.js` | Dry pack-registry load — no queue or ledger mutation |
 | `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and pre-release gate (doctor → replay → verify → smoke) |
-| `backup.sh` / `maintain.sh` | Cold identity/ledger/keyring archive and non-destructive temp/log cleanup |
+| `backup.sh` / `restore.sh` / `maintain.sh` | Checksummed cold state bundles, verified restore, and non-destructive temp/log cleanup |
 | `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
 | `Makefile` / `package.json` | One-word operational verbs (see below) |
 | `.env.example` | Documented `AIA_*` / Grok overrides (copy to `.env`; never commit secrets) |
@@ -55,7 +55,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `data/ledger-archives/` | Archived ledger slices + manifests |
 | `data/spool.ndjson` | Buffered inbound events awaiting drain after outages |
 | `data/spool.deadletter.ndjson` | Quarantined malformed / permanently rejected spool lines |
-| `backups/` | Cold archives from `backup.sh` |
+| `backups/` | Cold `aia-state-*.tar.gz` archives + `.sha256` sidecars from `backup.sh` |
 
 ## Quickstart
 
@@ -94,7 +94,8 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
 | `npm run start:node` | Run `server.js` directly (no PM2) |
-| `make backup` / `npm run backup` | Archive keys + ledger into `backups/` |
+| `make backup` / `npm run backup` | Checksummed cold snapshot of `data/` + packs + `.env` (`BACKUP_FLAGS=--plain`) |
+| `make restore ARCHIVE=…` | Verified restore (`RESTORE_FLAGS=--dry-run` or `--skip-verify`) |
 | `make maintain` / `npm run maintain` | Prune stale `.tmp` / rotate oversized logs (never touches ledger or keys) |
 | `make test` / `npm test` | Contract tests only |
 

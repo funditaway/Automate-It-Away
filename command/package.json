@@ -25,6 +25,7 @@
     "start": "./start.sh",
     "start:node": "node server.js",
     "backup": "./backup.sh",
+    "restore": "./restore.sh",
     "maintain": "./maintain.sh",
     "test": "node --test test/*.test.js"
   },

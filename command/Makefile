@@ -1,10 +1,10 @@
-.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice verify-all status archive reconcile flush requeue watchdog smoke release start backup maintain test
+.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice verify-all status archive reconcile flush requeue watchdog smoke release start backup restore maintain test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | verify-all | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | maintain | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | verify-all | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | restore | maintain | test"
 
 keygen:
 	node keygen.js
@@ -63,7 +63,11 @@ start:
 	./start.sh
 
 backup:
-	./backup.sh
+	./backup.sh $(BACKUP_FLAGS)
+
+restore:
+	@test -n "$(ARCHIVE)" || (echo "Usage: make restore ARCHIVE=path/to/aia-state.tar.gz" >&2; exit 1)
+	./restore.sh $(RESTORE_FLAGS) "$(ARCHIVE)"
 
 maintain:
 	./maintain.sh

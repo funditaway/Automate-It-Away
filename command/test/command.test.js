@@ -892,6 +892,72 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
   })
 })
 
+test('backup.sh writes checksummed archive and restore.sh dry-run validates it', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-bak-'))
+  const backupDir = join(dataDir, 'backups')
+  const packsDir = join(dataDir, 'packs')
+  mkdirSync(join(dataDir, 'data', '.keys'), { recursive: true })
+  mkdirSync(packsDir, { recursive: true })
+  writeFileSync(join(dataDir, 'data', 'ledger.ndjson'), '')
+  writeFileSync(join(dataDir, 'data', '.keys', 'keyring.json'), JSON.stringify({ activeKeyId: null, keys: [] }) + '\n')
+  writeFileSync(join(packsDir, 'demo.json'), JSON.stringify({ id: 'demo', name: 'Demo' }) + '\n')
+
+  const backup = spawnSync('bash', [join(commandRoot, 'backup.sh'), '--plain'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: join(dataDir, 'data'),
+      AIA_PACKS_DIR: packsDir,
+      AIA_BACKUP_DIR: backupDir,
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(backup.status, 0, backup.stderr || backup.stdout)
+  assert.match(backup.stdout, /Backup created:/)
+  assert.match(backup.stdout, /Checksum file:/)
+
+  const archives = spawnSync('bash', ['-lc', `ls "${backupDir}"/aia-state-*.tar.gz`], { encoding: 'utf8' })
+  assert.equal(archives.status, 0, archives.stderr || archives.stdout)
+  const archivePath = archives.stdout.trim().split('\n')[0]
+  assert.equal(existsSync(`${archivePath}.sha256`), true)
+
+  const dry = spawnSync('bash', [join(commandRoot, 'restore.sh'), '--dry-run', archivePath], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: join(dataDir, 'restore-data'),
+      AIA_PACKS_DIR: join(dataDir, 'restore-packs'),
+      AIA_BACKUP_DIR: backupDir,
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(dry.status, 0, dry.stderr || dry.stdout)
+  assert.match(dry.stdout, /\[DRY-RUN\]/)
+  assert.match(dry.stdout, /data\//)
+
+  const restoreTarget = join(dataDir, 'restore-data')
+  mkdirSync(restoreTarget, { recursive: true })
+  writeFileSync(join(restoreTarget, 'stale.txt'), 'replace-me\n')
+  const live = spawnSync(
+    'bash',
+    [join(commandRoot, 'restore.sh'), '--skip-verify', archivePath],
+    {
+      cwd: commandRoot,
+      env: {
+        ...process.env,
+        AIA_DATA_DIR: restoreTarget,
+        AIA_PACKS_DIR: join(dataDir, 'restore-packs'),
+        AIA_BACKUP_DIR: backupDir,
+      },
+      encoding: 'utf8',
+    },
+  )
+  assert.equal(live.status, 0, live.stderr || live.stdout)
+  assert.match(live.stdout, /pre-restore-/)
+  assert.equal(existsSync(join(restoreTarget, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(dataDir, 'restore-packs', 'demo.json')), true)
+})
+
 test('verifyAllIntegrity gates ledger, optional bundle, and reports queue drift without writes', async () => {
   await withCenter(async ({ base, dataDir, keypair }) => {
     const queued = await request(base, '/webhook/telemetry', {
