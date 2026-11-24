@@ -1,0 +1,65 @@
+{
+  "id": "meta-world-desk",
+  "name": "Meta World Desk",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-world-desk.aia",
+  "file": "meta-world-desk.aia",
+  "price": 0,
+  "blurb": "Core world desk that owns queue and cards. Name your desk. Meta AIs draft. You decide.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "Desk name" },
+    "how": "Name your desk. Meta drafts on the queue. You tap Yes or Stop. Collect stays HOLD."
+  },
+  "capture": ["drop", "call", "form", "hook"],
+  "qualify": ["desk name", "fit", "when"],
+  "do": ["queue draft"],
+  "collect": ["Collect stays HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["not a fit", "duplicate", "spam"],
+  "pipes": ["webhook"],
+  "artifacts": ["world desk card", "draft"],
+  "kinds": ["lead", "front-desk", "support"],
+  "rails": [
+    "Core world desk owns queue and cards.",
+    "Desk AIs draft. Humans Yes / Stop / Kill.",
+    "Collect stays HOLD. Nothing silent."
+  ],
+  "rules": [
+    { "text": "Draft on new drop.", "when": "drop", "then": "draft", "contains": "lead" },
+    { "text": "Cap spam.", "when": "qualify", "then": "cap", "contains": "spam" },
+    { "text": "One nudge then stop.", "when": "follow", "then": "note", "contains": "nudge" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Catch",
+      "role": "Catcher",
+      "does": "Catches world-desk drops. Draft only.",
+      "prompt": "Draft ready. I cannot send, pay, or bind. You stay in control.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "name": "Meta - Words",
+      "role": "Writer",
+      "does": "Drafts words for the world desk queue.",
+      "prompt": "Words draft ready. I cannot send. You stay in control.",
+      "steps": ["do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "World Desk",
+    "family": "Meta.aia",
+    "empty": "Name your desk. Drop work. Meta drafts. You decide.",
+    "chips": ["lead", "front-desk", "support"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the desk and the work. Meta drafts. You tap."
+}

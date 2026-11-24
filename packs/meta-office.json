@@ -1,0 +1,57 @@
+{
+  "id": "meta-office",
+  "name": "Meta Office",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-office.aia",
+  "file": "meta-office.aia",
+  "price": 0,
+  "blurb": "Office ops — bills, invoices, HOLD until Yes + a real money pipe.",
+  "face": {
+    "who": { "key": "contactName", "label": "Vendor / who" },
+    "what": { "key": "need", "label": "Invoice / bill" },
+    "when": { "key": "timing", "label": "Due when" },
+    "where": { "key": "where", "label": "Account / desk" },
+    "how": "Draft the bill note. Pay stays HOLD until Yes + a real money pipe."
+  },
+  "capture": ["drop", "email", "form", "hook"],
+  "qualify": ["amount", "due", "vendor"],
+  "do": ["invoice note"],
+  "collect": ["pay stays HOLD until Yes + a real money pipe"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "email", "hand", "cap", "yes", "stop"],
+  "kill": ["duplicate", "already paid", "wrong vendor"],
+  "pipes": ["webhook"],
+  "artifacts": ["bill card", "invoice note"],
+  "kinds": ["office"],
+  "rails": [
+    "Invoice / pay stays HOLD until Yes + a real money pipe.",
+    "Desk AIs never charge. Packs never send money.",
+    "No on-chain claim. AIA does not hold keys."
+  ],
+  "rules": [
+    { "text": "Wait on invoice / pay.", "when": "collect", "then": "wait", "contains": "invoice" },
+    { "text": "Wait on bill pay.", "when": "do", "then": "wait", "contains": "pay" },
+    { "text": "Cap duplicate bills.", "when": "qualify", "then": "cap", "contains": "duplicate" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Collect Guard",
+      "role": "Rail",
+      "does": "Keeps office Collect HOLD. Drafts pay notes only.",
+      "prompt": "Collect stays HOLD until Yes + a real money pipe. I cannot charge.",
+      "steps": ["collect", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "pay"]
+    }
+  ],
+  "queue": {
+    "badge": "Office",
+    "family": "Meta.aia",
+    "empty": "Drop a bill or invoice. HOLD until Yes + a real money pipe.",
+    "chips": ["office"],
+    "taps": ["copy", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the vendor, amount, and due date. Meta drafts. Pay waits on Yes."
+}

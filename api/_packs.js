@@ -13,7 +13,8 @@ const OFFICIAL = [
   { id: "land", name: "Land lot", type: "work", family: "Land", aisle: "Land", official: true, price: 0, use: "ok", does: "Lot note. Flood and title wait.", features: ["lot note", "flood wait", "title wait"], kinds: ["lot", "flood", "survey", "title"] },
   { id: "aia", name: "AIA Help", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "World problem in. Card on the AIA Admin Desk. You tap.", features: ["talk drop", "ticket card", "draft reply"], kinds: ["broke", "login", "desk", "account", "pack", "pipe", "idea"], face: "AIA Help" },
   { id: "aia-adoption", name: "Try it on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Try first. Drop real work. Workers tap Yes or Stop. Open packs customize this desk. Drafts stay on the card.", features: ["try-first", "worker-first", "open packs", "secure-by-design"], kinds: ["task", "errand", "idea", "project"] },
-  { id: "aia-implement", name: "Four steps on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.", features: ["four-steps", "audit", "pipes", "desk AI", "guardrails"], kinds: ["leak", "pipe", "agent", "guard"] }
+  { id: "aia-implement", name: "Four steps on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.", features: ["four-steps", "audit", "pipes", "desk AI", "guardrails"], kinds: ["leak", "pipe", "agent", "guard"] },
+  { id: "meta", name: "Meta.aia Official World Pack", type: "work", family: "Meta.aia", aisle: "Meta", official: true, price: 0, use: "ok", does: "Name your desk. Meta + Claude draft. You decide. The card is the UI. Collect stays HOLD.", features: ["meta draft", "claude included", "per-card UI", "worker webhook", "collect hold"], kinds: ["lead", "house", "shop", "office", "front-desk", "setup", "support", "content"], face: "Meta.aia", aia: "meta.aia" }
 ];
 
 const COLORS = [
@@ -32,7 +33,17 @@ const PACK_FILES = {
   land: function () { return require("../packs/land.json"); },
   aia: function () { return require("../packs/aia.json"); },
   "aia-adoption": function () { return require("../packs/aia-adoption.json"); },
-  "aia-implement": function () { return require("../packs/aia-implement.json"); }
+  "aia-implement": function () { return require("../packs/aia-implement.json"); },
+  meta: function () { return require("../packs/meta.json"); },
+  "meta-world-desk": function () { return require("../packs/meta-world-desk.json"); },
+  "meta-house": function () { return require("../packs/meta-house.json"); },
+  "meta-shop": function () { return require("../packs/meta-shop.json"); },
+  "meta-front-desk": function () { return require("../packs/meta-front-desk.json"); },
+  "meta-office": function () { return require("../packs/meta-office.json"); },
+  "meta-automations-account": function () { return require("../packs/meta-automations-account.json"); },
+  "meta-creator-studio": function () { return require("../packs/meta-creator-studio.json"); },
+  "meta-setup": function () { return require("../packs/meta-setup.json"); },
+  "meta-claude": function () { return require("../packs/meta-claude.json"); }
 };
 
 function wantedRows() {
@@ -218,6 +229,18 @@ function findPack(id, opts) {
   }
   if (want === "qia" || want === "quote-ops" || want === "quoteops") {
     return allPacks(opts).find(function (p) { return p.id === "qia"; });
+  }
+  if (
+    want === "meta" ||
+    want === "meta.aia" ||
+    want === "meta-ready" ||
+    want === "meta-world-desk" ||
+    want === "meta-official" ||
+    want === "meta-official-claude-included" ||
+    want === "meta-claude"
+  ) {
+    const meta = allPacks(opts).find(function (p) { return p.id === "meta"; });
+    if (meta) return meta;
   }
   return allPacks(opts).find(function (p) {
     if (!p) return false;

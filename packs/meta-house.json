@@ -1,0 +1,57 @@
+{
+  "id": "meta-house",
+  "name": "Meta House",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-house.aia",
+  "file": "meta-house.aia",
+  "price": 0,
+  "blurb": "House card with its own UI — thermostat, lights, locks. Physical actions wait on Yes.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who is home" },
+    "what": { "key": "need", "label": "What to adjust" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "where", "label": "Room / zone" },
+    "how": "Draft the house adjust. Unlock, start, and lock wait on Yes. Prefer local MQTT / LAN."
+  },
+  "capture": ["sensor", "hook", "note", "photo"],
+  "qualify": ["room", "risk", "local vs cloud"],
+  "do": ["adjust draft", "lock note"],
+  "collect": ["energy savings note only"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "hand", "cap", "yes", "stop"],
+  "kill": ["already done", "false alarm"],
+  "pipes": ["webhook", "mqtt"],
+  "artifacts": ["house card", "adjust draft"],
+  "kinds": ["house"],
+  "rails": [
+    "Prefer local MQTT / LAN / SmartHQ over cloud webhooks.",
+    "Physical actions (start, unlock, adjust) wait on Yes.",
+    "If the appliance link drops, queue a graceful retry — never lock the desk queue."
+  ],
+  "rules": [
+    { "text": "Hold unlock / door for Yes.", "when": "do", "then": "wait", "contains": "unlock" },
+    { "text": "Hold adjust / start for Yes.", "when": "do", "then": "wait", "contains": "adjust" },
+    { "text": "Cap false alarms.", "when": "qualify", "then": "cap", "contains": "false alarm" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - House",
+      "role": "Doer",
+      "does": "Drafts thermostat / lights / lock notes. Never actuates without Yes.",
+      "prompt": "House draft ready. I cannot unlock, start, or send. You stay in control.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "House",
+    "family": "Meta.aia",
+    "empty": "Drop a thermostat drift, light scene, or lock note. Draft only. Yes before hardware.",
+    "chips": ["house"],
+    "taps": ["copy", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the room and what drifted. Meta drafts. You Yes before hardware."
+}

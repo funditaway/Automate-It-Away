@@ -3,7 +3,7 @@
   var KEY = "aia_queue_pack";
   var FILTER = "all";
   var CATALOG = [];
-  var OFFICIAL = ["home", "consign", "quote", "vita", "insurance", "qia", "fund", "land", "aia", "aia-adoption", "aia-implement"];
+  var OFFICIAL = ["home", "consign", "quote", "vita", "insurance", "qia", "meta", "fund", "land", "aia", "aia-adoption", "aia-implement"];
   var WANTED = ["lawn", "repair", "shop-bay", "estate-day", "cleanout", "rental", "rent-due", "title-run", "survey", "year2", "wholesale", "missed-call", "delivery"];
   var COLOR = ["color-teal", "color-harvest", "color-night", "color-slate"];
   var TYPES = ["all", "work", "wanted", "creator", "aia", "color", "ask"];
@@ -28,12 +28,14 @@
     if (s === "aia-adoption" || s === "adoption") return "aia-adoption";
     if (s === "aia-implement" || s === "implement" || s === "playbook") return "aia-implement";
     if (s === "qia" || s === "quote-ops" || s === "quoteops") return "qia";
+    if (s === "meta" || s === "meta.aia" || s === "meta-ready" || s === "meta-world-desk" || s === "meta-claude" || s === "meta-official" || s === "meta-official-claude-included") return "meta";
     return s;
   }
   function badgeName(id, j) {
     var c = canon(id);
     if (c === "insurance") return "Insurance";
     if (c === "qia") return "Quote ops";
+    if (c === "meta") return "Meta.aia";
     if (c === "home") return "Home";
     if (c === "consign") return "Consign";
     if (c === "fund") return "Fund";
@@ -95,6 +97,7 @@
     if (FILTER === "aia-adoption") return "Try first. Drop a task, an errand, or an idea. AIA drafts. You tap Yes or Stop.";
     if (FILTER === "aia-implement") return "Four steps. Drop a leak, a pipe note, a desk AI idea, or a guard. You still tap.";
     if (FILTER === "qia") return "Drop intake, a match note, a vetting app, a nudge, billing alert, or admin exception. Bind stays off. Collect stays HOLD.";
+    if (FILTER === "meta") return "Drop a lead, house note, missed call, invoice, or setup step. Meta + Claude draft. You tap Yes or Stop. Collect stays HOLD.";
     if (WANTED.indexOf(FILTER) >= 0) return "Make this pack on Create, then drop it. Use still says Make this pack.";
     return "Drop work for this pack. You still tap Yes or Stop.";
   }

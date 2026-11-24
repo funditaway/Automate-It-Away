@@ -1,0 +1,84 @@
+{
+  "id": "meta-claude",
+  "name": "Meta.aia + Claude",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-claude.aia",
+  "file": "meta-claude.aia",
+  "price": 0,
+  "version": "1.1.0-Official-Claude-Included",
+  "claude_included": true,
+  "blurb": "Claude desk AIs draft beside Meta on the same cards. Human picks the draft. Collect stays HOLD.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "Which desk" },
+    "how": "Meta + Claude draft side-by-side. You pick. Yes / Stop / Kill stay human."
+  },
+  "capture": ["drop", "call", "hook", "email"],
+  "qualify": ["fit", "which draft"],
+  "do": ["meta draft", "claude draft"],
+  "collect": ["Collect stays HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["not a fit", "duplicate", "spam"],
+  "pipes": ["webhook"],
+  "artifacts": ["dual draft card"],
+  "kinds": ["lead", "support", "content"],
+  "rails": [
+    "Claude included drafts only. Never Yes / Stop / pay / send.",
+    "Human picks Meta or Claude draft on the card.",
+    "Collect stays HOLD until Yes + a real money pipe."
+  ],
+  "rules": [
+    { "text": "Draft on new work.", "when": "drop", "then": "draft", "contains": "lead" },
+    { "text": "Cap spam.", "when": "qualify", "then": "cap", "contains": "spam" },
+    { "text": "One nudge then stop.", "when": "follow", "then": "note", "contains": "nudge" }
+  ],
+  "ais": [
+    {
+      "id": "claude_catch",
+      "name": "Claude - Catch",
+      "type": "claude",
+      "included": true,
+      "role": "Catcher",
+      "does": "Deeper catch reasoning. Draft only.",
+      "prompt": "Claude draft ready. I cannot send, pay, or bind.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_words",
+      "name": "Claude - Words",
+      "type": "claude",
+      "included": true,
+      "role": "Writer",
+      "does": "Thoughtful words draft beside Meta. DRAFT READY.",
+      "prompt": "Claude draft ready. Words only. I cannot send.",
+      "steps": ["do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_collect_guard",
+      "name": "Claude - Collect Guard",
+      "type": "claude",
+      "included": true,
+      "role": "Rail",
+      "does": "Collect HOLD reminder. Never charges.",
+      "prompt": "Collect stays HOLD until Yes + a real money pipe.",
+      "steps": ["collect", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "pay"]
+    }
+  ],
+  "queue": {
+    "badge": "Claude",
+    "family": "Meta.aia",
+    "empty": "Meta + Claude draft on the same cards. You pick. Collect stays HOLD.",
+    "chips": ["lead", "support", "content"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Drop work for Meta + Claude side-by-side drafts. You pick."
+}
