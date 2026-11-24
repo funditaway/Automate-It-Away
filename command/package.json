@@ -10,6 +10,7 @@
     "doctor": "node doctor.js",
     "verify": "node verifyLedger.js",
     "replay": "node replayPacks.js",
+    "export": "node exportAudit.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",

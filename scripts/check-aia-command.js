@@ -29,6 +29,7 @@ function mustExist(rel) {
   'doctor.js',
   'keygen.js',
   'rotateKey.js',
+  'exportAudit.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -144,6 +145,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'doctor',
   'verify',
   'replay',
+  'export',
   'smoke',
   'release',
   'start',
@@ -165,6 +167,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'doctor:',
   'verify:',
   'replay:',
+  'export:',
   'smoke:',
   'release:',
   'start:',
@@ -180,13 +183,27 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'ledger.ndjson',
   'make keygen',
   'make rotate',
+  'make export',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
   'Ed25519',
   'keyring.json',
+  'exportAudit.js',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
+})
+
+const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')
+;[
+  'bundleSha256',
+  'buildAuditBundle',
+  'publicKeyPem',
+  '--card',
+  'Never copies',
+  'private material',
+].forEach((bit) => {
+  if (exportAudit.indexOf(bit) < 0) fail('exportAudit.js missing ' + bit)
 })
 
 ;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {

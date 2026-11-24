@@ -11,9 +11,11 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runDoctor } from '../doctor.js'
+import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
 import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { createCommandCenter } from '../server.js'
+import { canonicalJson, sha256Text } from '../lib/canonical.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const commandRoot = join(here, '..')
@@ -442,6 +444,42 @@ test('verifyLedger CLI accepts an empty ledger', () => {
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /ledger ok/)
+})
+
+test('exportAudit builds a private-key-free bundle with a stable bundleSha256', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'audit-export', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const outDir = join(dataDir, 'audits')
+    const bundle = buildAuditBundle({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      cardId: queued.body.cardId,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+    })
+    assert.equal(bundle.exportedEntryCount, 1)
+    assert.equal(bundle.verification.ok, true)
+    assert.equal(bundle.scope.cardId, queued.body.cardId)
+    assert.ok(bundle.bundleSha256)
+    assert.equal(JSON.stringify(bundle).includes('BEGIN PRIVATE KEY'), false)
+    assert.equal(JSON.stringify(bundle).includes('ed25519.pem'), false)
+
+    const { bundleSha256, ...unsigned } = bundle
+    assert.equal(sha256Text(canonicalJson(unsigned)), bundleSha256)
+
+    const outPath = writeAuditBundle(bundle, join(outDir, 'proof.json'), outDir)
+    const written = JSON.parse(readFileSync(outPath, 'utf8'))
+    assert.equal(written.bundleSha256, bundle.bundleSha256)
+    assert.equal(written.entries[0].record.cardId, queued.body.cardId)
+  })
 })
 
 test('key rotation keeps historical ledger lines verifiable via keyring', async () => {
