@@ -63,6 +63,14 @@
       next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
       rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
       keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"], how: ["product", "need"] }
+    },
+    meta: {
+      id: "meta", name: "Meta.aia Official World Pack",
+      who: "Who it is for", what: "What the work is", when: "When", where: "Which desk",
+      how: "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD.",
+      next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes.",
+      rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
     }
   };
   function first(j, keys) {
@@ -83,6 +91,7 @@
     var s = String(raw || "").toLowerCase();
     if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
     if (s === "quote-ops" || s === "quoteops") s = "qia";
+    if (s === "meta.aia" || s === "meta-ready" || s === "meta-world-desk" || s === "meta-claude" || s === "meta-official" || s === "meta-official-claude-included") s = "meta";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
     return s;

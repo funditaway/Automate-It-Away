@@ -1,0 +1,19 @@
+{
+  "metas_custom_pack": {
+    "name": "Meta.aia - Meta's Custom Pack",
+    "version": "4.0.0-free-with-usage-fees",
+    "account": "meta.aia @meta.aia Desk 3690",
+    "tagline": "Name your desk. Meta AIs draft. You decide.",
+    "description": "Full OS: How Meta.aia works within AIA desk 3690 - create own automations / anything imaginable - connect Meta AIs to do work via Queue Cards from drops by humans and AI Bots/Agents/Agentic - full history accounted through AIA account",
+    "works_with": "automateitaway.com/desk that already exists - desks chosen by world users",
+    "card_is_ui_ux": "The cards in the AIA queue are what has its own UI and UX per pack card automation and AI",
+    "includes": [
+      "5 Meta Desk AIs",
+      "Queue with per-card UI/UX",
+      "Pipes Webhook live",
+      "Safety rails",
+      "Setup 9 cards",
+      "FREE with usage HOLD"
+    ]
+  }
+}

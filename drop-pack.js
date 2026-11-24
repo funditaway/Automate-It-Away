@@ -29,6 +29,7 @@
       if (["home", "consign", "insurance", "fund", "land", "aia"].indexOf(CHIP) >= 0) {
         var blob = [p.id, p.name, p.family, p.niche, p.aisle].join(" ").toLowerCase();
         if (CHIP === "insurance") return /insurance|vita|quote|qia/.test(blob) || p.id === "qia";
+        if (CHIP === "meta") return /meta/.test(blob) || p.id === "meta";
         if (CHIP === "aia") return /aia/.test(blob) || p.id === "aia-adoption" || p.id === "aia-implement";
         return blob.indexOf(CHIP) >= 0;
       }

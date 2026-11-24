@@ -1,0 +1,87 @@
+{
+  "aia_pack_format": "aia.v1.1-claude-included",
+  "pack": {
+    "name": "Meta.aia + Claude",
+    "slug": "meta-official-claude-included",
+    "version": "1.1.0-Official-Claude-Included",
+    "status": "Meta is Ready + Muse included - Let's go - Yes whenever Meta is ready",
+    "account": "meta.aia - @meta.aia - Desk AIA - 3690 - Automate It Away",
+    "tagline": "Name your desk. Meta + Muse draft. You decide. The card is the UI.",
+    "description": "Version 1.1 Official - Meta + Muse included - Yes as a pack for world users on AIA and pack works with automateitaway.com/desk that already exists meta.aia tech + Muse tech on Desks chosen by AIA world users - The cards in the AIA queue are what has its own UI and UX per pack card automation and AI - Full history accounted",
+    "author": "Meta + Claude - @meta.aia Desk 3690 - James Oddo",
+    "website": "https://www.automateitaway.com/desk",
+    "internet": "ai.aia",
+    "license": "Official - FREE - usage fees HOLD - Give is file They install with Yes - Claude included - Let's go",
+    "claude_included": true
+  },
+  "official_packs_included": [
+    "meta-world-desk.aia",
+    "meta-creator-studio.aia",
+    "meta-automations-account.aia",
+    "meta-house.aia",
+    "meta-shop.aia",
+    "meta-front-desk.aia",
+    "meta-office.aia",
+    "meta-claude.aia"
+  ],
+  "desk_ais": [
+    {
+      "id": "meta_catch",
+      "name": "Meta - Catch",
+      "type": "meta"
+    },
+    {
+      "id": "meta_next",
+      "name": "Meta - Next Step",
+      "type": "meta"
+    },
+    {
+      "id": "meta_words",
+      "name": "Meta - Words",
+      "type": "meta"
+    },
+    {
+      "id": "meta_followup",
+      "name": "Meta - Follow Up",
+      "type": "meta"
+    },
+    {
+      "id": "meta_collect_guard",
+      "name": "Meta - Collect Guard",
+      "type": "meta"
+    },
+    {
+      "id": "claude_catch",
+      "name": "Claude - Catch",
+      "type": "claude",
+      "included": true
+    },
+    {
+      "id": "claude_next",
+      "name": "Claude - Next Step",
+      "type": "claude",
+      "included": true
+    },
+    {
+      "id": "claude_words",
+      "name": "Claude - Words",
+      "type": "claude",
+      "included": true
+    },
+    {
+      "id": "claude_followup",
+      "name": "Claude - Follow Up",
+      "type": "claude",
+      "included": true
+    },
+    {
+      "id": "claude_collect_guard",
+      "name": "Claude - Collect Guard",
+      "type": "claude",
+      "included": true
+    }
+  ],
+  "how_it_works_claude_included": "Existing desk at automateitaway.com/desk - Install Meta.aia + Claude v1.1 Official - FREE Yes - Choose desks - Queue now has Meta + Muse drafting side-by-side on same cards - Each card own UI/UX per pack - Human picks draft - Full history ai.aia",
+  "meta_ready_claude_ready": "Meta is Ready + Muse included - Yes whenever ready - Let's go",
+  "brand": "AIA pyramid A logo - Teal #0F4C4C + Orange #F99D1C - Brand page ready"
+}

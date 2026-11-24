@@ -23,7 +23,14 @@ const FACES = {
   "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" },
   qia: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
   "quote-ops": { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
-  quoteops: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" }
+  quoteops: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  meta: { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta.aia": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-ready": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-world-desk": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-claude": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-official": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-official-claude-included": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" }
 };
 
 function moneyOf(job) {
@@ -120,6 +127,16 @@ const FACE_SPEC = {
     next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
     rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
     keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"] }
+  },
+  meta: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "Which desk" },
+    how: "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself.",
+    next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes. Collect stays HOLD.",
+    rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
   }
 };
 
@@ -377,6 +394,23 @@ function brainOf(packId, kind, shop) {
         : k === "match"
           ? "Match draft ready. Dispatch waits on Yes. Nothing routes itself."
           : "Qualify line and territory. Draft only. Owner taps before anything leaves."
+    };
+  }
+  if (pack === "meta" || face.id === "meta") {
+    const house = k === "house" || /\b(thermostat|unlock|lights|adjust)\b/.test(k);
+    const office = k === "office" || /\b(invoice|bill|pay)\b/.test(k);
+    const shop = k === "shop" || /\b(missed|photo|stock)\b/.test(k);
+    return {
+      risk: house || office ? "suitability" : "none",
+      artifact: house ? "house card" : office ? "invoice note" : shop ? "shop reply draft" : "draft on the card",
+      draft: "Meta + Claude draft on the Meta.aia desk. DRAFT READY. You pick. Collect stays HOLD. Nothing sends itself.",
+      next: house
+        ? "House adjust draft ready. Unlock / start waits on Yes. Prefer local MQTT / LAN."
+        : office
+          ? "Invoice note ready. Pay stays HOLD until Yes + a real money pipe."
+          : shop
+            ? "Shop reply draft ready. Copy / Text / Email after Yes. Nothing sends itself."
+            : "Qualify fit and desk. Meta + Claude draft only. Owner taps before anything leaves."
     };
   }
   const spec = packSpecOf(pack, shop);
