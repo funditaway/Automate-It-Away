@@ -16,18 +16,19 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 
 | File / Path | Role |
 | --- | --- |
-| `keygen.js` | Idempotent Ed25519 bootstrap under `data/.keys/` (`--rotate` retires prior keys aside) |
+| `keygen.js` | Idempotent Ed25519 bootstrap under `data/.keys/` (`--rotate` uses keyring-aware cutover) |
+| `rotateKey.js` | Non-destructive rotation — new ACTIVE key, prior keys RETIRED in `keyring.json` |
 | `server.js` | Express daemon: `/health`, `/queue`, `/ledger`, `/api/sign`, HITL settle routes, static desk |
 | `webhookIngest.js` | GHL / pack webhook mount — builds decision payloads, never signs |
 | `public/index.html` | Dark Tailwind desk — queue + inspector, **Enter** authorize, offline simulation |
-| `verifyLedger.js` | Recomputes SHA-256 chain links and verifies Ed25519 signatures |
+| `verifyLedger.js` | Recomputes SHA-256 chain links; verifies signatures against active + retired keyring keys |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
 | `grokBotPrompt.js` | Meta-prompt / decision-card synthesis (live or local fallback) |
 | `replayPacks.js` | Dry pack-registry load — no queue or ledger mutation |
-| `start.sh` / `smoke.sh` | Boot (doctor + PM2/node) and doctor + contract-test smoke |
-| `backup.sh` / `maintain.sh` | Cold identity/ledger archive and non-destructive temp/log cleanup |
+| `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and pre-release gate (doctor → replay → verify → smoke) |
+| `backup.sh` / `maintain.sh` | Cold identity/ledger/keyring archive and non-destructive temp/log cleanup |
 | `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
 | `Makefile` / `package.json` | One-word operational verbs (see below) |
 | `.env.example` | Documented `AIA_*` / Grok overrides (copy to `.env`; never commit secrets) |
@@ -38,6 +39,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | --- | --- |
 | `data/.keys/ed25519.pem` | Private signing key (mode `0600`) |
 | `data/.keys/ed25519.pub.pem` | Public key |
+| `data/.keys/keyring.json` | Active + retired public keys for historical verification |
 | `data/ledger.ndjson` | Append-only hash-chained audit log |
 | `backups/` | Cold archives from `backup.sh` |
 
@@ -60,10 +62,12 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | Command | What it does |
 | --- | --- |
 | `make keygen` / `npm run keygen` | Create or report the local Ed25519 identity |
+| `make rotate` / `npm run rotate` | Rotate signing key; retain prior pubs in `keyring.json` |
 | `make doctor` / `npm run doctor` | Environment + permission + ledger preflight |
 | `make verify` / `npm run verify` | Verify `ledger.ndjson` chain + signatures |
 | `make replay` / `npm run replay` | Dry-load `../packs/*.json` without mutating state |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
+| `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
 | `npm run start:node` | Run `server.js` directly (no PM2) |
 | `make backup` / `npm run backup` | Archive keys + ledger into `backups/` |

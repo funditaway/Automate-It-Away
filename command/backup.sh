@@ -35,7 +35,7 @@ if [ -f "$DATA_DIR/ledger.ndjson" ]; then
 fi
 
 if [ -d "$DATA_DIR/.keys" ]; then
-  find "$DATA_DIR/.keys" -maxdepth 1 -type f \( -name 'ed25519*.pem' -o -name '*.retired-*' \) \
+  find "$DATA_DIR/.keys" -maxdepth 1 -type f \( -name 'ed25519*.pem' -o -name 'keyring.json' -o -name '*.retired-*' \) \
     -exec cp -p {} "$STAGE_DIR/bundle/data/.keys/" \;
 fi
 

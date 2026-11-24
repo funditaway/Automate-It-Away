@@ -91,23 +91,51 @@ export class Ledger {
 }
 
 /**
- * Walk the chain. `publicKeyPem` pins every line to this node's key so a
- * foreign signature cannot be spliced in.
+ * Build a hex → PEM trust map from a single PEM, a Map, or a keyring-like list.
+ * Rotated deployments pass every retained public key so older lines still verify.
  */
-export function verifyLedgerEntries(entries, publicKeyPem) {
+export function buildTrustedKeyMap(trust) {
+  const byHex = new Map()
+  if (!trust) return byHex
+  if (trust instanceof Map) {
+    for (const [hex, pem] of trust.entries()) {
+      if (pem) byHex.set(hex || pemToRawPublicHex(pem), pem)
+    }
+    return byHex
+  }
+  if (typeof trust === 'string') {
+    byHex.set(pemToRawPublicHex(trust), trust)
+    return byHex
+  }
+  if (Array.isArray(trust)) {
+    for (const item of trust) {
+      const pem = typeof item === 'string' ? item : item?.publicKeyPem
+      if (!pem) continue
+      const hex = item?.publicKeyHex || pemToRawPublicHex(pem)
+      byHex.set(hex, pem)
+    }
+  }
+  return byHex
+}
+
+/**
+ * Walk the chain. Trust may be one PEM (legacy) or a map/list of retained
+ * public keys so rotated keyrings can still audit historical lines.
+ */
+export function verifyLedgerEntries(entries, trust) {
   const errors = []
   let prev = GENESIS
-  const expectedHex = publicKeyPem ? pemToRawPublicHex(publicKeyPem) : null
+  const byHex = buildTrustedKeyMap(trust)
 
   entries.forEach((entry, idx) => {
     const n = idx + 1
     if (entry.prev !== prev) errors.push(`line ${n}: prev does not match prior entryHash`)
     if (entry.seq !== n) errors.push(`line ${n}: seq ${entry.seq} != ${n}`)
     if (hashEntry(entry) !== entry.entryHash) errors.push(`line ${n}: entryHash mismatch`)
-    if (expectedHex && entry.publicKey !== expectedHex) {
-      errors.push(`line ${n}: public key is not the local sovereign key`)
-    }
-    if (!publicKeyPem || !verifyCanonical(publicKeyPem, entryBody(entry), entry.signature)) {
+    const signerPem = byHex.get(entry.publicKey)
+    if (!signerPem) {
+      errors.push(`line ${n}: public key is not in the trusted keyring`)
+    } else if (!verifyCanonical(signerPem, entryBody(entry), entry.signature)) {
       errors.push(`line ${n}: Ed25519 signature invalid`)
     }
     prev = entry.entryHash
@@ -121,13 +149,13 @@ export function verifyLedgerEntries(entries, publicKeyPem) {
   }
 }
 
-export function verifyLedgerFile(filePath, publicKeyPem) {
+export function verifyLedgerFile(filePath, trust) {
   if (!filePath || !existsSync(filePath)) {
     return { ok: true, errors: [], count: 0, tip: GENESIS, missing: true }
   }
   try {
     const ledger = new Ledger(filePath)
-    const result = verifyLedgerEntries(ledger.readEntries(), publicKeyPem)
+    const result = verifyLedgerEntries(ledger.readEntries(), trust)
     return { ...result, missing: false, filePath }
   } catch (err) {
     return {

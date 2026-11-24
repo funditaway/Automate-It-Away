@@ -1,13 +1,16 @@
-.PHONY: help keygen doctor verify replay smoke start backup maintain test
+.PHONY: help keygen rotate doctor verify replay smoke release start backup maintain test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | doctor | verify | replay | smoke | start | backup | maintain | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | smoke | release | start | backup | maintain | test"
 
 keygen:
 	node keygen.js
+
+rotate:
+	node rotateKey.js
 
 doctor:
 	node doctor.js
@@ -20,6 +23,9 @@ replay:
 
 smoke:
 	./smoke.sh
+
+release:
+	./releaseCheck.sh
 
 start:
 	./start.sh

@@ -6,10 +6,12 @@
   "description": "AIA sovereign command center — HITL signing daemon, append-only ledger, pack swarm",
   "scripts": {
     "keygen": "node keygen.js",
+    "rotate": "node rotateKey.js",
     "doctor": "node doctor.js",
     "verify": "node verifyLedger.js",
     "replay": "node replayPacks.js",
     "smoke": "./smoke.sh",
+    "release": "./releaseCheck.sh",
     "start": "./start.sh",
     "start:node": "node server.js",
     "backup": "./backup.sh",

@@ -11,7 +11,8 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runDoctor } from '../doctor.js'
-import { verifyLedgerFile } from '../lib/ledger.js'
+import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
+import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { createCommandCenter } from '../server.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -441,4 +442,49 @@ test('verifyLedger CLI accepts an empty ledger', () => {
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /ledger ok/)
+})
+
+test('key rotation keeps historical ledger lines verifiable via keyring', async () => {
+  await withCenter(async ({ base, ledger, keypair, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'rotation-check', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+    assert.equal(ledger.readEntries().length, 1)
+    assert.equal(ledger.readEntries()[0].publicKey, keypair.publicKeyHex)
+
+    const keyDir = join(dataDir, '.keys')
+    const rotated = rotateKeypair(keyDir)
+    assert.notEqual(rotated.publicKeyHex, keypair.publicKeyHex)
+    assert.equal(rotated.keyring.keys.length >= 2, true)
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'RETIRED'))
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'ACTIVE' && k.keyId === rotated.keyId))
+
+    const trust = loadTrustedPublicKeys(keyDir)
+    const verified = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(verified.ok, true, verified.errors.join('; '))
+    assert.equal(verified.count, 1)
+
+    const activeOnly = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), rotated.publicKeyPem)
+    assert.equal(activeOnly.ok, false)
+    assert.ok(activeOnly.errors.some((line) => /trusted keyring/i.test(line)))
+
+    const nextLedger = new Ledger(join(dataDir, 'ledger.ndjson'))
+    nextLedger.appendSigned({
+      cardId: 'post-rotation',
+      action: 'authorize',
+      payload: { note: 'signed with new key' },
+      privateKeyPem: rotated.privateKeyPem,
+      publicKeyHex: rotated.publicKeyHex,
+      timestamp: Date.now(),
+    })
+    const both = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(both.ok, true, both.errors.join('; '))
+    assert.equal(both.count, 2)
+  })
 })

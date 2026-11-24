@@ -28,12 +28,14 @@ function mustExist(rel) {
   'verifyLedger.js',
   'doctor.js',
   'keygen.js',
+  'rotateKey.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
   'ecosystem.config.cjs',
   'start.sh',
   'smoke.sh',
+  'releaseCheck.sh',
   'backup.sh',
   'maintain.sh',
   '.env.example',
@@ -51,12 +53,12 @@ const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
 })
 
 const keys = fs.readFileSync(path.join(command, 'lib', 'keys.js'), 'utf8')
-;['ed25519', 'signCanonical', 'verifyCanonical'].forEach((bit) => {
+;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json'].forEach((bit) => {
   if (keys.indexOf(bit) < 0) fail('lib/keys.js missing ' + bit)
 })
 
 const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
-;['ledger', 'entryHash', 'appendFileSync'].forEach((bit) => {
+;['ledger', 'entryHash', 'appendFileSync', 'buildTrustedKeyMap', 'trusted keyring'].forEach((bit) => {
   if (ledger.indexOf(bit) < 0) fail('lib/ledger.js missing ' + bit)
 })
 if (ledger.indexOf('sha256') < 0 && ledger.indexOf('payloadHash') < 0) fail('ledger missing hash proof')
@@ -138,10 +140,12 @@ const pkg = JSON.parse(fs.readFileSync(path.join(command, 'package.json'), 'utf8
 if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing express')
 ;[
   'keygen',
+  'rotate',
   'doctor',
   'verify',
   'replay',
   'smoke',
+  'release',
   'start',
   'backup',
   'maintain',
@@ -157,10 +161,12 @@ const depNames = Object.keys(Object.assign({}, pkg.dependencies, pkg.devDependen
 const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
 ;[
   'keygen:',
+  'rotate:',
   'doctor:',
   'verify:',
   'replay:',
   'smoke:',
+  'release:',
   'start:',
   'backup:',
   'maintain:',
@@ -173,15 +179,17 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'HITL',
   'ledger.ndjson',
   'make keygen',
+  'make rotate',
+  'make release',
   'make smoke',
   '127.0.0.1:3000',
   'Ed25519',
+  'keyring.json',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
 })
 
-
-;['smoke.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
   try {
     fs.accessSync(path.join(command, name), fs.constants.X_OK)
   } catch {
