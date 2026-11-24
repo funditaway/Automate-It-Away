@@ -6,7 +6,7 @@
       "card_id": "gemini-intake-card",
       "title": "Inbound Intake Normalizer",
       "mode": "fast",
-      "model": "gemini-2.0-flash",
+      "model": "gemini-2.5-flash",
       "temperature": 0.2,
       "output_format": "json",
       "prompt_focus": [
@@ -19,7 +19,7 @@
       "card_id": "gemini-followup-card",
       "title": "Next-Step & Follow-Up Drafter",
       "mode": "balanced",
-      "model": "gemini-2.0-flash",
+      "model": "gemini-2.5-flash",
       "temperature": 0.35,
       "output_format": "markdown",
       "require_human_approval": true,
