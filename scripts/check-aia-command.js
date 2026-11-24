@@ -21,6 +21,7 @@ function mustExist(rel) {
 ;[
   'package.json',
   'Makefile',
+  'README.md',
   'server.js',
   'webhookIngest.js',
   'grokBotPrompt.js',
@@ -166,6 +167,19 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
 ].forEach((target) => {
   if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
 })
+
+const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
+;[
+  'HITL',
+  'ledger.ndjson',
+  'make keygen',
+  'make smoke',
+  '127.0.0.1:3000',
+  'Ed25519',
+].forEach((bit) => {
+  if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
+})
+
 
 ;['smoke.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
   try {
