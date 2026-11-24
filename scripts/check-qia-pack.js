@@ -78,6 +78,19 @@ const never = (pack.queue && pack.queue.never) || [];
   else pass("never " + w);
 });
 
+const landing = path.join(root, "qia.html");
+if (!fs.existsSync(landing)) fail("missing qia.html landing");
+else pass("qia.html landing");
+const landingSrc = fs.readFileSync(landing, "utf8");
+if (!/Collect stays HOLD/i.test(landingSrc) || !/Bind stays off/i.test(landingSrc)) fail("landing missing Collect HOLD / Bind off");
+else pass("landing rails");
+if (/usage fees apply|per automation run/i.test(landingSrc)) fail("landing must not invent usage fees");
+else pass("no invented usage fees");
+if (!landingSrc.includes("market.html?pack=qia") || !landingSrc.includes("packs/qia.json")) fail("landing missing market / pack JSON links");
+else pass("landing links market + pack JSON");
+if (!/Yes|Stop/i.test(landingSrc)) fail("landing missing Yes/Stop voice");
+else pass("landing Yes/Stop voice");
+
 const catalog = fs.readFileSync(path.join(root, "api", "_packs.js"), "utf8");
 if (!catalog.includes('id: "qia"') || !catalog.includes("packs/qia.json")) fail("_packs.js catalog missing qia");
 else pass("catalog lists qia");
@@ -97,7 +110,10 @@ else pass("PACKS stays five engines");
   ["drop-pack.js", "qia"],
   ["drop-agent.js", "qia"],
   ["desk-queue-packs.js", "qia"],
-  ["market-shop.js", "pack=qia"]
+  ["market-shop.js", "pack=qia"],
+  ["market-shop.js", "/qia"],
+  ["examples.html", "qia.html"],
+  ["vercel.json", "/qia.html"]
 ].forEach(function (row) {
   const src = fs.readFileSync(path.join(root, row[0]), "utf8");
   if (!src.includes(row[1])) fail(row[0] + " missing " + row[1]);
