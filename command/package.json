@@ -16,6 +16,7 @@
     "archive": "node archiveLedgerWindow.js",
     "verify-slice": "node verifyLedgerSlice.js",
     "reconcile": "node reconcileQueue.js",
+    "flush": "node flushSpool.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",

@@ -15,6 +15,7 @@ import { archiveLedgerWindow } from '../archiveLedgerWindow.js'
 import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
 import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
+import { flushSpool } from '../flushSpool.js'
 import { reconcileQueue } from '../reconcileQueue.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
@@ -676,6 +677,64 @@ test('reconcileQueue updates pending queue cards that already have ledger decisi
     assert.equal(after[0].status, 'signed')
     assert.equal(after[0].reconciledAt, '2026-01-03T00:00:00.000Z')
     assert.equal(after[1].status, 'pending')
+  })
+})
+
+test('flushSpool drains ordered spool lines and quarantines poison payloads', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const spoolPath = join(dataDir, 'spool.ndjson')
+    const deadletterPath = join(dataDir, 'spool.deadletter.ndjson')
+    writeFileSync(
+      spoolPath,
+      [
+        JSON.stringify({
+          channel: 'telemetry',
+          payload: { event: 'spool-ok', packId: 'aia', summary: 'healthy drain' },
+        }),
+        'not-json{{{',
+        JSON.stringify({
+          channel: 'telemetry',
+          payload: { event: 'spool-second', packId: 'aia' },
+        }),
+      ].join('\n') + '\n',
+    )
+
+    const dry = await flushSpool({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      dryRun: true,
+      quarantineInvalid: true,
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.flushed, 2)
+    assert.equal(dry.remaining, 1)
+    assert.equal(readFileSync(spoolPath, 'utf8').split('\n').filter(Boolean).length, 3)
+
+    const live = await flushSpool({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      quarantineInvalid: true,
+    })
+    assert.equal(live.flushed, 2)
+    assert.equal(live.quarantined, 1)
+    assert.equal(live.remaining, 0)
+    assert.equal(readFileSync(spoolPath, 'utf8').trim(), '')
+    const dead = readFileSync(deadletterPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(dead.length, 1)
+    assert.equal(dead[0].reason, 'MALFORMED_JSON')
+
+    const queue = await request(base, '/queue?status=pending')
+    assert.equal(queue.body.cards.length, 2)
+    const events = queue.body.cards.map((c) => c.payload?.webhookEvent || c.payload?.summary || '')
+    assert.ok(events.some((e) => /spool-ok|healthy drain/i.test(String(e))))
+    assert.ok(events.some((e) => /spool-second/i.test(String(e))))
   })
 })
 

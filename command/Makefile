@@ -1,10 +1,10 @@
-.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice status archive reconcile smoke release start backup maintain test
+.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice status archive reconcile flush smoke release start backup maintain test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | status | archive | reconcile | smoke | release | start | backup | maintain | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | status | archive | reconcile | flush | smoke | release | start | backup | maintain | test"
 
 keygen:
 	node keygen.js
@@ -40,6 +40,9 @@ verify-slice:
 
 reconcile:
 	node reconcileQueue.js $(RECONCILE_FLAGS)
+
+flush:
+	node flushSpool.js $(FLUSH_FLAGS)
 
 smoke:
 	./smoke.sh

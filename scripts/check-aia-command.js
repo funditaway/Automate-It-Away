@@ -35,6 +35,7 @@ function mustExist(rel) {
   'archiveLedgerWindow.js',
   'verifyLedgerSlice.js',
   'reconcileQueue.js',
+  'flushSpool.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -165,6 +166,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'archive',
   'verify-slice',
   'reconcile',
+  'flush',
   'smoke',
   'release',
   'start',
@@ -192,6 +194,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'archive:',
   'verify-slice:',
   'reconcile:',
+  'flush:',
   'smoke:',
   'release:',
   'start:',
@@ -213,6 +216,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make archive',
   'make verify-slice',
   'make reconcile',
+  'make flush',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -224,9 +228,24 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'archiveLedgerWindow.js',
   'verifyLedgerSlice.js',
   'reconcileQueue.js',
+  'flushSpool.js',
+  'spool.deadletter.ndjson',
   'ledger.anchor.json',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
+})
+
+const flushSpool = fs.readFileSync(path.join(command, 'flushSpool.js'), 'utf8')
+;[
+  'flushSpool',
+  'spool.ndjson',
+  'spool.deadletter.ndjson',
+  '--dry-run',
+  '--quarantine-invalid',
+  'MALFORMED_JSON',
+  'X-AIA-Signature',
+].forEach((bit) => {
+  if (flushSpool.indexOf(bit) < 0) fail('flushSpool.js missing ' + bit)
 })
 
 const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')

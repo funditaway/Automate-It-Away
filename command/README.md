@@ -28,6 +28,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `archiveLedgerWindow.js` | Archive older ledger lines into hash-indexed slices; writes `ledger.anchor.json` |
 | `verifyLedgerSlice.js` | Verify archived slice `.ndjson` + `.meta.json` (digest, signatures, `prev` continuity) |
 | `reconcileQueue.js` | Sync `active_queue.json` statuses to ledger.ndjson decisions (dry-run + atomic write) |
+| `flushSpool.js` | Drain `spool.ndjson` into `/webhook/<channel>`; quarantine poison lines to `spool.deadletter.ndjson` |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -49,6 +50,8 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `data/ledger.ndjson` | Append-only hash-chained audit log (hot window) |
 | `data/ledger.anchor.json` | Boundary after archival (`expectedPrev` / `expectedNextSeq`) |
 | `data/ledger-archives/` | Archived ledger slices + manifests |
+| `data/spool.ndjson` | Buffered inbound events awaiting drain after outages |
+| `data/spool.deadletter.ndjson` | Quarantined malformed / permanently rejected spool lines |
 | `backups/` | Cold archives from `backup.sh` |
 
 ## Quickstart
@@ -80,6 +83,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make archive` / `npm run archive` | Archive older ledger lines (`ARCHIVE_FLAGS='--keep-last 100 --dry-run'`) |
 | `make verify-slice SLICE=…` | Verify an archived ledger slice (`META=` optional) |
 | `make reconcile` / `npm run reconcile` | Reconcile queue snapshot vs ledger (`RECONCILE_FLAGS=--dry-run`) |
+| `make flush` / `npm run flush` | Drain spool to daemon webhooks (`FLUSH_FLAGS='--dry-run --quarantine-invalid'`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
@@ -94,6 +98,8 @@ See `.env.example`. Common values:
 
 - `AIA_BIND` / `AIA_PORT` — default `127.0.0.1:3000`
 - `AIA_DATA_DIR` / `AIA_KEY_DIR` / `AIA_PACKS_DIR` / `AIA_BACKUP_DIR`
+- `AIA_DAEMON_URL` / `AIA_INGEST_URL` — flush target (default `http://127.0.0.1:3000`)
+- `AIA_WEBHOOK_SECRET` — optional HMAC for spool replay (`X-AIA-Signature`)
 - `AIA_DISPATCH_DRY_RUN=1` — stub outbound HTTPS after sign (default)
 - `GROK_API_KEY` or `SPACEXAI_API_KEY` — optional live synthesis
 
