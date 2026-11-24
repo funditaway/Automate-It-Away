@@ -38,6 +38,7 @@ function mustExist(rel) {
   'flushSpool.js',
   'requeueDeadletter.js',
   'watchdog.js',
+  'verifyAllIntegrity.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -171,6 +172,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'flush',
   'requeue',
   'watchdog',
+  'verify-all',
   'smoke',
   'release',
   'start',
@@ -201,6 +203,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'flush:',
   'requeue:',
   'watchdog:',
+  'verify-all:',
   'smoke:',
   'release:',
   'start:',
@@ -225,6 +228,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make flush',
   'make requeue',
   'make watchdog',
+  'make verify-all',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -239,6 +243,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'flushSpool.js',
   'requeueDeadletter.js',
   'watchdog.js',
+  'verifyAllIntegrity.js',
   'spool.deadletter.ndjson',
   '/healthz',
   '/readyz',
@@ -288,6 +293,19 @@ const watchdog = fs.readFileSync(path.join(command, 'watchdog.js'), 'utf8')
 if (server.indexOf('/healthz') < 0 || server.indexOf('/readyz') < 0) {
   fail('server.js missing /healthz or /readyz probe routes')
 }
+
+const verifyAll = fs.readFileSync(path.join(command, 'verifyAllIntegrity.js'), 'utf8')
+;[
+  'verifyAllIntegrity',
+  '--bundle',
+  'reconcileQueue',
+  'verifyLedgerFile',
+  'verifyAuditBundleFile',
+  'buildStatusSummary',
+  'dryRun: true',
+].forEach((bit) => {
+  if (verifyAll.indexOf(bit) < 0) fail('verifyAllIntegrity.js missing ' + bit)
+})
 
 const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')
 ;[

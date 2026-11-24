@@ -31,6 +31,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `flushSpool.js` | Drain `spool.ndjson` into `/webhook/<channel>`; quarantine poison lines to `spool.deadletter.ndjson` |
 | `requeueDeadletter.js` | Inspect / selectively requeue dead-letter entries back to spool (or `--send` to ingest) |
 | `watchdog.js` | Probe `/healthz` + `/readyz`; optional bounded `--restart-cmd` (never touches ledger/keys/queue) |
+| `verifyAllIntegrity.js` | Single read-only gate: ledger chain/signatures, optional `--bundle`, queue drift report, state summary |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -84,6 +85,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make status` / `npm run status` | Queue / spool / keyring / ledger tip snapshot |
 | `make archive` / `npm run archive` | Archive older ledger lines (`ARCHIVE_FLAGS='--keep-last 100 --dry-run'`) |
 | `make verify-slice SLICE=…` | Verify an archived ledger slice (`META=` optional) |
+| `make verify-all` / `npm run verify-all` | Full integrity gate (`VERIFY_ALL_FLAGS='--bundle path/to/audit.json'`) |
 | `make reconcile` / `npm run reconcile` | Reconcile queue snapshot vs ledger (`RECONCILE_FLAGS=--dry-run`) |
 | `make flush` / `npm run flush` | Drain spool to daemon webhooks (`FLUSH_FLAGS='--dry-run --quarantine-invalid'`) |
 | `make requeue` / `npm run requeue` | Inspect/requeue dead-letter (`REQUEUE_FLAGS='--inspect'` or `--reason HTTP_400 --limit 5`) |

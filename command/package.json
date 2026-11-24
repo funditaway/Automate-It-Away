@@ -15,6 +15,7 @@
     "status": "node statusSummary.js",
     "archive": "node archiveLedgerWindow.js",
     "verify-slice": "node verifyLedgerSlice.js",
+    "verify-all": "node verifyAllIntegrity.js",
     "reconcile": "node reconcileQueue.js",
     "flush": "node flushSpool.js",
     "requeue": "node requeueDeadletter.js",

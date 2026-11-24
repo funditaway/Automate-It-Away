@@ -18,6 +18,7 @@ import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { flushSpool } from '../flushSpool.js'
 import { requeueDeadletter } from '../requeueDeadletter.js'
 import { reconcileQueue } from '../reconcileQueue.js'
+import { verifyAllIntegrity } from '../verifyAllIntegrity.js'
 import { runWatchdog } from '../watchdog.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
@@ -888,6 +889,62 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
     assert.equal(recovered.healthy, true)
     assert.equal(recovered.recovery.ok, true)
     assert.equal(restarted, 1)
+  })
+})
+
+test('verifyAllIntegrity gates ledger, optional bundle, and reports queue drift without writes', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'integrity-gate', packId: 'aia', summary: 'integrity check' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const queuePath = join(dataDir, 'active_queue.json')
+    writeFileSync(
+      queuePath,
+      JSON.stringify(
+        [
+          {
+            cardId: queued.body.cardId,
+            status: 'pending',
+            riskLevel: 'medium',
+            summary: 'stale pending for drift report',
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const bundle = buildAuditBundle({ dataDir, keyDir: join(dataDir, '.keys') })
+    const outPath = writeAuditBundle(bundle, join(dataDir, 'audits', 'integrity.json'), join(dataDir, 'audits'))
+
+    const beforeQueue = readFileSync(queuePath, 'utf8')
+    const report = verifyAllIntegrity({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      bundlePath: outPath,
+      checkedAt: '2026-01-06T00:00:00.000Z',
+    })
+
+    assert.equal(report.ok, true)
+    assert.equal(report.ledger.ok, true)
+    assert.equal(report.ledger.entriesVerified, 1)
+    assert.equal(report.bundle.ok, true)
+    assert.equal(report.queueDrift.driftCount, 1)
+    assert.equal(report.queueDrift.driftedCards[0].queueStatus, 'PENDING')
+    assert.equal(report.queueDrift.driftedCards[0].ledgerDecision, 'SIGNED')
+    assert.equal(report.queueDrift.dryRun, true)
+    assert.equal(readFileSync(queuePath, 'utf8'), beforeQueue)
+    assert.equal(report.summary.keyring.totalKeys >= 1, true)
+    assert.equal(report.ledger.activePublicKey, keypair.publicKeyHex)
   })
 })
 

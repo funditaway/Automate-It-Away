@@ -1,10 +1,10 @@
-.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice status archive reconcile flush requeue watchdog smoke release start backup maintain test
+.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice verify-all status archive reconcile flush requeue watchdog smoke release start backup maintain test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | maintain | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | verify-all | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | maintain | test"
 
 keygen:
 	node keygen.js
@@ -37,6 +37,9 @@ archive:
 verify-slice:
 	@test -n "$(SLICE)" || (echo "Usage: make verify-slice SLICE=path/to/ledger-slice.ndjson" >&2; exit 1)
 	node verifyLedgerSlice.js "$(SLICE)" $(META)
+
+verify-all:
+	node verifyAllIntegrity.js $(VERIFY_ALL_FLAGS)
 
 reconcile:
 	node reconcileQueue.js $(RECONCILE_FLAGS)
