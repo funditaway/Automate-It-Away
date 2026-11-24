@@ -4,7 +4,8 @@ const crypto = require("crypto");
 const AI_PROVIDERS = {
   grok: { label: "Grok", vendor: "xAI", acts: ["draft"], login: "https://console.x.ai/team/default/api-keys", model: "grok-4-fast-non-reasoning", note: "Log in at console.x.ai. Paste the API key. Drafts only. Your key, your xAI bill. AIA charges nothing." },
   openai: { label: "ChatGPT", vendor: "OpenAI", acts: ["draft"], login: "https://platform.openai.com/api-keys", model: "gpt-4o-mini", note: "Log in at platform.openai.com. Paste the API key. Sign in with ChatGPT does not give drafts." },
-  anthropic: { label: "Claude", vendor: "Anthropic", acts: ["draft"], login: "https://console.anthropic.com/settings/keys", model: "claude-sonnet-4-20250514", note: "Log in at console.anthropic.com. Paste the API key. claude.ai chat login is not a draft connection." }
+  anthropic: { label: "Claude", vendor: "Anthropic", acts: ["draft"], login: "https://console.anthropic.com/settings/keys", model: "claude-sonnet-4-20250514", note: "Log in at console.anthropic.com. Paste the API key. claude.ai chat login is not a draft connection." },
+  gemini: { label: "Gemini", vendor: "Google", acts: ["draft"], login: "https://aistudio.google.com/apikey", model: "gemini-2.0-flash", note: "Log in at aistudio.google.com. Paste the Google AI / Gemini API key. Drafts only. Your key, your Google bill. AIA charges nothing." }
 };
 function isAiProvider(id) { return !!AI_PROVIDERS[String(id || "").toLowerCase()]; }
 function aiCatalog() {

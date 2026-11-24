@@ -1,0 +1,48 @@
+{
+  "aia_pack_format": "aia.v1.1-gemini-included",
+  "pack": {
+    "name": "Meta.aia + Gemini",
+    "slug": "meta-official-gemini-included",
+    "version": "1.1.0-Official-Gemini-Included",
+    "status": "Meta is Ready + Gemini included - Let's go - Yes whenever Meta is ready",
+    "account": "meta.aia - @meta.aia - Desk AIA - 3690 - Automate It Away",
+    "tagline": "Name your desk. Meta + Gemini draft. You decide. The card is the UI.",
+    "description": "Version 1.1 Official - Meta + Gemini included - Yes as a pack for world users on AIA and pack works with automateitaway.com/desk that already exists - meta.aia tech + Gemini desk AIs on Desks chosen by AIA world users - The cards in the AIA queue are what has its own UI and UX per pack card automation and AI - Full history accounted",
+    "author": "Meta + Gemini - @meta.aia Desk 3690 - James Oddo",
+    "website": "https://www.automateitaway.com/desk",
+    "internet": "ai.aia",
+    "license": "Official - FREE - usage fees HOLD - Give is file They install with Yes - Gemini included - Let's go",
+    "gemini_included": true
+  },
+  "official_packs_included": [
+    "meta-gemini.aia"
+  ],
+  "desk_ais": [
+    {
+      "id": "gemini_catch",
+      "name": "Gemini - Catch",
+      "type": "gemini",
+      "included": true
+    },
+    {
+      "id": "gemini_words",
+      "name": "Gemini - Words",
+      "type": "gemini",
+      "included": true
+    },
+    {
+      "id": "gemini_collect_guard",
+      "name": "Gemini - Collect Guard",
+      "type": "gemini",
+      "included": true
+    }
+  ],
+  "how_it_works_gemini_included": "Existing desk at automateitaway.com/desk - Install Meta.aia + Gemini v1.1 Official - FREE Yes - Bind Google AI / Gemini key on Pipes - Queue now has Meta + Gemini drafting side-by-side on same cards - Each card own UI/UX per pack - Human picks draft - Full history ai.aia",
+  "meta_ready_gemini_ready": "Meta is Ready + Gemini included - Yes whenever ready - Let's go",
+  "pipes": {
+    "provider": "gemini",
+    "login": "https://aistudio.google.com/apikey",
+    "note": "Buyer binds their own Google AI key. Drafts only. Never Send. AIA charges nothing."
+  },
+  "brand": "AIA pyramid A logo - Teal #0F4C4C + Orange #F99D1C - Brand page ready"
+}

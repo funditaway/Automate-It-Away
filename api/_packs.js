@@ -14,7 +14,8 @@ const OFFICIAL = [
   { id: "aia", name: "AIA Help", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "World problem in. Card on the AIA Admin Desk. You tap.", features: ["talk drop", "ticket card", "draft reply"], kinds: ["broke", "login", "desk", "account", "pack", "pipe", "idea"], face: "AIA Help" },
   { id: "aia-adoption", name: "Try it on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Try first. Drop real work. Workers tap Yes or Stop. Open packs customize this desk. Drafts stay on the card.", features: ["try-first", "worker-first", "open packs", "secure-by-design"], kinds: ["task", "errand", "idea", "project"] },
   { id: "aia-implement", name: "Four steps on this desk", type: "work", family: "Automate It Away", aisle: "AIA", official: true, price: 0, use: "ok", does: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.", features: ["four-steps", "audit", "pipes", "desk AI", "guardrails"], kinds: ["leak", "pipe", "agent", "guard"] },
-  { id: "meta", name: "Meta.aia Official World Pack", type: "work", family: "Meta.aia", aisle: "Meta", official: true, price: 0, use: "ok", does: "Name your desk. Meta + Claude draft. You decide. The card is the UI. Collect stays HOLD.", features: ["meta draft", "claude included", "per-card UI", "worker webhook", "collect hold"], kinds: ["lead", "house", "shop", "office", "front-desk", "setup", "support", "content"], face: "Meta.aia", aia: "meta.aia" }
+  { id: "meta", name: "Meta.aia Official World Pack", type: "work", family: "Meta.aia", aisle: "Meta", official: true, price: 0, use: "ok", does: "Name your desk. Meta + Claude draft. You decide. The card is the UI. Collect stays HOLD.", features: ["meta draft", "claude included", "per-card UI", "worker webhook", "collect hold"], kinds: ["lead", "house", "shop", "office", "front-desk", "setup", "support", "content"], face: "Meta.aia", aia: "meta.aia" },
+  { id: "meta-gemini", name: "Meta.aia + Gemini", type: "work", family: "Meta.aia", aisle: "Meta", official: true, price: 0, use: "ok", does: "Gemini desk AIs draft beside Meta. You pick. Bind your Google AI key on Pipes. Collect stays HOLD.", features: ["gemini draft", "gemini included", "per-card UI", "collect hold"], kinds: ["lead", "support", "content"], face: "Gemini", aia: "meta-gemini.aia" }
 ];
 
 const COLORS = [
@@ -43,7 +44,8 @@ const PACK_FILES = {
   "meta-automations-account": function () { return require("../packs/meta-automations-account.json"); },
   "meta-creator-studio": function () { return require("../packs/meta-creator-studio.json"); },
   "meta-setup": function () { return require("../packs/meta-setup.json"); },
-  "meta-claude": function () { return require("../packs/meta-claude.json"); }
+  "meta-claude": function () { return require("../packs/meta-claude.json"); },
+  "meta-gemini": function () { return require("../packs/meta-gemini.json"); }
 };
 
 function wantedRows() {
@@ -241,6 +243,15 @@ function findPack(id, opts) {
   ) {
     const meta = allPacks(opts).find(function (p) { return p.id === "meta"; });
     if (meta) return meta;
+  }
+  if (
+    want === "meta-gemini" ||
+    want === "gemini" ||
+    want === "meta-official-gemini-included" ||
+    want === "meta-gemini.aia"
+  ) {
+    const gemini = allPacks(opts).find(function (p) { return p.id === "meta-gemini"; });
+    if (gemini) return gemini;
   }
   return allPacks(opts).find(function (p) {
     if (!p) return false;

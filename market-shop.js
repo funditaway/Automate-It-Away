@@ -135,7 +135,7 @@
       "</div>" +
       "<div class=\"card\"><b>Four steps on this desk · Try it</b>" +
         "<p class=\"hint\">ai.aia is the brand. The desk runs on automateitaway.com. 1 Find the leaks. 2 Hook the pipes. 3 Name a desk AI. 4 You still tap. Collect stays HOLD.</p>" +
-        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a><a class=\"use ghost\" href=\"/qia\">Quote ops</a><a class=\"use ghost\" href=\"/market?pack=qia\">Install Quote ops</a><a class=\"use ghost\" href=\"/meta\">Meta.aia</a><a class=\"use ghost\" href=\"/market?pack=meta\">Install Meta.aia</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
+        "<div class=\"cta\"><a class=\"use\" href=\"/market?pack=aia-adoption\">Try it on this desk</a><a class=\"use ghost\" href=\"/market?pack=aia-implement\">Four steps pack</a><a class=\"use ghost\" href=\"/qia\">Quote ops</a><a class=\"use ghost\" href=\"/market?pack=qia\">Install Quote ops</a><a class=\"use ghost\" href=\"/meta\">Meta.aia</a><a class=\"use ghost\" href=\"/market?pack=meta\">Install Meta.aia</a><a class=\"use ghost\" href=\"/market?pack=meta-gemini\">Install Gemini pack</a><a class=\"use ghost\" href=\"/dev\">Creators Studio</a></div>" +
       "</div>" +
       "<form class=\"card\" id=\"find\">" +
         "<label>Search packs</label>" +
@@ -199,7 +199,7 @@
       "<div class=\"cta\">" +
         ownerBtns +
         (p.id === "qia" ? "<a class=\"use ghost\" href=\"/qia\">Open Quote ops page</a>" : "") +
-        (p.id === "meta" ? "<a class=\"use ghost\" href=\"/meta\">Open Meta.aia page</a>" : "") +
+        (p.id === "meta" || p.id === "meta-gemini" ? "<a class=\"use ghost\" href=\"/meta\">Open Meta.aia page</a>" : "") +
         "<a class=\"use ghost\" href=\"/api/desks?packs=1&download=" + encodeURIComponent(p.aia || p.file || p.id) + "\">Download " + esc(p.file || p.aia || (p.id + ".aia")) + "</a>" +
         "<a class=\"use ghost\" href=\"/drop?pack=" + encodeURIComponent(p.id) + "\">Drop this pack</a>" +
         "<button class=\"use ghost\" type=\"button\" data-copy-link=\"" + esc(p.id) + "\">Copy listing link</button>" +

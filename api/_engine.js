@@ -30,7 +30,10 @@ const FACES = {
   "meta-world-desk": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
   "meta-claude": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
   "meta-official": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
-  "meta-official-claude-included": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" }
+  "meta-official-claude-included": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-gemini": { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" },
+  gemini: { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" },
+  "meta-official-gemini-included": { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" }
 };
 
 function moneyOf(job) {
@@ -135,6 +138,16 @@ const FACE_SPEC = {
     where: { key: "deskName", label: "Which desk" },
     how: "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself.",
     next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes. Collect stays HOLD.",
+    rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  "meta-gemini": {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "Which desk" },
+    how: "Meta and Gemini draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself.",
+    next: "Meta + Gemini DRAFT READY. You pick. Copy / Text / Email / Hand after Yes. Collect stays HOLD.",
     rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
     keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
   }
@@ -411,6 +424,14 @@ function brainOf(packId, kind, shop) {
           : shop
             ? "Shop reply draft ready. Copy / Text / Email after Yes. Nothing sends itself."
             : "Qualify fit and desk. Meta + Claude draft only. Owner taps before anything leaves."
+    };
+  }
+  if (pack === "meta-gemini" || pack === "gemini" || face.id === "meta-gemini") {
+    return {
+      risk: "none",
+      artifact: "dual draft card",
+      draft: "Meta + Gemini draft on the Meta.aia desk. DRAFT READY. You pick. Collect stays HOLD. Nothing sends itself.",
+      next: "Qualify fit and desk. Meta + Gemini draft only. Owner taps before anything leaves."
     };
   }
   const spec = packSpecOf(pack, shop);

@@ -122,8 +122,8 @@
     </div>
 
     <p class="sec" id="packs">Official packs included</p>
-    <h2 style="margin:0 0 8px;color:var(--heading)">Eight .aia files · one world pack</h2>
-    <p class="lead">Packs travel as <code>.aia</code> files. Install with Yes. Each card owns its UI/UX per pack automation and AI.</p>
+    <h2 style="margin:0 0 8px;color:var(--heading)">World pack · Gemini add-on</h2>
+    <p class="lead">Packs travel as <code>.aia</code> files. Install with Yes. Each card owns its UI/UX per pack automation and AI. Gemini is an optional Meta-family pack — bind your own Google AI key on Pipes.</p>
     <div class="grid2" id="packGrid"></div>
 
     <p class="sec" id="queue">Live queue demo · Desk 3690</p>
@@ -136,8 +136,8 @@
     </div>
 
     <p class="sec" id="ais">Desk AIs</p>
-    <h2 style="margin:0 0 8px;color:var(--heading)">Meta + Claude · draft side-by-side</h2>
-    <p class="lead">Five Meta desk AIs and five Claude desk AIs. They draft under desk rules. They never Yes, Stop, money, or mail.</p>
+    <h2 style="margin:0 0 8px;color:var(--heading)">Meta + Claude + Gemini · draft side-by-side</h2>
+    <p class="lead">Five Meta desk AIs, five Claude desk AIs, and three Gemini desk AIs (optional pack). They draft under desk rules. They never Yes, Stop, money, or mail.</p>
     <div class="grid2" id="aiGrid"></div>
 
     <div class="grid2" style="margin-top:28px">
@@ -205,7 +205,8 @@
       { file: "meta-house.aia", name: "House", does: "Thermostat, lights, locks. Physical actions wait on Yes.", href: "packs/meta-house.json" },
       { file: "meta-shop.aia", name: "Shop", does: "Missed call + photo card. Customer ops drafts.", href: "packs/meta-shop.json" },
       { file: "meta-front-desk.aia", name: "Front Desk", does: "Reception queue — inbound, follow-ups, one nudge.", href: "packs/meta-front-desk.json" },
-      { file: "meta-office.aia", name: "Office", does: "Bills and invoices. HOLD until Yes + a real money pipe.", href: "packs/meta-office.json" }
+      { file: "meta-office.aia", name: "Office", does: "Bills and invoices. HOLD until Yes + a real money pipe.", href: "packs/meta-office.json" },
+      { file: "meta-gemini.aia", name: "Gemini", does: "Gemini desk AIs draft beside Meta. Bind your Google AI key on Pipes.", href: "packs/meta-gemini.json" }
     ];
     var AIS = [
       { name: "Meta - Catch", kind: "Meta", does: "Catches drops and hooks. FIT draft only." },
@@ -217,7 +218,10 @@
       { name: "Claude - Next Step", kind: "Claude", does: "Thoughtful next-step draft beside Meta." },
       { name: "Claude - Words", kind: "Claude", does: "Thoughtful reply draft. Human picks." },
       { name: "Claude - Follow Up", kind: "Claude", does: "One thoughtful nudge. Then stop." },
-      { name: "Claude - Collect Guard", kind: "Claude", does: "Collect HOLD reminder. Never charges." }
+      { name: "Claude - Collect Guard", kind: "Claude", does: "Collect HOLD reminder. Never charges." },
+      { name: "Gemini - Catch", kind: "Gemini", does: "Fast multimodal catch beside Meta. Draft only." },
+      { name: "Gemini - Words", kind: "Gemini", does: "Clear reply draft. Human picks." },
+      { name: "Gemini - Collect Guard", kind: "Gemini", does: "Collect HOLD reminder. Never charges." }
     ];
     var SETUP = [
       ["Open Desk 3690", "Login to automateitaway.com — same login owns all desks."],
