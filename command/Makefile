@@ -1,10 +1,10 @@
-.PHONY: help keygen rotate doctor verify replay export verify-audit status archive smoke release start backup maintain test
+.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice status archive reconcile smoke release start backup maintain test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | status | archive | smoke | release | start | backup | maintain | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | status | archive | reconcile | smoke | release | start | backup | maintain | test"
 
 keygen:
 	node keygen.js
@@ -33,6 +33,13 @@ status:
 
 archive:
 	node archiveLedgerWindow.js $(ARCHIVE_FLAGS)
+
+verify-slice:
+	@test -n "$(SLICE)" || (echo "Usage: make verify-slice SLICE=path/to/ledger-slice.ndjson" >&2; exit 1)
+	node verifyLedgerSlice.js "$(SLICE)" $(META)
+
+reconcile:
+	node reconcileQueue.js $(RECONCILE_FLAGS)
 
 smoke:
 	./smoke.sh

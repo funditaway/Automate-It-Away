@@ -15,10 +15,12 @@ import { archiveLedgerWindow } from '../archiveLedgerWindow.js'
 import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
 import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
+import { reconcileQueue } from '../reconcileQueue.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
 import { buildStatusSummary } from '../statusSummary.js'
 import { verifyAuditBundle, verifyAuditBundleFile } from '../verifyAuditBundle.js'
+import { verifyLedgerSlice } from '../verifyLedgerSlice.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const commandRoot = join(here, '..')
@@ -584,6 +586,17 @@ test('archiveLedgerWindow trims the hot ledger and keeps verification continuous
     assert.ok(existsSync(archived.metaFile))
     assert.ok(existsSync(join(dataDir, 'ledger.anchor.json')))
 
+    const sliceReport = verifyLedgerSlice({
+      slicePath: archived.sliceFile,
+      metaPath: archived.metaFile,
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+    })
+    assert.equal(sliceReport.ok, true, sliceReport.issues.join('; '))
+    assert.equal(sliceReport.sliceSha256Valid, true)
+    assert.equal(sliceReport.entryCount, 2)
+    assert.equal(sliceReport.boundaryHandoff.lastArchivedHash, archived.boundaryPrevHash)
+
     const after = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
     assert.equal(after.ok, true, after.errors.join('; '))
     assert.equal(after.count, 1)
@@ -602,6 +615,67 @@ test('archiveLedgerWindow trims the hot ledger and keeps verification continuous
     const continued = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
     assert.equal(continued.ok, true, continued.errors.join('; '))
     assert.equal(continued.count, 2)
+  })
+})
+
+test('reconcileQueue updates pending queue cards that already have ledger decisions', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'reconcile-check', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const queuePath = join(dataDir, 'active_queue.json')
+    writeFileSync(
+      queuePath,
+      JSON.stringify(
+        [
+          {
+            cardId: queued.body.cardId,
+            status: 'pending',
+            riskLevel: 'medium',
+            summary: 'stale pending after crash',
+          },
+          {
+            cardId: 'still-open',
+            status: 'pending',
+            riskLevel: 'low',
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const dry = reconcileQueue({
+      dataDir,
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      dryRun: true,
+      reconciledAt: '2026-01-03T00:00:00.000Z',
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.driftCount, 1)
+    assert.equal(dry.changes[0].toStatus, 'signed')
+    assert.equal(JSON.parse(readFileSync(queuePath, 'utf8'))[0].status, 'pending')
+
+    const live = reconcileQueue({
+      dataDir,
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      reconciledAt: '2026-01-03T00:00:00.000Z',
+    })
+    assert.equal(live.reconciled, true)
+    assert.equal(live.driftCount, 1)
+    const after = JSON.parse(readFileSync(queuePath, 'utf8'))
+    assert.equal(after[0].status, 'signed')
+    assert.equal(after[0].reconciledAt, '2026-01-03T00:00:00.000Z')
+    assert.equal(after[1].status, 'pending')
   })
 })
 
