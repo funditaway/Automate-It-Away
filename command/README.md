@@ -1,0 +1,118 @@
+# AIA Command Center (HITL Daemon)
+
+Local-first **Human-in-the-Loop (HITL)** orchestration daemon for Automate It Away. Incoming pack/webhook events become decision cards; nothing changes external state until you authorize with an Ed25519 signature that is appended to `ledger.ndjson`.
+
+Default bind: `http://127.0.0.1:3000/` (loopback only). Express is the only npm dependency; signing uses Node’s native `crypto` module.
+
+## At-a-glance architecture
+
+1. **Ingest & synthesize** — `webhookIngest.js` (plus appliance / bridge adapters) normalizes inbound events into the universal Active Decision Card schema via `lib/decisionCard.js`. Grok synthesis runs through `grokBotPrompt.js` when a key is present; otherwise a local meta-prompt fallback is used. Cards land in the in-memory queue — never auto-executed.
+2. **Triage** — `public/index.html` polls `/queue`, shows risk-colored cards, and falls back to **SIMULATION** mode when the daemon is offline so keyboard workflows stay testable.
+3. **Authorize & sign** — Pressing **Enter** (or the primary button) posts with `confirm: true`. `server.js` SHA-256-hashes the canonical payload, signs with the local Ed25519 key under `data/.keys/`, appends a hash-chained line to `data/ledger.ndjson`, then optionally dry-runs an allowlisted HTTPS dispatch.
+
+The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) is sent; hashing and signing stay inside the Node process.
+
+## Core components
+
+| File / Path | Role |
+| --- | --- |
+| `keygen.js` | Idempotent Ed25519 bootstrap under `data/.keys/` (`--rotate` uses keyring-aware cutover) |
+| `rotateKey.js` | Non-destructive rotation — new ACTIVE key, prior keys RETIRED in `keyring.json` |
+| `server.js` | Express daemon: `/health`, `/queue`, `/ledger`, `/api/sign`, HITL settle routes, static desk |
+| `webhookIngest.js` | GHL / pack webhook mount — builds decision payloads, never signs |
+| `public/index.html` | Dark Tailwind desk — queue + inspector, **Enter** authorize, offline simulation |
+| `verifyLedger.js` | Recomputes SHA-256 chain links; verifies signatures against active + retired keyring keys |
+| `exportAudit.js` | Private-key-free audit bundle (ledger + public keyring + verification + `bundleSha256`) |
+| `verifyAuditBundle.js` | Offline verifier for audit bundles (digest + signatures + contiguous `prev` links) |
+| `statusSummary.js` | Read-only queue/spool/keyring/ledger snapshot (no daemon, no mutation) |
+| `archiveLedgerWindow.js` | Archive older ledger lines into hash-indexed slices; writes `ledger.anchor.json` |
+| `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
+| `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
+| `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
+| `grokBotPrompt.js` | Meta-prompt / decision-card synthesis (live or local fallback) |
+| `replayPacks.js` | Dry pack-registry load — no queue or ledger mutation |
+| `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and pre-release gate (doctor → replay → verify → smoke) |
+| `backup.sh` / `maintain.sh` | Cold identity/ledger/keyring archive and non-destructive temp/log cleanup |
+| `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
+| `Makefile` / `package.json` | One-word operational verbs (see below) |
+| `.env.example` | Documented `AIA_*` / Grok overrides (copy to `.env`; never commit secrets) |
+
+### Local data (gitignored)
+
+| Path | Purpose |
+| --- | --- |
+| `data/.keys/ed25519.pem` | Private signing key (mode `0600`) |
+| `data/.keys/ed25519.pub.pem` | Public key |
+| `data/.keys/keyring.json` | Active + retired public keys for historical verification |
+| `data/ledger.ndjson` | Append-only hash-chained audit log (hot window) |
+| `data/ledger.anchor.json` | Boundary after archival (`expectedPrev` / `expectedNextSeq`) |
+| `data/ledger-archives/` | Archived ledger slices + manifests |
+| `backups/` | Cold archives from `backup.sh` |
+
+## Quickstart
+
+```bash
+cd command
+cp .env.example .env   # optional
+npm install
+make keygen
+make doctor
+make smoke
+make start
+```
+
+Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. Authorize with **Enter** (or click **YES: AUTHORIZE & SIGN**). Audit the chain anytime with `make verify`.
+
+## Operational runbook
+
+| Command | What it does |
+| --- | --- |
+| `make keygen` / `npm run keygen` | Create or report the local Ed25519 identity |
+| `make rotate` / `npm run rotate` | Rotate signing key; retain prior pubs in `keyring.json` |
+| `make doctor` / `npm run doctor` | Environment + permission + ledger preflight |
+| `make verify` / `npm run verify` | Verify `ledger.ndjson` chain + signatures |
+| `make replay` / `npm run replay` | Dry-load `../packs/*.json` without mutating state |
+| `make export` / `npm run export` | Write a private-key-free audit JSON under `audits/` (`--card`, `--out`) |
+| `make verify-audit BUNDLE=…` | Offline-verify an audit bundle (`npm run verify-audit -- path.json`) |
+| `make status` / `npm run status` | Queue / spool / keyring / ledger tip snapshot |
+| `make archive` / `npm run archive` | Archive older ledger lines (`ARCHIVE_FLAGS='--keep-last 100 --dry-run'`) |
+| `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
+| `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
+| `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
+| `npm run start:node` | Run `server.js` directly (no PM2) |
+| `make backup` / `npm run backup` | Archive keys + ledger into `backups/` |
+| `make maintain` / `npm run maintain` | Prune stale `.tmp` / rotate oversized logs (never touches ledger or keys) |
+| `make test` / `npm test` | Contract tests only |
+
+### Environment overrides
+
+See `.env.example`. Common values:
+
+- `AIA_BIND` / `AIA_PORT` — default `127.0.0.1:3000`
+- `AIA_DATA_DIR` / `AIA_KEY_DIR` / `AIA_PACKS_DIR` / `AIA_BACKUP_DIR`
+- `AIA_DISPATCH_DRY_RUN=1` — stub outbound HTTPS after sign (default)
+- `GROK_API_KEY` or `SPACEXAI_API_KEY` — optional live synthesis
+
+### Cryptographic guarantees
+
+- **HITL gate** — authorize / reject / delegate refuse to run without `confirm: true`
+- **Canonical signing** — `lib/canonical.js` + Ed25519 over a stable field set
+- **Hash chain** — each ledger line stores `prev` → `entryHash`; `verifyLedger.js` walks the full file
+- **Key isolation** — private key stays on disk; the desk only sends intent
+
+### Service supervision
+
+```bash
+# with PM2 (preferred when installed)
+./start.sh
+# or
+pm2 start ecosystem.config.cjs
+```
+
+Keep the bind on loopback (or a private Tailscale/WireGuard interface). Do not expose `/api/sign` on the public internet.
+
+## Related
+
+- Repo site / Vercel app — root `README.md`
+- SQLite vault + GHL IPC runtime — `../runtime/README.md`
+- Pack manifests — `../packs/*.json`

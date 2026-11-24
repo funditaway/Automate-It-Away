@@ -20,15 +20,29 @@ function mustExist(rel) {
 
 ;[
   'package.json',
+  'Makefile',
+  'README.md',
   'server.js',
   'webhookIngest.js',
   'grokBotPrompt.js',
   'verifyLedger.js',
   'doctor.js',
+  'keygen.js',
+  'rotateKey.js',
+  'exportAudit.js',
+  'verifyAuditBundle.js',
+  'statusSummary.js',
+  'archiveLedgerWindow.js',
+  'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
   'ecosystem.config.cjs',
   'start.sh',
+  'smoke.sh',
+  'releaseCheck.sh',
+  'backup.sh',
+  'maintain.sh',
+  '.env.example',
   'public/index.html',
   'lib/decisionCard.js',
   'lib/appliance.js',
@@ -43,12 +57,21 @@ const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
 })
 
 const keys = fs.readFileSync(path.join(command, 'lib', 'keys.js'), 'utf8')
-;['ed25519', 'signCanonical', 'verifyCanonical'].forEach((bit) => {
+;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json'].forEach((bit) => {
   if (keys.indexOf(bit) < 0) fail('lib/keys.js missing ' + bit)
 })
 
 const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
-;['ledger', 'entryHash', 'appendFileSync'].forEach((bit) => {
+;[
+  'ledger',
+  'entryHash',
+  'appendFileSync',
+  'buildTrustedKeyMap',
+  'trusted keyring',
+  'ledger.anchor.json',
+  'writeLedgerAnchor',
+  'expectedNextSeq',
+].forEach((bit) => {
   if (ledger.indexOf(bit) < 0) fail('lib/ledger.js missing ' + bit)
 })
 if (ledger.indexOf('sha256') < 0 && ledger.indexOf('payloadHash') < 0) fail('ledger missing hash proof')
@@ -128,15 +151,106 @@ if (start.indexOf('doctor.js') < 0 || start.indexOf('server.js') < 0) fail('star
 
 const pkg = JSON.parse(fs.readFileSync(path.join(command, 'package.json'), 'utf8'))
 if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing express')
+;[
+  'keygen',
+  'rotate',
+  'doctor',
+  'verify',
+  'replay',
+  'export',
+  'verify-audit',
+  'status',
+  'archive',
+  'smoke',
+  'release',
+  'start',
+  'backup',
+  'maintain',
+  'test',
+].forEach((script) => {
+  if (!pkg.scripts || !pkg.scripts[script]) fail('package.json missing script ' + script)
+})
 const depNames = Object.keys(Object.assign({}, pkg.dependencies, pkg.devDependencies))
 ;['ethers', 'viem', 'wagmi', 'react', 'vue', 'vite'].forEach((name) => {
   if (depNames.indexOf(name) >= 0) fail('unexpected dependency ' + name)
+})
+
+const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
+;[
+  'keygen:',
+  'rotate:',
+  'doctor:',
+  'verify:',
+  'replay:',
+  'export:',
+  'verify-audit:',
+  'status:',
+  'archive:',
+  'smoke:',
+  'release:',
+  'start:',
+  'backup:',
+  'maintain:',
+].forEach((target) => {
+  if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
+})
+
+const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
+;[
+  'HITL',
+  'ledger.ndjson',
+  'make keygen',
+  'make rotate',
+  'make export',
+  'make verify-audit',
+  'make status',
+  'make archive',
+  'make release',
+  'make smoke',
+  '127.0.0.1:3000',
+  'Ed25519',
+  'keyring.json',
+  'exportAudit.js',
+  'verifyAuditBundle.js',
+  'statusSummary.js',
+  'archiveLedgerWindow.js',
+  'ledger.anchor.json',
+].forEach((bit) => {
+  if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
+})
+
+const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')
+;[
+  'bundleSha256',
+  'buildAuditBundle',
+  'publicKeyPem',
+  '--card',
+  'Never copies',
+  'private material',
+].forEach((bit) => {
+  if (exportAudit.indexOf(bit) < 0) fail('exportAudit.js missing ' + bit)
+})
+
+const verifyAudit = fs.readFileSync(path.join(command, 'verifyAuditBundle.js'), 'utf8')
+;['verifyAuditBundle', 'bundleSha256', 'entryHash', 'Ed25519', 'process.exit'].forEach((bit) => {
+  if (verifyAudit.indexOf(bit) < 0) fail('verifyAuditBundle.js missing ' + bit)
+})
+
+;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+  try {
+    fs.accessSync(path.join(command, name), fs.constants.X_OK)
+  } catch {
+    fail(name + ' must be executable')
+  }
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {
   const install = spawnSync('npm', ['install'], { cwd: command, encoding: 'utf8' })
   if (install.status !== 0) fail('npm install failed: ' + (install.stderr || install.stdout))
 }
+
+const shortcuts = spawnSync('make', ['-n', 'help'], { cwd: command, encoding: 'utf8' })
+if (shortcuts.status !== 0) fail('make help failed:\n' + (shortcuts.stderr || shortcuts.stdout))
 
 const test = spawnSync('npm', ['test'], { cwd: command, encoding: 'utf8' })
 if (test.status !== 0) fail('command tests failed:\n' + (test.stdout || '') + (test.stderr || ''))

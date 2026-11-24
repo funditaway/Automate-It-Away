@@ -4,15 +4,21 @@
  */
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runDoctor } from '../doctor.js'
-import { verifyLedgerFile } from '../lib/ledger.js'
+import { archiveLedgerWindow } from '../archiveLedgerWindow.js'
+import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
+import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
+import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { createCommandCenter } from '../server.js'
+import { canonicalJson, sha256Text } from '../lib/canonical.js'
+import { buildStatusSummary } from '../statusSummary.js'
+import { verifyAuditBundle, verifyAuditBundleFile } from '../verifyAuditBundle.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const commandRoot = join(here, '..')
@@ -441,4 +447,205 @@ test('verifyLedger CLI accepts an empty ledger', () => {
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /ledger ok/)
+})
+
+test('exportAudit builds a private-key-free bundle with a stable bundleSha256', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'audit-export', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const outDir = join(dataDir, 'audits')
+    const bundle = buildAuditBundle({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      cardId: queued.body.cardId,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+    })
+    assert.equal(bundle.exportedEntryCount, 1)
+    assert.equal(bundle.verification.ok, true)
+    assert.equal(bundle.scope.cardId, queued.body.cardId)
+    assert.ok(bundle.bundleSha256)
+    assert.equal(JSON.stringify(bundle).includes('BEGIN PRIVATE KEY'), false)
+    assert.equal(JSON.stringify(bundle).includes('ed25519.pem'), false)
+
+    const { bundleSha256, ...unsigned } = bundle
+    assert.equal(sha256Text(canonicalJson(unsigned)), bundleSha256)
+
+    const outPath = writeAuditBundle(bundle, join(outDir, 'proof.json'), outDir)
+    const written = JSON.parse(readFileSync(outPath, 'utf8'))
+    assert.equal(written.bundleSha256, bundle.bundleSha256)
+    assert.equal(written.entries[0].record.cardId, queued.body.cardId)
+
+    const verified = verifyAuditBundleFile(outPath)
+    assert.equal(verified.ok, true, verified.issues.join('; '))
+    assert.equal(verified.bundleDigestValid, true)
+    assert.equal(verified.signaturesValid, true)
+
+    written.entries[0].record.payloadHash = 'f'.repeat(64)
+    const tampered = verifyAuditBundle(written)
+    assert.equal(tampered.ok, false)
+    assert.equal(tampered.bundleDigestValid, false)
+  })
+})
+
+test('statusSummary reports keyring and ledger tip without mutating state', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'status-check', packId: 'aia' },
+    })
+    await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+
+    mkdirSync(join(dataDir), { recursive: true })
+    writeFileSync(
+      join(dataDir, 'active_queue.json'),
+      JSON.stringify(
+        [
+          {
+            cardId: 'pending-1',
+            status: 'pending',
+            riskLevel: 'high',
+            payload: { riskLevel: 'high' },
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const summary = buildStatusSummary({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      checkedAt: '2026-01-01T00:00:00.000Z',
+    })
+    assert.equal(summary.queue.totalCards, 1)
+    assert.equal(summary.queue.byStatus.PENDING, 1)
+    assert.equal(summary.queue.byRisk.high, 1)
+    assert.equal(summary.ledger.entries, 1)
+    assert.equal(summary.ledger.latestCardId, queued.body.cardId)
+    assert.equal(summary.ledger.latestAction, 'authorize')
+    assert.ok(summary.keyring.activeKeyId)
+    assert.equal(summary.keyring.activeKeys >= 1, true)
+    assert.equal(summary.keyring.totalKeys >= 1, true)
+    assert.ok(keypair.publicKeyHex)
+  })
+})
+
+test('archiveLedgerWindow trims the hot ledger and keeps verification continuous', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    for (let i = 0; i < 3; i += 1) {
+      const queued = await request(base, '/webhook/telemetry', {
+        method: 'POST',
+        body: { event: `archive-${i}`, packId: 'aia', idempotencyKey: `arch-${i}` },
+      })
+      const signed = await request(base, '/api/sign', {
+        method: 'POST',
+        body: { cardId: queued.body.cardId, confirm: true },
+      })
+      assert.equal(signed.status, 200)
+    }
+
+    const ledgerPath = join(dataDir, 'ledger.ndjson')
+    const before = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(before.ok, true)
+    assert.equal(before.count, 3)
+
+    const dry = archiveLedgerWindow({
+      dataDir,
+      ledgerPath,
+      keepLast: 1,
+      dryRun: true,
+      stamp: '2026-01-02T00:00:00.000Z',
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.wouldArchiveCount, 2)
+    assert.equal(dry.wouldRetainCount, 1)
+
+    const archived = archiveLedgerWindow({
+      dataDir,
+      ledgerPath,
+      keepLast: 1,
+      stamp: '2026-01-02T00:00:00.000Z',
+    })
+    assert.equal(archived.archived, true)
+    assert.equal(archived.archivedCount, 2)
+    assert.equal(archived.retainedCount, 1)
+    assert.ok(existsSync(archived.sliceFile))
+    assert.ok(existsSync(archived.metaFile))
+    assert.ok(existsSync(join(dataDir, 'ledger.anchor.json')))
+
+    const after = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(after.ok, true, after.errors.join('; '))
+    assert.equal(after.count, 1)
+    assert.ok(after.anchor)
+    assert.equal(after.anchor.lastArchivedHash, archived.boundaryPrevHash)
+
+    const next = new Ledger(ledgerPath)
+    next.appendSigned({
+      cardId: 'post-archive',
+      action: 'authorize',
+      payload: { note: 'continues after archive' },
+      privateKeyPem: keypair.privateKeyPem,
+      publicKeyHex: keypair.publicKeyHex,
+      timestamp: Date.now(),
+    })
+    const continued = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(continued.ok, true, continued.errors.join('; '))
+    assert.equal(continued.count, 2)
+  })
+})
+
+test('key rotation keeps historical ledger lines verifiable via keyring', async () => {
+  await withCenter(async ({ base, ledger, keypair, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'rotation-check', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+    assert.equal(ledger.readEntries().length, 1)
+    assert.equal(ledger.readEntries()[0].publicKey, keypair.publicKeyHex)
+
+    const keyDir = join(dataDir, '.keys')
+    const rotated = rotateKeypair(keyDir)
+    assert.notEqual(rotated.publicKeyHex, keypair.publicKeyHex)
+    assert.equal(rotated.keyring.keys.length >= 2, true)
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'RETIRED'))
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'ACTIVE' && k.keyId === rotated.keyId))
+
+    const trust = loadTrustedPublicKeys(keyDir)
+    const verified = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(verified.ok, true, verified.errors.join('; '))
+    assert.equal(verified.count, 1)
+
+    const activeOnly = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), rotated.publicKeyPem)
+    assert.equal(activeOnly.ok, false)
+    assert.ok(activeOnly.errors.some((line) => /trusted keyring/i.test(line)))
+
+    const nextLedger = new Ledger(join(dataDir, 'ledger.ndjson'))
+    nextLedger.appendSigned({
+      cardId: 'post-rotation',
+      action: 'authorize',
+      payload: { note: 'signed with new key' },
+      privateKeyPem: rotated.privateKeyPem,
+      publicKeyHex: rotated.publicKeyHex,
+      timestamp: Date.now(),
+    })
+    const both = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(both.ok, true, both.errors.join('; '))
+    assert.equal(both.count, 2)
+  })
 })

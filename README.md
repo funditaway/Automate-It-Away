@@ -31,6 +31,16 @@ Store: file or `/tmp` until `BLOB_READ_WRITE_TOKEN` is set. Then jobs and worksp
 First vertical pack: `packs/consign.json`.
 World login: `/login.html` (slug + pin). New desk: `/onboard.html`. Rules: `/rules.html`.
 
+## Local command center (HITL daemon)
+
+Sovereign keyboard desk + Ed25519 signing daemon live in `command/` — webhook ingest, risk-tiered decision queue, append-only `ledger.ndjson`, and offline simulation fallback on `127.0.0.1:3000`.
+
+```bash
+cd command && npm install && make smoke && make start
+```
+
+See `command/README.md`.
+
 ## Local runtime (SQLite vault + GHL bridge)
 
 Sovereign desk services live in `runtime/` — local SQLite vault, Ed25519 provenance ledger, sandbox IPC for `logic.js`, and GoHighLevel webhook ingest on `127.0.0.1:3847`.

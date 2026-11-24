@@ -1,3 +1,7 @@
 node_modules/
 data/
 .keys/
+backups/
+audits/
+ledger-archives/
+.env

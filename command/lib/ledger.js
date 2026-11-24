@@ -9,13 +9,54 @@
  *
  * Lines are only ever appended. Verification recomputes the hashes and
  * checks the signature against the local sovereign public key.
+ *
+ * When older lines are archived off the hot file, `ledger.anchor.json`
+ * records the boundary so verification and new appends stay continuous.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { payloadHash, sha256Text, canonicalJson } from './canonical.js'
 import { pemToRawPublicHex, signCanonical, verifyCanonical } from './keys.js'
 
 export const GENESIS = '0'.repeat(64)
+export const LEDGER_ANCHOR_FILE = 'ledger.anchor.json'
+
+/** Anchor left behind when older ledger lines are archived off the hot file. */
+export function loadLedgerAnchor(ledgerPath) {
+  const anchorPath = join(dirname(ledgerPath), LEDGER_ANCHOR_FILE)
+  if (!existsSync(anchorPath)) return null
+  try {
+    const raw = JSON.parse(readFileSync(anchorPath, 'utf8'))
+    if (!raw || typeof raw !== 'object') return null
+    return {
+      path: anchorPath,
+      expectedPrev: raw.expectedPrev || raw.lastArchivedHash || GENESIS,
+      expectedNextSeq: Number(raw.expectedNextSeq || raw.nextSeq || 1),
+      lastArchivedHash: raw.lastArchivedHash || null,
+      archiveMetaFile: raw.archiveMetaFile || null,
+      createdAt: raw.createdAt || null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeLedgerAnchor(ledgerPath, anchor) {
+  mkdirSync(dirname(ledgerPath), { recursive: true, mode: 0o700 })
+  const anchorPath = join(dirname(ledgerPath), LEDGER_ANCHOR_FILE)
+  const payload = {
+    schemaVersion: '1.0',
+    createdAt: anchor.createdAt || new Date().toISOString(),
+    expectedPrev: anchor.expectedPrev || GENESIS,
+    expectedNextSeq: Number(anchor.expectedNextSeq || 1),
+    lastArchivedHash: anchor.lastArchivedHash || null,
+    archiveMetaFile: anchor.archiveMetaFile || null,
+  }
+  const tmpPath = `${anchorPath}.${process.pid}.tmp`
+  writeFileSync(tmpPath, JSON.stringify(payload, null, 2) + '\n', { mode: 0o600 })
+  renameSync(tmpPath, anchorPath)
+  return { ...payload, path: anchorPath }
+}
 
 /** Fields covered by the Ed25519 signature. entryHash is derived, not signed. */
 export function entryBody(entry) {
@@ -62,7 +103,10 @@ export class Ledger {
 
   tipHash() {
     const entries = this.readEntries()
-    if (!entries.length) return GENESIS
+    if (!entries.length) {
+      const anchor = loadLedgerAnchor(this.filePath)
+      return anchor?.lastArchivedHash || GENESIS
+    }
     return entries[entries.length - 1].entryHash || GENESIS
   }
 
@@ -72,8 +116,13 @@ export class Ledger {
    */
   appendSigned({ cardId, action, payload, privateKeyPem, publicKeyHex, timestamp }) {
     const entries = this.readEntries()
-    const prev = entries.length ? entries[entries.length - 1].entryHash : GENESIS
-    const seq = entries.length ? Number(entries[entries.length - 1].seq) + 1 : 1
+    const anchor = loadLedgerAnchor(this.filePath)
+    const prev = entries.length
+      ? entries[entries.length - 1].entryHash
+      : anchor?.expectedPrev || GENESIS
+    const seq = entries.length
+      ? Number(entries[entries.length - 1].seq) + 1
+      : Number(anchor?.expectedNextSeq || 1)
     const body = {
       seq,
       prev,
@@ -91,44 +140,85 @@ export class Ledger {
 }
 
 /**
- * Walk the chain. `publicKeyPem` pins every line to this node's key so a
- * foreign signature cannot be spliced in.
+ * Build a hex → PEM trust map from a single PEM, a Map, or a keyring-like list.
+ * Rotated deployments pass every retained public key so older lines still verify.
  */
-export function verifyLedgerEntries(entries, publicKeyPem) {
+export function buildTrustedKeyMap(trust) {
+  const byHex = new Map()
+  if (!trust) return byHex
+  if (trust instanceof Map) {
+    for (const [hex, pem] of trust.entries()) {
+      if (pem) byHex.set(hex || pemToRawPublicHex(pem), pem)
+    }
+    return byHex
+  }
+  if (typeof trust === 'string') {
+    byHex.set(pemToRawPublicHex(trust), trust)
+    return byHex
+  }
+  if (Array.isArray(trust)) {
+    for (const item of trust) {
+      const pem = typeof item === 'string' ? item : item?.publicKeyPem
+      if (!pem) continue
+      const hex = item?.publicKeyHex || pemToRawPublicHex(pem)
+      byHex.set(hex, pem)
+    }
+  }
+  return byHex
+}
+
+/**
+ * Walk the chain. Trust may be one PEM (legacy) or a map/list of retained
+ * public keys so rotated keyrings can still audit historical lines.
+ * `opts.expectedPrev` / `opts.expectedNextSeq` continue a chain after archival.
+ */
+export function verifyLedgerEntries(entries, trust, opts = {}) {
   const errors = []
-  let prev = GENESIS
-  const expectedHex = publicKeyPem ? pemToRawPublicHex(publicKeyPem) : null
+  let prev = opts.expectedPrev || GENESIS
+  let expectedSeq = Number(opts.expectedNextSeq || 1)
+  const byHex = buildTrustedKeyMap(trust)
 
   entries.forEach((entry, idx) => {
     const n = idx + 1
     if (entry.prev !== prev) errors.push(`line ${n}: prev does not match prior entryHash`)
-    if (entry.seq !== n) errors.push(`line ${n}: seq ${entry.seq} != ${n}`)
+    if (entry.seq !== expectedSeq) errors.push(`line ${n}: seq ${entry.seq} != ${expectedSeq}`)
     if (hashEntry(entry) !== entry.entryHash) errors.push(`line ${n}: entryHash mismatch`)
-    if (expectedHex && entry.publicKey !== expectedHex) {
-      errors.push(`line ${n}: public key is not the local sovereign key`)
-    }
-    if (!publicKeyPem || !verifyCanonical(publicKeyPem, entryBody(entry), entry.signature)) {
+    const signerPem = byHex.get(entry.publicKey)
+    if (!signerPem) {
+      errors.push(`line ${n}: public key is not in the trusted keyring`)
+    } else if (!verifyCanonical(signerPem, entryBody(entry), entry.signature)) {
       errors.push(`line ${n}: Ed25519 signature invalid`)
     }
     prev = entry.entryHash
+    expectedSeq = Number(entry.seq) + 1
   })
 
   return {
     ok: errors.length === 0,
     errors,
     count: entries.length,
-    tip: entries.length ? entries[entries.length - 1].entryHash : GENESIS,
+    tip: entries.length ? entries[entries.length - 1].entryHash : opts.expectedPrev || GENESIS,
   }
 }
 
-export function verifyLedgerFile(filePath, publicKeyPem) {
+export function verifyLedgerFile(filePath, trust, opts = {}) {
   if (!filePath || !existsSync(filePath)) {
     return { ok: true, errors: [], count: 0, tip: GENESIS, missing: true }
   }
   try {
     const ledger = new Ledger(filePath)
-    const result = verifyLedgerEntries(ledger.readEntries(), publicKeyPem)
-    return { ...result, missing: false, filePath }
+    const anchor = opts.anchor === undefined ? loadLedgerAnchor(filePath) : opts.anchor
+    const chainOpts = {
+      expectedPrev: opts.expectedPrev || anchor?.expectedPrev || GENESIS,
+      expectedNextSeq: opts.expectedNextSeq || anchor?.expectedNextSeq || 1,
+    }
+    // Fresh un-archived ledgers still start at genesis / seq 1.
+    if (!anchor && opts.expectedPrev == null && opts.expectedNextSeq == null) {
+      chainOpts.expectedPrev = GENESIS
+      chainOpts.expectedNextSeq = 1
+    }
+    const result = verifyLedgerEntries(ledger.readEntries(), trust, chainOpts)
+    return { ...result, missing: false, filePath, anchor: anchor || null }
   } catch (err) {
     return {
       ok: false,
