@@ -28,6 +28,7 @@
     "restore": "./restore.sh",
     "maintain": "./maintain.sh",
     "install-service": "./installService.sh",
+    "runbook": "node generateRunbook.js",
     "test": "node --test test/*.test.js"
   },
   "engines": {

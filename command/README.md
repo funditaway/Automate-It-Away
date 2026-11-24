@@ -40,6 +40,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and fail-fast pre-flight (doctor → integrity → dry-runs → smoke) |
 | `backup.sh` / `restore.sh` / `maintain.sh` | Checksummed cold state bundles, verified restore, and non-destructive temp/log cleanup |
 | `installService.sh` | Generate systemd user unit (Linux) or launchd agent (macOS) for `server.js` |
+| `generateRunbook.js` | Render a secret-safe `RUNBOOK.md` from live paths, key IDs, and ops scripts |
 | `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
 | `Makefile` / `package.json` | One-word operational verbs (see below) |
 | `.env.example` | Documented `AIA_*` / Grok overrides (copy to `.env`; never commit secrets) |
@@ -99,6 +100,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make restore ARCHIVE=…` | Verified restore (`RESTORE_FLAGS=--dry-run` or `--skip-verify`) |
 | `make maintain` / `npm run maintain` | Stale `.tmp` cleanup, log trim, 0700/0600 hardening, integrity check (`MAINTAIN_FLAGS=--dry-run`) |
 | `make install-service` / `npm run install-service` | Write systemd/launchd unit (`INSTALL_SERVICE_FLAGS='--dry-run'` or `--enable`) |
+| `make runbook` / `npm run runbook` | Generate secret-safe `RUNBOOK.md` (`RUNBOOK_FLAGS='--out /tmp/RUNBOOK.md'`) |
 | `make test` / `npm test` | Contract tests only |
 
 ### Environment overrides

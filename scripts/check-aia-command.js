@@ -50,6 +50,7 @@ function mustExist(rel) {
   'restore.sh',
   'maintain.sh',
   'installService.sh',
+  'generateRunbook.js',
   '.env.example',
   'public/index.html',
   'lib/decisionCard.js',
@@ -182,6 +183,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'restore',
   'maintain',
   'install-service',
+  'runbook',
   'test',
 ].forEach((script) => {
   if (!pkg.scripts || !pkg.scripts[script]) fail('package.json missing script ' + script)
@@ -215,6 +217,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'restore:',
   'maintain:',
   'install-service:',
+  'runbook:',
 ].forEach((target) => {
   if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
 })
@@ -239,8 +242,11 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make backup',
   'make maintain',
   'make install-service',
+  'make runbook',
   'AIA_LOG_MAX_LINES',
   'installService.sh',
+  'generateRunbook.js',
+  'RUNBOOK.md',
   'RELEASE_FLAGS',
   'make release',
   'make smoke',
@@ -407,6 +413,21 @@ const releaseCheckSh = fs.readFileSync(path.join(command, 'releaseCheck.sh'), 'u
 ].forEach((bit) => {
   if (releaseCheckSh.indexOf(bit) < 0) fail('releaseCheck.sh missing ' + bit)
 })
+
+const generateRunbook = fs.readFileSync(path.join(command, 'generateRunbook.js'), 'utf8')
+;[
+  'generateRunbook',
+  'RUNBOOK.md',
+  'ed25519.pem',
+  'activeKeyId',
+  'Never commit',
+  '--out',
+].forEach((bit) => {
+  if (generateRunbook.indexOf(bit) < 0) fail('generateRunbook.js missing ' + bit)
+})
+if (generateRunbook.indexOf('process.env') >= 0 && /AIA_WEBHOOK_SECRET\s*=/.test(generateRunbook)) {
+  fail('generateRunbook.js must not embed webhook secret values')
+}
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {
   const install = spawnSync('npm', ['install'], { cwd: command, encoding: 'utf8' })

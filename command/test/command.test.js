@@ -18,6 +18,7 @@ import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { flushSpool } from '../flushSpool.js'
 import { requeueDeadletter } from '../requeueDeadletter.js'
 import { reconcileQueue } from '../reconcileQueue.js'
+import { generateRunbook } from '../generateRunbook.js'
 import { verifyAllIntegrity } from '../verifyAllIntegrity.js'
 import { runWatchdog } from '../watchdog.js'
 import { createCommandCenter } from '../server.js'
@@ -889,6 +890,40 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
     assert.equal(recovered.healthy, true)
     assert.equal(recovered.recovery.ok, true)
     assert.equal(restarted, 1)
+  })
+})
+
+test('generateRunbook writes a secret-safe RUNBOOK without private key material', async () => {
+  await withCenter(async ({ dataDir, keypair }) => {
+    const outPath = join(dataDir, 'handover', 'RUNBOOK.md')
+    writeFileSync(join(dataDir, 'spool.ndjson'), JSON.stringify({ event: 'pending' }) + '\n')
+    writeFileSync(
+      join(dataDir, 'active_queue.json'),
+      JSON.stringify([{ cardId: 'c1', status: 'pending' }]) + '\n',
+    )
+
+    const report = generateRunbook({
+      rootDir: commandRoot,
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      outPath,
+      generatedAt: '2026-01-07T00:00:00.000Z',
+      daemonUrl: 'http://127.0.0.1:3000',
+    })
+    assert.equal(report.written, true)
+    assert.equal(report.queueCards, 1)
+    assert.equal(report.spoolPending, 1)
+    assert.equal(existsSync(outPath), true)
+
+    const md = readFileSync(outPath, 'utf8')
+    assert.match(md, /Operator Runbook/)
+    assert.match(md, /127\.0\.0\.1:3000/)
+    assert.match(md, /flushSpool\.js/)
+    assert.match(md, /verifyAllIntegrity\.js/)
+    assert.equal(md.includes('BEGIN PRIVATE KEY'), false)
+    assert.equal(md.includes(keypair.privateKeyPem || 'PRIVATE KEY'), false)
+    assert.equal(/AIA_WEBHOOK_SECRET=\S+/.test(md), false)
+    assert.match(md, /ed25519\.pem/)
   })
 })
 

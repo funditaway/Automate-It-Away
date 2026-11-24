@@ -1,10 +1,10 @@
-.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice verify-all status archive reconcile flush requeue watchdog smoke release start backup restore maintain install-service test
+.PHONY: help keygen rotate doctor verify replay export verify-audit verify-slice verify-all status archive reconcile flush requeue watchdog smoke release start backup restore maintain install-service runbook test
 
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
 help:
-	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | verify-all | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | restore | maintain | install-service | test"
+	@echo "AIA command targets: keygen | rotate | doctor | verify | replay | export | verify-audit | verify-slice | verify-all | status | archive | reconcile | flush | requeue | watchdog | smoke | release | start | backup | restore | maintain | install-service | runbook | test"
 
 keygen:
 	node keygen.js
@@ -74,6 +74,9 @@ maintain:
 
 install-service:
 	./installService.sh $(INSTALL_SERVICE_FLAGS)
+
+runbook:
+	node generateRunbook.js $(RUNBOOK_FLAGS)
 
 test:
 	npm test

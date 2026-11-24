@@ -5,3 +5,4 @@ backups/
 audits/
 ledger-archives/
 .env
+RUNBOOK.md
