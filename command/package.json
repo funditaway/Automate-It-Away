@@ -27,6 +27,7 @@
     "backup": "./backup.sh",
     "restore": "./restore.sh",
     "maintain": "./maintain.sh",
+    "install-service": "./installService.sh",
     "test": "node --test test/*.test.js"
   },
   "engines": {

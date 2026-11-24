@@ -49,6 +49,7 @@ function mustExist(rel) {
   'backup.sh',
   'restore.sh',
   'maintain.sh',
+  'installService.sh',
   '.env.example',
   'public/index.html',
   'lib/decisionCard.js',
@@ -180,6 +181,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'backup',
   'restore',
   'maintain',
+  'install-service',
   'test',
 ].forEach((script) => {
   if (!pkg.scripts || !pkg.scripts[script]) fail('package.json missing script ' + script)
@@ -212,6 +214,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'backup:',
   'restore:',
   'maintain:',
+  'install-service:',
 ].forEach((target) => {
   if (makefile.indexOf(target) < 0) fail('Makefile missing target ' + target)
 })
@@ -235,7 +238,9 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make restore',
   'make backup',
   'make maintain',
+  'make install-service',
   'AIA_LOG_MAX_LINES',
+  'installService.sh',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -333,7 +338,7 @@ const verifyAudit = fs.readFileSync(path.join(command, 'verifyAuditBundle.js'), 
   if (verifyAudit.indexOf(bit) < 0) fail('verifyAuditBundle.js missing ' + bit)
 })
 
-;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'restore.sh', 'maintain.sh', 'start.sh'].forEach((name) => {
+;['smoke.sh', 'releaseCheck.sh', 'backup.sh', 'restore.sh', 'maintain.sh', 'installService.sh', 'start.sh'].forEach((name) => {
   try {
     fs.accessSync(path.join(command, name), fs.constants.X_OK)
   } catch {
@@ -374,6 +379,19 @@ const maintainSh = fs.readFileSync(path.join(command, 'maintain.sh'), 'utf8')
   '*.tmp',
 ].forEach((bit) => {
   if (maintainSh.indexOf(bit) < 0) fail('maintain.sh missing ' + bit)
+})
+
+const installServiceSh = fs.readFileSync(path.join(command, 'installService.sh'), 'utf8')
+;[
+  '--dry-run',
+  '--enable',
+  '--ingest',
+  'server.js',
+  'systemd',
+  'launchd',
+  'Restart=on-failure',
+].forEach((bit) => {
+  if (installServiceSh.indexOf(bit) < 0) fail('installService.sh missing ' + bit)
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {

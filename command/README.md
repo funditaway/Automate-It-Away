@@ -39,6 +39,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `replayPacks.js` | Dry pack-registry load — no queue or ledger mutation |
 | `start.sh` / `smoke.sh` / `releaseCheck.sh` | Boot, contract smoke, and pre-release gate (doctor → replay → verify → smoke) |
 | `backup.sh` / `restore.sh` / `maintain.sh` | Checksummed cold state bundles, verified restore, and non-destructive temp/log cleanup |
+| `installService.sh` | Generate systemd user unit (Linux) or launchd agent (macOS) for `server.js` |
 | `ecosystem.config.cjs` | PM2 supervision (`autorestart`, loopback bind, dry-run dispatch) |
 | `Makefile` / `package.json` | One-word operational verbs (see below) |
 | `.env.example` | Documented `AIA_*` / Grok overrides (copy to `.env`; never commit secrets) |
@@ -97,6 +98,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make backup` / `npm run backup` | Checksummed cold snapshot of `data/` + packs + `.env` (`BACKUP_FLAGS=--plain`) |
 | `make restore ARCHIVE=…` | Verified restore (`RESTORE_FLAGS=--dry-run` or `--skip-verify`) |
 | `make maintain` / `npm run maintain` | Stale `.tmp` cleanup, log trim, 0700/0600 hardening, integrity check (`MAINTAIN_FLAGS=--dry-run`) |
+| `make install-service` / `npm run install-service` | Write systemd/launchd unit (`INSTALL_SERVICE_FLAGS='--dry-run'` or `--enable`) |
 | `make test` / `npm test` | Contract tests only |
 
 ### Environment overrides

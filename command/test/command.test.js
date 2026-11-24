@@ -892,6 +892,32 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
   })
 })
 
+test('installService.sh dry-run previews a systemd or launchd unit for server.js', () => {
+  const result = spawnSync('bash', [join(commandRoot, 'installService.sh'), '--dry-run'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.match(result.stdout, /\[DRY-RUN\]/)
+  assert.match(result.stdout, /server\.js/)
+  if (process.platform === 'linux') {
+    assert.match(result.stdout, /systemd unit path/)
+    assert.match(result.stdout, /Restart=on-failure/)
+    assert.match(result.stdout, /aia-command\.service/)
+  } else if (process.platform === 'darwin') {
+    assert.match(result.stdout, /launchd plist path/)
+    assert.match(result.stdout, /com\.aia\.aia\.command/)
+  }
+
+  const ingest = spawnSync('bash', [join(commandRoot, 'installService.sh'), '--ingest', '--dry-run'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(ingest.status, 0, ingest.stderr || ingest.stdout)
+  assert.match(ingest.stdout, /server\.js/)
+  assert.match(ingest.stderr + ingest.stdout, /webhook routes are mounted by server\.js|Note:/)
+})
+
 test('maintain.sh dry-run reports stale temps and never deletes ledger or keys', async () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'aia-mnt-'))
   const keyDir = join(dataDir, '.keys')
