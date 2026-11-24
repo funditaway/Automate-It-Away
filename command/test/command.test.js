@@ -892,6 +892,65 @@ test('watchdog reports healthy daemon and dry-runs restart on failure', async ()
   })
 })
 
+test('maintain.sh dry-run reports stale temps and never deletes ledger or keys', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-mnt-'))
+  const keyDir = join(dataDir, '.keys')
+  const logDir = join(dataDir, 'logs')
+  mkdirSync(keyDir, { recursive: true })
+  mkdirSync(logDir, { recursive: true })
+  writeFileSync(join(dataDir, 'ledger.ndjson'), '')
+  writeFileSync(join(keyDir, 'keyring.json'), JSON.stringify({ activeKeyId: null, keys: [] }) + '\n')
+  writeFileSync(join(keyDir, 'ed25519.pem'), 'PRIVATE\n')
+  const staleTmp = join(dataDir, 'stale.write.tmp')
+  writeFileSync(staleTmp, 'old\n')
+  // Age the temp file beyond the default maintain threshold.
+  const past = new Date(Date.now() - 120 * 60 * 1000)
+  spawnSync('touch', ['-d', past.toISOString(), staleTmp], { encoding: 'utf8' })
+  const logPath = join(logDir, 'daemon.log')
+  writeFileSync(logPath, Array.from({ length: 12 }, (_, i) => `line-${i}`).join('\n') + '\n')
+
+  const dry = spawnSync('bash', [join(commandRoot, 'maintain.sh'), '--dry-run', '--skip-verify'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: keyDir,
+      AIA_LOG_DIR: logDir,
+      AIA_BACKUP_DIR: join(dataDir, 'backups'),
+      AIA_TMP_MAX_AGE_MIN: '60',
+      AIA_LOG_MAX_LINES: '5',
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(dry.status, 0, dry.stderr || dry.stdout)
+  assert.match(dry.stdout, /\[DRY-RUN\] Would remove stale temp file/)
+  assert.match(dry.stdout, /\[DRY-RUN\] Would trim/)
+  assert.equal(existsSync(staleTmp), true)
+  assert.equal(existsSync(join(dataDir, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(keyDir, 'ed25519.pem')), true)
+
+  const live = spawnSync('bash', [join(commandRoot, 'maintain.sh'), '--skip-verify'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: keyDir,
+      AIA_LOG_DIR: logDir,
+      AIA_BACKUP_DIR: join(dataDir, 'backups'),
+      AIA_TMP_MAX_AGE_MIN: '60',
+      AIA_LOG_MAX_LINES: '5',
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(live.status, 0, live.stderr || live.stdout)
+  assert.equal(existsSync(staleTmp), false)
+  const trimmed = readFileSync(logPath, 'utf8').trim().split('\n')
+  assert.equal(trimmed.length, 5)
+  assert.equal(trimmed[0], 'line-7')
+  assert.equal(existsSync(join(dataDir, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(keyDir, 'keyring.json')), true)
+})
+
 test('backup.sh writes checksummed archive and restore.sh dry-run validates it', async () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'aia-bak-'))
   const backupDir = join(dataDir, 'backups')

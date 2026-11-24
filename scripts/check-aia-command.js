@@ -234,6 +234,8 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make verify-all',
   'make restore',
   'make backup',
+  'make maintain',
+  'AIA_LOG_MAX_LINES',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -359,6 +361,19 @@ const restoreSh = fs.readFileSync(path.join(command, 'restore.sh'), 'utf8')
   'Checksum verification failed',
 ].forEach((bit) => {
   if (restoreSh.indexOf(bit) < 0) fail('restore.sh missing ' + bit)
+})
+
+const maintainSh = fs.readFileSync(path.join(command, 'maintain.sh'), 'utf8')
+;[
+  '--dry-run',
+  'AIA_TMP_MAX_AGE_MIN',
+  'AIA_LOG_MAX_LINES',
+  'verifyAllIntegrity.js',
+  'chmod 700',
+  'chmod 600',
+  '*.tmp',
+].forEach((bit) => {
+  if (maintainSh.indexOf(bit) < 0) fail('maintain.sh missing ' + bit)
 })
 
 if (!fs.existsSync(path.join(command, 'node_modules', 'express'))) {

@@ -70,7 +70,7 @@ restore:
 	./restore.sh $(RESTORE_FLAGS) "$(ARCHIVE)"
 
 maintain:
-	./maintain.sh
+	./maintain.sh $(MAINTAIN_FLAGS)
 
 test:
 	npm test

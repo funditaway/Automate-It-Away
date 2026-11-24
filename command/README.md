@@ -96,7 +96,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `npm run start:node` | Run `server.js` directly (no PM2) |
 | `make backup` / `npm run backup` | Checksummed cold snapshot of `data/` + packs + `.env` (`BACKUP_FLAGS=--plain`) |
 | `make restore ARCHIVE=…` | Verified restore (`RESTORE_FLAGS=--dry-run` or `--skip-verify`) |
-| `make maintain` / `npm run maintain` | Prune stale `.tmp` / rotate oversized logs (never touches ledger or keys) |
+| `make maintain` / `npm run maintain` | Stale `.tmp` cleanup, log trim, 0700/0600 hardening, integrity check (`MAINTAIN_FLAGS=--dry-run`) |
 | `make test` / `npm test` | Contract tests only |
 
 ### Environment overrides
@@ -108,6 +108,7 @@ See `.env.example`. Common values:
 - `AIA_DAEMON_URL` / `AIA_INGEST_URL` — flush/watchdog targets (default `http://127.0.0.1:3000`)
 - `AIA_WEBHOOK_SECRET` — optional HMAC for spool replay (`X-AIA-Signature`)
 - `AIA_WATCHDOG_RESTART_CMD` / `AIA_WATCHDOG_TIMEOUT_MS` — optional recovery hook for `watchdog.js`
+- `AIA_LOG_DIR` / `AIA_TMP_MAX_AGE_MIN` / `AIA_LOG_MAX_LINES` — maintain.sh hygiene knobs
 - `AIA_DISPATCH_DRY_RUN=1` — stub outbound HTTPS after sign (default)
 - `GROK_API_KEY` or `SPACEXAI_API_KEY` — optional live synthesis
 
