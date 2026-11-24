@@ -18,7 +18,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | --- | --- |
 | `keygen.js` | Idempotent Ed25519 bootstrap under `data/.keys/` (`--rotate` uses keyring-aware cutover) |
 | `rotateKey.js` | Non-destructive rotation — new ACTIVE key, prior keys RETIRED in `keyring.json` |
-| `server.js` | Express daemon: `/health`, `/queue`, `/ledger`, `/api/sign`, HITL settle routes, static desk |
+| `server.js` | Express daemon: `/health`, `/healthz`, `/readyz`, `/queue`, `/ledger`, `/api/sign`, HITL settle routes, static desk |
 | `webhookIngest.js` | GHL / pack webhook mount — builds decision payloads, never signs |
 | `public/index.html` | Dark Tailwind desk — queue + inspector, **Enter** authorize, offline simulation |
 | `verifyLedger.js` | Recomputes SHA-256 chain links; verifies signatures against active + retired keyring keys |
@@ -30,6 +30,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | `reconcileQueue.js` | Sync `active_queue.json` statuses to ledger.ndjson decisions (dry-run + atomic write) |
 | `flushSpool.js` | Drain `spool.ndjson` into `/webhook/<channel>`; quarantine poison lines to `spool.deadletter.ndjson` |
 | `requeueDeadletter.js` | Inspect / selectively requeue dead-letter entries back to spool (or `--send` to ingest) |
+| `watchdog.js` | Probe `/healthz` + `/readyz`; optional bounded `--restart-cmd` (never touches ledger/keys/queue) |
 | `doctor.js` | Node/Express, data dir, keypair, ledger, packs, bind, Grok key preflight |
 | `deploySwarm.js` | Reads `../packs/*.json` and arms packs only after a signed `SWARM_ARM` card |
 | `bridgeModule.js` / `lib/appliance.js` | Proposal-only Web3/domain bridge and local IoT telemetry adapters |
@@ -86,6 +87,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | `make reconcile` / `npm run reconcile` | Reconcile queue snapshot vs ledger (`RECONCILE_FLAGS=--dry-run`) |
 | `make flush` / `npm run flush` | Drain spool to daemon webhooks (`FLUSH_FLAGS='--dry-run --quarantine-invalid'`) |
 | `make requeue` / `npm run requeue` | Inspect/requeue dead-letter (`REQUEUE_FLAGS='--inspect'` or `--reason HTTP_400 --limit 5`) |
+| `make watchdog` / `npm run watchdog` | Probe daemon health/ready (`WATCHDOG_FLAGS='--dry-run --restart-cmd "pm2 restart aia-command"'`) |
 | `make smoke` / `npm run smoke` | Doctor + `npm test` contract suite |
 | `make release` / `npm run release` | Pre-release gate: doctor → replay → verify → smoke |
 | `make start` / `npm start` | `./start.sh` (doctor, then PM2 or `node server.js`) |
@@ -100,8 +102,9 @@ See `.env.example`. Common values:
 
 - `AIA_BIND` / `AIA_PORT` — default `127.0.0.1:3000`
 - `AIA_DATA_DIR` / `AIA_KEY_DIR` / `AIA_PACKS_DIR` / `AIA_BACKUP_DIR`
-- `AIA_DAEMON_URL` / `AIA_INGEST_URL` — flush target (default `http://127.0.0.1:3000`)
+- `AIA_DAEMON_URL` / `AIA_INGEST_URL` — flush/watchdog targets (default `http://127.0.0.1:3000`)
 - `AIA_WEBHOOK_SECRET` — optional HMAC for spool replay (`X-AIA-Signature`)
+- `AIA_WATCHDOG_RESTART_CMD` / `AIA_WATCHDOG_TIMEOUT_MS` — optional recovery hook for `watchdog.js`
 - `AIA_DISPATCH_DRY_RUN=1` — stub outbound HTTPS after sign (default)
 - `GROK_API_KEY` or `SPACEXAI_API_KEY` — optional live synthesis
 

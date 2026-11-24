@@ -37,6 +37,7 @@ function mustExist(rel) {
   'reconcileQueue.js',
   'flushSpool.js',
   'requeueDeadletter.js',
+  'watchdog.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -169,6 +170,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'reconcile',
   'flush',
   'requeue',
+  'watchdog',
   'smoke',
   'release',
   'start',
@@ -198,6 +200,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'reconcile:',
   'flush:',
   'requeue:',
+  'watchdog:',
   'smoke:',
   'release:',
   'start:',
@@ -221,6 +224,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make reconcile',
   'make flush',
   'make requeue',
+  'make watchdog',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -234,7 +238,10 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'reconcileQueue.js',
   'flushSpool.js',
   'requeueDeadletter.js',
+  'watchdog.js',
   'spool.deadletter.ndjson',
+  '/healthz',
+  '/readyz',
   'ledger.anchor.json',
 ].forEach((bit) => {
   if (readme.indexOf(bit) < 0) fail('README.md missing ' + bit)
@@ -265,6 +272,22 @@ const requeueDeadletter = fs.readFileSync(path.join(command, 'requeueDeadletter.
 ].forEach((bit) => {
   if (requeueDeadletter.indexOf(bit) < 0) fail('requeueDeadletter.js missing ' + bit)
 })
+
+const watchdog = fs.readFileSync(path.join(command, 'watchdog.js'), 'utf8')
+;[
+  'runWatchdog',
+  '/healthz',
+  '/readyz',
+  '--restart-cmd',
+  '--dry-run',
+  '--no-ingest',
+  'AIA_WATCHDOG_RESTART_CMD',
+].forEach((bit) => {
+  if (watchdog.indexOf(bit) < 0) fail('watchdog.js missing ' + bit)
+})
+if (server.indexOf('/healthz') < 0 || server.indexOf('/readyz') < 0) {
+  fail('server.js missing /healthz or /readyz probe routes')
+}
 
 const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')
 ;[

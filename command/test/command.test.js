@@ -18,6 +18,7 @@ import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { flushSpool } from '../flushSpool.js'
 import { requeueDeadletter } from '../requeueDeadletter.js'
 import { reconcileQueue } from '../reconcileQueue.js'
+import { runWatchdog } from '../watchdog.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
 import { buildStatusSummary } from '../statusSummary.js'
@@ -57,6 +58,23 @@ async function request(base, path, options = {}) {
   const body = await res.json().catch(() => ({}))
   return { status: res.status, body }
 }
+
+test('healthz and readyz report liveness and readiness without mutating state', async () => {
+  await withCenter(async ({ base, ledger }) => {
+    const tipBefore = ledger.tipHash()
+    const live = await request(base, '/healthz')
+    assert.equal(live.status, 200)
+    assert.equal(live.body.ok, true)
+    assert.equal(live.body.check, 'liveness')
+
+    const ready = await request(base, '/readyz')
+    assert.equal(ready.status, 200)
+    assert.equal(ready.body.ok, true)
+    assert.equal(ready.body.check, 'readiness')
+    assert.equal(ready.body.ledgerTip, tipBefore)
+    assert.equal(ledger.readEntries().length, 0)
+  })
+})
 
 test('webhook ingest queues a card and does not sign the ledger', async () => {
   await withCenter(async ({ base, ledger }) => {
@@ -820,6 +838,56 @@ test('requeueDeadletter inspects then recovers recoverable dead-letter payloads'
     assert.ok(
       queue.body.cards.some((c) => /deadletter-other/i.test(String(c.payload?.webhookEvent || ''))),
     )
+  })
+})
+
+test('watchdog reports healthy daemon and dry-runs restart on failure', async () => {
+  await withCenter(async ({ base }) => {
+    const healthy = await runWatchdog({
+      daemonUrl: base,
+      checkIngest: false,
+      checkedAt: '2026-01-05T00:00:00.000Z',
+    })
+    assert.equal(healthy.healthy, true)
+    assert.equal(healthy.initialHealthy, true)
+    assert.equal(healthy.checks.length, 2)
+    assert.equal(healthy.recovery, null)
+
+    let restarted = 0
+    const failed = await runWatchdog({
+      daemonUrl: 'http://127.0.0.1:9',
+      checkIngest: false,
+      timeoutMs: 200,
+      dryRun: true,
+      restartCmd: 'echo should-not-run',
+      checkedAt: '2026-01-05T00:00:01.000Z',
+      runRestartCommand: async () => {
+        restarted += 1
+        return { invoked: true, ok: true, exitCode: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(failed.initialHealthy, false)
+    assert.equal(failed.healthy, false)
+    assert.equal(failed.recovery.dryRun, true)
+    assert.equal(failed.recovery.wouldRun, 'echo should-not-run')
+    assert.equal(restarted, 0)
+
+    const recovered = await runWatchdog({
+      daemonUrl: 'http://127.0.0.1:9',
+      checkIngest: false,
+      timeoutMs: 200,
+      restartCmd: 'true',
+      checkedAt: '2026-01-05T00:00:02.000Z',
+      runRestartCommand: async (cmd) => {
+        restarted += 1
+        assert.equal(cmd, 'true')
+        return { invoked: true, ok: true, exitCode: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(recovered.initialHealthy, false)
+    assert.equal(recovered.healthy, true)
+    assert.equal(recovered.recovery.ok, true)
+    assert.equal(restarted, 1)
   })
 })
 

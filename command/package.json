@@ -18,6 +18,7 @@
     "reconcile": "node reconcileQueue.js",
     "flush": "node flushSpool.js",
     "requeue": "node requeueDeadletter.js",
+    "watchdog": "node watchdog.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",
