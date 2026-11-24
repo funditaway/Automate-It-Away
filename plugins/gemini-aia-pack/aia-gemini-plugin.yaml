@@ -1,0 +1,36 @@
+plugin:
+  id: gemini-aia-pack
+  name: Gemini AIA Pack
+  version: 1.0.0
+  enabled: true
+  aia_pack: meta-gemini
+
+runtime:
+  entry: ./deploy_gemini_aia_pack.mjs
+  schema: ./queue-card-schema.json
+  system_prompt: ./GEMINI_SYSTEM_PROMPT.md
+  worker: ./processQueueItemV2.mjs
+
+hooks:
+  on_queue_item_created:
+    card_id: gemini-triage-card
+    auto_advance_on_confidence: 0.85
+    fallback_status: needs_review
+    note: Auto-advance only routes to the next draft card. Never Yes / send / pay.
+
+  on_draft_requested:
+    card_id: gemini-draft-card
+    require_human_approval: true
+
+  on_workflow_build_requested:
+    card_id: gemini-deep-card
+    require_human_approval: true
+
+  on_intake:
+    card_id: gemini-intake-card
+    require_human_approval: false
+    fallback_status: needs_review
+
+  on_followup:
+    card_id: gemini-followup-card
+    require_human_approval: true

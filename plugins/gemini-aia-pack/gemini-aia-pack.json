@@ -1,0 +1,70 @@
+{
+  "id": "gemini-aia-pack",
+  "name": "Gemini AIA Pack",
+  "version": "1.0.0",
+  "family": "Meta.aia",
+  "aia_pack": "meta-gemini",
+  "description": "Modular Gemini desk cards for Automate It Away. Desk AIs draft only. Humans Yes / Stop / Kill. Collect stays HOLD.",
+  "provider": {
+    "id": "gemini",
+    "vendor": "Google",
+    "auth_env": "GEMINI_API_KEY",
+    "default_model": "gemini-2.0-flash",
+    "login": "https://aistudio.google.com/apikey"
+  },
+  "rails": [
+    "Desk AIs draft only. Never Yes, Stop, pay, or send.",
+    "Confidence below threshold routes to needs_review — never silent Yes.",
+    "Collect stays HOLD until Yes + a real money pipe.",
+    "Buyer binds their own Google AI key. AIA charges nothing."
+  ],
+  "cards": [
+    {
+      "card_id": "gemini-triage-card",
+      "title": "Triage & Route",
+      "mode": "fast",
+      "model": "gemini-2.0-flash",
+      "temperature": 0.2,
+      "output_format": "json",
+      "prompt_focus": [
+        "Classify priority, queue_name, next_card_id, confidence, extracted_entities.",
+        "Do not guess missing IDs, dates, or completion states.",
+        "Prefer next_card_id gemini-draft-card or gemini-deep-card or needs_review."
+      ]
+    },
+    {
+      "card_id": "gemini-draft-card",
+      "title": "Draft Reply",
+      "mode": "balanced",
+      "model": "gemini-2.0-flash",
+      "temperature": 0.35,
+      "output_format": "markdown",
+      "require_human_approval": true,
+      "prompt_focus": [
+        "Write plain, scannable draft copy.",
+        "No guaranteed timelines or unverified claims.",
+        "Nothing leaves until a human taps Yes."
+      ]
+    },
+    {
+      "card_id": "gemini-deep-card",
+      "title": "Deep Workflow Spec",
+      "mode": "deep",
+      "model": "gemini-2.0-flash",
+      "temperature": 0.3,
+      "output_format": "markdown",
+      "require_human_approval": true,
+      "prompt_focus": [
+        "Propose a short multi-step desk workflow with confidence gates.",
+        "Flag needs_review when confidence is below 0.85.",
+        "Never auto-execute physical, money, or outbound send steps."
+      ]
+    }
+  ],
+  "files": {
+    "system_prompt": "./GEMINI_SYSTEM_PROMPT.md",
+    "schema": "./queue-card-schema.json",
+    "plugin": "./aia-gemini-plugin.yaml",
+    "entry": "./deploy_gemini_aia_pack.mjs"
+  }
+}

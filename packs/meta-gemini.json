@@ -9,7 +9,8 @@
   "price": 0,
   "version": "1.1.0-Official-Gemini-Included",
   "gemini_included": true,
-  "blurb": "Gemini desk AIs draft beside Meta on the same cards. Human picks the draft. Collect stays HOLD.",
+  "plugin_pack": "plugins/gemini-aia-pack",
+  "blurb": "Gemini desk AIs draft beside Meta on the same cards. Human picks the draft. Collect stays HOLD. Modular runner lives in plugins/gemini-aia-pack.",
   "face": {
     "who": { "key": "contactName", "label": "Who it is for" },
     "what": { "key": "need", "label": "What the work is" },

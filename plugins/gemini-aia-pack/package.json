@@ -1,0 +1,26 @@
+{
+  "name": "gemini-aia-pack",
+  "version": "1.0.0",
+  "description": "Modular Gemini integration pack for Automate It Away (AIA) and AIA Desk AI",
+  "type": "module",
+  "main": "deploy_gemini_aia_pack.mjs",
+  "scripts": {
+    "doctor": "node ./doctor.mjs",
+    "smoke": "node ./deploy_gemini_aia_pack.mjs",
+    "eval": "node ./run-evals.mjs",
+    "batch": "node ./run-batch.mjs",
+    "serve": "node ./serve-queue.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "js-yaml": "^4.1.0"
+  },
+  "aia": {
+    "rails": [
+      "draft-only",
+      "human-yes-stop",
+      "collect-hold"
+    ],
+    "related_pack": "meta-gemini"
+  }
+}

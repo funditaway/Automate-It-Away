@@ -1,0 +1,33 @@
+{
+  "workflow_pack_id": "gemini-aia-intake-followup",
+  "version": "1.0.0",
+  "cards": [
+    {
+      "card_id": "gemini-intake-card",
+      "title": "Inbound Intake Normalizer",
+      "mode": "fast",
+      "model": "gemini-2.0-flash",
+      "temperature": 0.2,
+      "output_format": "json",
+      "prompt_focus": [
+        "Extract requester, channel, topic, and requested action without guessing missing fields.",
+        "List any missing_fields needed before execution.",
+        "Suggest queue_name and next_card_id ('gemini-draft-card' or 'gemini-deep-card')."
+      ]
+    },
+    {
+      "card_id": "gemini-followup-card",
+      "title": "Next-Step & Follow-Up Drafter",
+      "mode": "balanced",
+      "model": "gemini-2.0-flash",
+      "temperature": 0.35,
+      "output_format": "markdown",
+      "require_human_approval": true,
+      "prompt_focus": [
+        "Write a short, clear follow-up message or internal next-step note.",
+        "Reference only confirmed facts and open items from the queue item.",
+        "State clearly what information or approval is still needed."
+      ]
+    }
+  ]
+}

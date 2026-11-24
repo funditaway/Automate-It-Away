@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIAQueueItemState",
+  "type": "object",
+  "required": [
+    "item_id",
+    "status",
+    "card_id",
+    "updated_at"
+  ],
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "description": "Unique identifier for the item in the AIA / AIA Desk AI queue"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "processing",
+        "needs_review",
+        "ready",
+        "completed",
+        "failed"
+      ],
+      "description": "ready means draft ready for human Yes — never auto-send"
+    },
+    "card_id": {
+      "type": "string",
+      "enum": [
+        "gemini-triage-card",
+        "gemini-draft-card",
+        "gemini-deep-card",
+        "gemini-intake-card",
+        "gemini-followup-card"
+      ]
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "queue_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "next_card_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "extracted_entities": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "draft_output": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "aia_status_map": {
+    "queued": "waiting",
+    "processing": "waiting",
+    "needs_review": "held",
+    "ready": "waiting",
+    "completed": "shipped",
+    "failed": "exception"
+  }
+}

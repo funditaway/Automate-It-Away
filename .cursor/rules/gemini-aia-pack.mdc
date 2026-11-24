@@ -1,0 +1,14 @@
+---
+description: Rules for developing Automate It Away (AIA) and AIA Desk AI modular cards, queue handlers, and Gemini integrations.
+globs: ["**/gemini-aia-pack/**", "**/*aia*", "**/cards/**", "**/queue/**", "plugins/gemini-aia-pack/**"]
+alwaysApply: false
+---
+
+# AIA & AIA Desk AI Coding Rules
+
+- **Modular Cards First:** Keep card logic isolated by responsibility (triage/routing, drafting, or deep workflow building) rather than bundling unrelated side effects inside a single handler.
+- **Explicit State Transitions:** Every queue execution must transition state cleanly (`queued` -> `processing` -> `ready` | `needs_review` | `failed`) and preserve `item_id` and timestamps. `ready` means draft ready for human Yes — never auto-send.
+- **Human-in-the-Loop:** Desk AIs draft only. Yes / Stop / Kill stay human. Collect stays HOLD. Never auto-execute money, mail, physical, or outbound send.
+- **Fail Loudly on Missing Config:** Check required environment variables and schema fields early; never silently swallow API or JSON parse errors.
+- **Plain, Scannable Copy:** Keep UI labels, prompts, and user-facing messages short, direct, and easy to act on.
+- **No Unverified Claims:** Never hardcode mock IDs, external URLs, or completion states as live data.

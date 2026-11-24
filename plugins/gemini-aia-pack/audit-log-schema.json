@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIAAuditLogEntry",
+  "type": "object",
+  "required": [
+    "event_id",
+    "item_id",
+    "card_id",
+    "event_type",
+    "timestamp"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "item_id": {
+      "type": "string"
+    },
+    "card_id": {
+      "type": "string"
+    },
+    "model_used": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "card_executed",
+        "routed_to_review",
+        "auto_advanced",
+        "draft_approved",
+        "card_failed"
+      ]
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "actor": {
+      "type": "string",
+      "enum": [
+        "system",
+        "human_reviewer"
+      ],
+      "default": "system"
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
