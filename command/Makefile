@@ -10,7 +10,7 @@ keygen:
 	node keygen.js
 
 rotate:
-	node rotateKey.js
+	node rotateKey.js $(ROTATE_FLAGS)
 
 doctor:
 	node doctor.js

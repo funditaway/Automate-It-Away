@@ -17,7 +17,7 @@ The browser never touches `ed25519.pem`. Only an intent (`cardId` + `confirm`) i
 | File / Path | Role |
 | --- | --- |
 | `keygen.js` | Idempotent Ed25519 bootstrap under `data/.keys/` (`--rotate` uses keyring-aware cutover) |
-| `rotateKey.js` | Non-destructive rotation — new ACTIVE key, prior keys RETIRED in `keyring.json` |
+| `rotateKey.js` | Non-destructive Ed25519 rotation (`--dry-run`); retires prior pubs in `keyring.json` |
 | `server.js` | Express daemon: `/health`, `/healthz`, `/readyz`, `/queue`, `/ledger`, `/api/sign`, HITL settle routes, static desk |
 | `webhookIngest.js` | GHL / pack webhook mount — builds decision payloads, never signs |
 | `public/index.html` | Dark Tailwind desk — queue + inspector, **Enter** authorize, offline simulation |
@@ -78,7 +78,7 @@ Open [http://127.0.0.1:3000/](http://127.0.0.1:3000/) to triage pending cards. A
 | Command | What it does |
 | --- | --- |
 | `make keygen` / `npm run keygen` | Create or report the local Ed25519 identity |
-| `make rotate` / `npm run rotate` | Rotate signing key; retain prior pubs in `keyring.json` |
+| `make rotate` / `npm run rotate` | Rotate signing key (`ROTATE_FLAGS=--dry-run`); retain prior pubs in `keyring.json` |
 | `make doctor` / `npm run doctor` | Environment + permission + ledger preflight |
 | `make verify` / `npm run verify` | Verify `ledger.ndjson` chain + signatures |
 | `make replay` / `npm run replay` | Dry-load `../packs/*.json` without mutating state |

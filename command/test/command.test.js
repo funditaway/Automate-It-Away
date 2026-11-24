@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url'
 import { runDoctor } from '../doctor.js'
 import { archiveLedgerWindow } from '../archiveLedgerWindow.js'
 import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
-import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
+import { loadTrustedPublicKeys, loadKeyring, rotateKeypair } from '../lib/keys.js'
+import { runRotateKey } from '../rotateKey.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { flushSpool } from '../flushSpool.js'
 import { requeueDeadletter } from '../requeueDeadletter.js'
@@ -1173,8 +1174,18 @@ test('key rotation keeps historical ledger lines verifiable via keyring', async 
     assert.equal(ledger.readEntries()[0].publicKey, keypair.publicKeyHex)
 
     const keyDir = join(dataDir, '.keys')
+    const beforeRing = loadKeyring(keyDir)
+    const dry = runRotateKey({ keyDir, dryRun: true, rotatedAt: '2026-01-08T00:00:00.000Z' })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.rotated, false)
+    assert.equal(dry.previousActiveKeyId, beforeRing.activeKeyId)
+    assert.ok(dry.newKeyId)
+    assert.equal(loadKeyring(keyDir).activeKeyId, beforeRing.activeKeyId)
+    assert.equal(readFileSync(join(keyDir, 'ed25519.pub.pem'), 'utf8'), keypair.publicKeyPem)
+
     const rotated = rotateKeypair(keyDir)
     assert.notEqual(rotated.publicKeyHex, keypair.publicKeyHex)
+    assert.equal(rotated.previousActiveKeyId, beforeRing.activeKeyId)
     assert.equal(rotated.keyring.keys.length >= 2, true)
     assert.ok(rotated.keyring.keys.some((k) => k.status === 'RETIRED'))
     assert.ok(rotated.keyring.keys.some((k) => k.status === 'ACTIVE' && k.keyId === rotated.keyId))

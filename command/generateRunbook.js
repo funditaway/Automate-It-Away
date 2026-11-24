@@ -167,6 +167,7 @@ ${presentScripts.map((s) => `* \`${s}\``).join('\n')}
 * **Housekeeping & log trim:** \`./maintain.sh\` (\`--dry-run\` supported)
 * **Service unit preview/install:** \`./installService.sh --dry-run\` then \`./installService.sh --enable\`
 * **Health watchdog:** \`node watchdog.js --dry-run\`
+* **Rotate signing key:** \`node rotateKey.js --dry-run\` then \`node rotateKey.js\` / \`make rotate\`
 * **Regenerate this runbook:** \`node generateRunbook.js\` / \`make runbook\`
 
 ## Security Note

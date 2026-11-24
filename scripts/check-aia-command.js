@@ -66,8 +66,19 @@ const server = fs.readFileSync(path.join(command, 'server.js'), 'utf8')
 })
 
 const keys = fs.readFileSync(path.join(command, 'lib', 'keys.js'), 'utf8')
-;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json'].forEach((bit) => {
+;['ed25519', 'signCanonical', 'verifyCanonical', 'rotateKeypair', 'keyring.json', 'dryRun'].forEach((bit) => {
   if (keys.indexOf(bit) < 0) fail('lib/keys.js missing ' + bit)
+})
+
+const rotateKey = fs.readFileSync(path.join(command, 'rotateKey.js'), 'utf8')
+;[
+  '--dry-run',
+  'rotateKeypair',
+  'previousActiveKeyId',
+  'ed25519.pem',
+  'keyring.json',
+].forEach((bit) => {
+  if (rotateKey.indexOf(bit) < 0) fail('rotateKey.js missing ' + bit)
 })
 
 const ledger = fs.readFileSync(path.join(command, 'lib', 'ledger.js'), 'utf8')
@@ -228,6 +239,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'ledger.ndjson',
   'make keygen',
   'make rotate',
+  'ROTATE_FLAGS',
   'make export',
   'make verify-audit',
   'make status',
