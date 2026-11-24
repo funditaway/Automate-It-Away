@@ -44,6 +44,10 @@ const required = [
   "package.json",
   "validateState.mjs",
   "serve-queue.mjs",
+  "queueStore.mjs",
+  "gemini-aia-desk.html",
+  "gemini-aia-desk.css",
+  "gemini-aia-desk.js",
   "chainCards.mjs",
   "readBodyLimited.mjs",
   ".env.example",
@@ -79,6 +83,16 @@ const serveSrc = fs.readFileSync(path.join(packDir, "serve-queue.mjs"), "utf8");
 if (!/127\.0\.0\.1/.test(serveSrc) || /listen\(\s*port\s*\)/.test(serveSrc.replace(/\s+/g, " "))) {
   fail("serve-queue.mjs must bind 127.0.0.1 (not all interfaces)");
 } else pass("serve-queue loopback bind");
+if (!/\/api\/queue\/status/.test(serveSrc)) fail("serve-queue missing /api/queue/status");
+else pass("serve-queue status route");
+if (!/gemini-aia-desk\.html/.test(serveSrc)) fail("serve-queue must serve desk HTML");
+else pass("serve-queue desk static");
+const deskJs = fs.readFileSync(path.join(packDir, "gemini-aia-desk.js"), "utf8");
+if (/AUTO_APPROVED_AND_COMPLETED/.test(deskJs)) fail("desk must not auto-approve completions");
+else pass("desk HITL voice");
+if (!/\/api\/queue\/process/.test(deskJs) || !/\/api\/queue\/approve/.test(deskJs)) {
+  fail("desk must wire process/approve Live API routes");
+} else pass("desk Live API routes");
 if (!fs.existsSync(path.join(packDir, "readBodyLimited.mjs"))) fail("missing readBodyLimited.mjs");
 else pass("body size cap helper");
 const v2 = fs.readFileSync(path.join(packDir, "queueApiHandlerV2.mjs"), "utf8");

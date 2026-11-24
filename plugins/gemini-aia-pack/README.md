@@ -22,7 +22,9 @@ Related official desk pack: [`packs/meta-gemini.json`](../../packs/meta-gemini.j
 | `run-evals.mjs` | Fixture test runner |
 | `QueueItemCard.jsx` / `QueuePage.jsx` | Reference desk queue UI (React) |
 | `queue-desk.css` | Dark desk styles for the reference UI |
+| `gemini-aia-desk.html` / `.css` / `.js` | Standalone interactive desk (queue, SLA, bulk, audit) |
 | `queueApiHandler.mjs` / `queueApiHandlerV2.mjs` | HTTP process + approve endpoints |
+| `queueStore.mjs` | In-memory store for desk Live API hydration |
 | `intake-followup-cards.json` | Intake + follow-up card definitions |
 | `doctor.mjs` | Preflight file / schema / env check |
 | `withRetry.mjs` | Retry/backoff for rate limits |
@@ -31,7 +33,7 @@ Related official desk pack: [`packs/meta-gemini.json`](../../packs/meta-gemini.j
 | `setup-pack.sh` | Bootstrap optional deps + doctor |
 | `run-batch.mjs` / `sample-batch.json` | Batch CLI + sample fixture |
 | `validateState.mjs` | Queue / audit validators |
-| `serve-queue.mjs` | Local HTTP server on `:3080` |
+| `serve-queue.mjs` | Local HTTP server on `:3080` (API + desk static) |
 | `chainCards.mjs` | Multi-card chain runner |
 | `.env.example` | Env template |
 
@@ -44,8 +46,10 @@ chmod +x setup-pack.sh
 npm run smoke            # triage dry-run or live if GEMINI_API_KEY is set
 npm run eval             # fixture checks (dry-run)
 npm run batch            # sample batch through V2 worker
-npm run serve            # local queue API on http://localhost:3080
+npm run serve            # local queue API + desk UI on http://127.0.0.1:3080
 ```
+
+Open the standalone desk at `http://127.0.0.1:3080/gemini-aia-desk.html` (simulation by default; toggle **Live API** to hydrate from `queueStore` via `GET /api/queue/status`, and to `POST /api/queue/process` / `POST /api/queue/approve` with `{ id }`).
 
 Set a key for live Gemini calls:
 
