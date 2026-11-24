@@ -185,6 +185,10 @@ body {
   flex-wrap: wrap;
 }
 
+.toolbar-right[hidden] {
+  display: none !important;
+}
+
 .checkbox-wrap {
   display: flex;
   align-items: center;
