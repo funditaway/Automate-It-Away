@@ -36,6 +36,7 @@ function mustExist(rel) {
   'verifyLedgerSlice.js',
   'reconcileQueue.js',
   'flushSpool.js',
+  'requeueDeadletter.js',
   'replayPacks.js',
   'deploySwarm.js',
   'bridgeModule.js',
@@ -167,6 +168,7 @@ if (!pkg.dependencies || !pkg.dependencies.express) fail('package.json missing e
   'verify-slice',
   'reconcile',
   'flush',
+  'requeue',
   'smoke',
   'release',
   'start',
@@ -195,6 +197,7 @@ const makefile = fs.readFileSync(path.join(command, 'Makefile'), 'utf8')
   'verify-slice:',
   'reconcile:',
   'flush:',
+  'requeue:',
   'smoke:',
   'release:',
   'start:',
@@ -217,6 +220,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'make verify-slice',
   'make reconcile',
   'make flush',
+  'make requeue',
   'make release',
   'make smoke',
   '127.0.0.1:3000',
@@ -229,6 +233,7 @@ const readme = fs.readFileSync(path.join(command, 'README.md'), 'utf8')
   'verifyLedgerSlice.js',
   'reconcileQueue.js',
   'flushSpool.js',
+  'requeueDeadletter.js',
   'spool.deadletter.ndjson',
   'ledger.anchor.json',
 ].forEach((bit) => {
@@ -246,6 +251,19 @@ const flushSpool = fs.readFileSync(path.join(command, 'flushSpool.js'), 'utf8')
   'X-AIA-Signature',
 ].forEach((bit) => {
   if (flushSpool.indexOf(bit) < 0) fail('flushSpool.js missing ' + bit)
+})
+
+const requeueDeadletter = fs.readFileSync(path.join(command, 'requeueDeadletter.js'), 'utf8')
+;[
+  'requeueDeadletter',
+  'extractRecoverablePayload',
+  '--inspect',
+  '--send',
+  '--reason',
+  '--limit',
+  'spool.deadletter.ndjson',
+].forEach((bit) => {
+  if (requeueDeadletter.indexOf(bit) < 0) fail('requeueDeadletter.js missing ' + bit)
 })
 
 const exportAudit = fs.readFileSync(path.join(command, 'exportAudit.js'), 'utf8')

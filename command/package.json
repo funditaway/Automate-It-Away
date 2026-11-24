@@ -17,6 +17,7 @@
     "verify-slice": "node verifyLedgerSlice.js",
     "reconcile": "node reconcileQueue.js",
     "flush": "node flushSpool.js",
+    "requeue": "node requeueDeadletter.js",
     "smoke": "./smoke.sh",
     "release": "./releaseCheck.sh",
     "start": "./start.sh",

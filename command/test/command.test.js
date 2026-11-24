@@ -16,6 +16,7 @@ import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
 import { loadTrustedPublicKeys, rotateKeypair } from '../lib/keys.js'
 import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
 import { flushSpool } from '../flushSpool.js'
+import { requeueDeadletter } from '../requeueDeadletter.js'
 import { reconcileQueue } from '../reconcileQueue.js'
 import { createCommandCenter } from '../server.js'
 import { canonicalJson, sha256Text } from '../lib/canonical.js'
@@ -735,6 +736,90 @@ test('flushSpool drains ordered spool lines and quarantines poison payloads', as
     const events = queue.body.cards.map((c) => c.payload?.webhookEvent || c.payload?.summary || '')
     assert.ok(events.some((e) => /spool-ok|healthy drain/i.test(String(e))))
     assert.ok(events.some((e) => /spool-second/i.test(String(e))))
+  })
+})
+
+test('requeueDeadletter inspects then recovers recoverable dead-letter payloads', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const spoolPath = join(dataDir, 'spool.ndjson')
+    const deadletterPath = join(dataDir, 'spool.deadletter.ndjson')
+    writeFileSync(
+      deadletterPath,
+      [
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:00:00.000Z',
+          reason: 'HTTP_400',
+          channel: 'telemetry',
+          payload: { event: 'deadletter-ok', packId: 'aia', summary: 'recover me' },
+        }),
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:01:00.000Z',
+          reason: 'MALFORMED_JSON',
+          rawLine: 'not-json{{{',
+        }),
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:02:00.000Z',
+          reason: 'HTTP_422',
+          channel: 'telemetry',
+          payload: { event: 'deadletter-other', packId: 'aia' },
+        }),
+      ].join('\n') + '\n',
+    )
+
+    const inspected = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      inspectOnly: true,
+    })
+    assert.equal(inspected.inspectOnly, true)
+    assert.equal(inspected.totalQuarantined, 3)
+    assert.equal(inspected.entries[0].reason, 'HTTP_400')
+    assert.equal(readFileSync(deadletterPath, 'utf8').split('\n').filter(Boolean).length, 3)
+
+    const filtered = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      reasonFilter: 'HTTP_400',
+      limit: 1,
+    })
+    assert.equal(filtered.mode, 'spool-requeue')
+    assert.equal(filtered.requeued, 1)
+    assert.equal(filtered.remaining, 2)
+
+    const spoolLines = readFileSync(spoolPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(spoolLines.length, 1)
+    assert.equal(spoolLines[0].payload.event, 'deadletter-ok')
+    assert.equal(spoolLines[0].channel, 'telemetry')
+
+    const remainingDead = readFileSync(deadletterPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(remainingDead.length, 2)
+    assert.equal(remainingDead[0].reason, 'MALFORMED_JSON')
+    assert.equal(remainingDead[1].reason, 'HTTP_422')
+
+    const direct = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      sendDirect: true,
+      reasonFilter: 'HTTP_422',
+    })
+    assert.equal(direct.mode, 'direct-ingest')
+    assert.equal(direct.requeued, 1)
+    assert.equal(direct.remaining, 1)
+
+    const queue = await request(base, '/queue?status=pending')
+    assert.ok(
+      queue.body.cards.some((c) => /deadletter-other/i.test(String(c.payload?.webhookEvent || ''))),
+    )
   })
 })
 
