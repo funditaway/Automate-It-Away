@@ -92,3 +92,54 @@ export interface CardUiSchema {
     secondary: Array<{ id: string; label: string }>
   }
 }
+
+/** Pack / add-on install lifecycle history (api/_install-history.js). */
+export type InstallModuleType = 'pack' | 'addon'
+export type InstallStatus = 'succeeded' | 'failed' | 'rolled_back'
+export type InstallMode = 'fresh' | 'retry' | 'noop'
+export type InstallEventType =
+  | 'pack.installed'
+  | 'pack.upgraded'
+  | 'pack.removed'
+  | 'pack.rolled_back'
+  | 'addon.installed'
+  | 'addon.upgraded'
+  | 'addon.removed'
+  | 'addon.rolled_back'
+
+export interface InstallHistoryScope {
+  kind: 'global' | 'desk' | 'card' | 'desk+card'
+  deskId: string | null
+  workspace: string | null
+  cardId: string | null
+  agentId: string | null
+}
+
+export interface InstallHistoryActor {
+  id: string
+  seatId: string
+  accountId: string
+  name: string
+  whoKind: string
+  role: string
+  seatOverride: string | null
+  permission: string
+}
+
+export interface InstallHistoryEntry {
+  id: string
+  timestamp: string
+  eventType: InstallEventType | string
+  action: 'installed' | 'upgraded' | 'removed' | 'rolled_back' | string
+  moduleType: InstallModuleType
+  moduleId: string
+  slug: string
+  version: string
+  previousVersion: string | null
+  scope: InstallHistoryScope
+  actor: InstallHistoryActor
+  status: InstallStatus
+  error: string | null
+  installMode: InstallMode
+  kind: 'install'
+}

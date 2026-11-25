@@ -436,6 +436,12 @@ function historyOf(row, jobs, extras, opts) {
       href: "/desk"
     });
   });
+  try {
+    const install = require("./_install-history");
+    install.historyFeedItems(row, (opts && opts.installLimit) || 40).forEach((it) => {
+      if (it) items.push(it);
+    });
+  } catch (e) { /* install history optional when module missing */ }
   items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
   const counts = { need: 0, doing: 0, wait: 0, ext: 0, done: 0, stopped: 0, all: items.length };
   items.forEach((it) => {

@@ -3,6 +3,7 @@ const cards = require("./_account-connect");
 const { studioDraft, pickDrafter } = require("./_grok");
 const ais = require("./_ais");
 const net = require("./_aia-net");
+const installHistory = require("./_install-history");
 
 const OFFICIAL = [
   { id: "home", name: "Home & family", type: "work", family: "Automate It Away", aisle: "Home", official: true, price: 0, use: "ok", does: "Reminders, chores, school, same-day.", features: ["reminder", "calendar", "same-day cap"], kinds: ["chore", "school", "pickup", "repair"] },
@@ -519,6 +520,8 @@ function normalizeCreatorPack(body, workspace, person) {
       collect: "hold",
       official: false,
       type: "work",
+      moduleType: installHistory.moduleTypeOf(body.moduleType || body.type, body) === "addon" ? "addon" : "pack",
+      version: body.version != null && String(body.version).trim() ? String(body.version).trim().slice(0, 80) : undefined,
       authoredBy: String(body.authoredBy || body.creatorId || "").toLowerCase() === "grok" ? "grok" : "owner",
       creatorId: String(body.authoredBy || body.creatorId || "").toLowerCase() === "grok" ? "grok" : workspace,
       visibility: vis || (String(body.status || "draft").toLowerCase() === "listed" ? "listed" : "draft"),
@@ -661,13 +664,67 @@ function startSetupCard(shop, person, session, pack) {
 async function saveKept(acc, was) {
   let saved = false;
   try {
-    saved = (await save()) !== false;
+    // Resolve save at call time so tests (and hot reloads) can stub lib.save.
+    saved = (await require("./_lib").save()) !== false;
   } catch (e) {
     if (was) cards.putBack(acc, was);
     throw e;
   }
   if (!saved && was) cards.putBack(acc, was);
   return saved;
+}
+
+function packModuleType(pack, body) {
+  const nested = body && body.pack && typeof body.pack === "object" ? body.pack : null;
+  const hint = (body && body.moduleType) || (nested && nested.moduleType) || (pack && pack.moduleType) ||
+    (nested && nested.type) || (pack && pack.type);
+  return installHistory.moduleTypeOf(hint, pack);
+}
+
+function commitPackInstallHistory(opts) {
+  const pack = opts.pack;
+  const shop = opts.shop;
+  const prev = opts.previous || installHistory.deskPackSnapshot(shop);
+  const version = installHistory.versionOf(pack, opts.body);
+  const moduleType = packModuleType(pack, opts.body);
+  const nextId = String(pack.packId || pack.id || "");
+  const sameModule = !!(prev.packId && nextId && prev.packId === nextId);
+  const sameVersion = sameModule && (prev.version == null || prev.version === version);
+  const already = !!(sameVersion && (opts.already || sameModule));
+  const entry = installHistory.recordInstallEvent({
+    pack: pack,
+    shop: shop,
+    person: opts.person,
+    acc: opts.acc,
+    session: opts.session,
+    stamp: opts.stamp,
+    card: opts.card,
+    body: opts.body,
+    moduleType: moduleType,
+    moduleId: installHistory.moduleIdOf(pack),
+    version: version,
+    previousVersion: sameModule ? (prev.version || null) : null,
+    previousModuleId: prev.packId || "",
+    already: already,
+    retry: !!opts.retry,
+    installMode: opts.installMode,
+    action: opts.action || "install",
+    status: "succeeded"
+  });
+  installHistory.applyDeskPackVersion(shop, version);
+  return entry;
+}
+
+async function finishPackInstall(opts) {
+  const shop = opts.shop;
+  const previous = opts.previous || installHistory.deskPackSnapshot(shop);
+  const entry = commitPackInstallHistory(Object.assign({}, opts, { previous: previous }));
+  const saved = await saveKept(opts.acc, opts.was);
+  if (!saved) {
+    installHistory.markFailed(entry, "State did not save.");
+    if (opts.revertOnFail !== false) installHistory.restoreDeskPack(shop, previous);
+  }
+  return { saved: saved, entry: entry, history: installHistory.publicEntry(entry) };
 }
 
 function writeSetupFields(body, started, saved) {
@@ -803,8 +860,30 @@ async function packHandler(req, res) {
     mem.packs = rows.slice(0, 80);
     const listed = row.status === "listed" || row.status === "published" || row.status === "submitted" || action === "publish-pack" || action === "submit-pack" || action === "test-pack" || action === "private-pack" || body.preview === false;
     let added = 0;
-    if (listed) added = installPackOnDesk(shop, row);
-    await save();
+    let installMeta = null;
+    if (listed) {
+      const previous = installHistory.deskPackSnapshot(shop);
+      const listedAcc = installerAccount(shop, person, null);
+      added = installPackOnDesk(shop, row);
+      const entry = commitPackInstallHistory({
+        pack: row,
+        shop: shop,
+        person: person,
+        acc: listedAcc,
+        previous: previous,
+        body: body,
+        action: "install"
+      });
+      const saved = (await require("./_lib").save()) !== false;
+      if (!saved) {
+        installHistory.markFailed(entry, "State did not save.");
+        installHistory.restoreDeskPack(shop, previous);
+        return res.status(503).json({ ok: false, error: "That did not save. Nothing was kept.", history: installHistory.publicEntry(entry) });
+      }
+      installMeta = installHistory.publicEntry(entry);
+    } else {
+      await require("./_lib").save();
+    }
     log("Desk", (action === "test-pack" ? "Test pack · " : (action === "private-pack" || row.visibility === "private" ? "Private pack · " : (listed ? "Publish pack · " : "List pack · "))) + row.name, "OK", workspace);
     const hold = collectHoldOf(row);
     const rails = ais.railsOf(shop);
@@ -819,7 +898,7 @@ async function packHandler(req, res) {
           : "Draft saved. Off Market until you list it. Packs never Send."));
     const rulesNotKept = made.rulesNotKept || [];
     const warning = rulesCarryWarning(rulesNotKept);
-    const saved = { ok: true, pack: publicPack(row, acc), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note, rulesNotKept: rulesNotKept };
+    const saved = { ok: true, pack: publicPack(row, acc), added: added, desk: shop.slug, ais: rails.ais, collectHold: hold, charged: false, never: ["send", "stop", "pay"], note: note, rulesNotKept: rulesNotKept, history: installMeta };
     if (warning) saved.warning = warning;
     return res.status(200).json(saved);
   }
@@ -918,16 +997,40 @@ async function packHandler(req, res) {
     row.charged = false;
     const rows = ensurePacks();
     const idx = rows.findIndex(function (p) { return p && p.id === row.id && p.workspace === workspace; });
+    const previous = installHistory.deskPackSnapshot(shop);
+    const priorRow = idx >= 0 ? rows[idx] : null;
+    if (priorRow && priorRow.version && !row.version) row.version = priorRow.version;
     if (idx >= 0) rows[idx] = Object.assign({}, rows[idx], row);
     else rows.unshift(row);
     mem.packs = rows.slice(0, 80);
     const added = installPackOnDesk(shop, row);
     const started = startSetupCard(shop, person, found.session, packForCard(row, parsed.pack));
-    const saved = await saveKept(started.acc, started.was);
-    log("Desk", "Install .aia · " + row.name, "OK", workspace);
+    const finished = await finishPackInstall({
+      pack: row,
+      shop: shop,
+      person: person,
+      acc: started.acc,
+      session: found.session,
+      stamp: started.acc ? require("./_account-settings").stampWho(person, shop, started.acc) : null,
+      card: started.result && started.result.card,
+      previous: previous,
+      body: body,
+      was: started.was,
+      action: "install",
+      retry: body.retry === true || body.installMode === "retry"
+    });
     const hold = collectHoldOf(row);
     const rails = ais.railsOf(shop);
     const rulesNotKept = made.rulesNotKept || row.rulesNotKept || [];
+    if (!finished.saved) {
+      return res.status(503).json(writeSetupFields({
+        ok: false,
+        error: "That did not save. Nothing was kept.",
+        history: finished.history,
+        charged: false,
+        never: ["send", "stop", "pay"]
+      }, started, false));
+    }
     return res.status(200).json(writeSetupFields({
       ok: true,
       pack: publicPack(row, acc),
@@ -943,8 +1046,9 @@ async function packHandler(req, res) {
       never: ["send", "stop", "pay"],
       rails: rails.rails,
       rulesNotKept: rulesNotKept,
+      history: finished.history,
       note: withRulesNote("Installed " + row.file + " onto this desk. Named AIs attached. Private on AIA Internet — not on Market. Collect stays HOLD. No on-chain claim.", rulesNotKept)
-    }, started, saved));
+    }, started, finished.saved));
   }
   if (action === "use-pack" || action === "install-pack" || action === "buy-pack") {
     if (!pack) return res.status(404).json({ error: "No pack by that name." });
@@ -960,18 +1064,43 @@ async function packHandler(req, res) {
     const person = found.person;
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can Use a pack." });
-    const already = shop.pack === (pack.packId || pack.id);
+    const previous = installHistory.deskPackSnapshot(shop);
+    const nextId = String(pack.packId || pack.id || "");
+    const already = shop.pack === nextId;
     const added = installPackOnDesk(shop, pack);
     const started = startSetupCard(shop, person, found.session, packForCard(pack));
     const ownerAcc = started.acc || installerAccount(shop, person, found.session);
     const ownedWas = ownerAcc ? JSON.stringify(ownerAcc.packsOwned || []) : null;
     if (action !== "buy-pack" && saidYes(body) && ownerAcc) recordPackOwned(ownerAcc, pack, shop);
-    const saved = await saveKept(started.acc, started.was);
-    if (!saved && ownerAcc && ownedWas != null) ownerAcc.packsOwned = JSON.parse(ownedWas);
-    log("Desk", "Install pack · " + (pack.name || pack.id), "OK", workspace);
+    const finished = await finishPackInstall({
+      pack: pack,
+      shop: shop,
+      person: person,
+      acc: started.acc || ownerAcc,
+      session: found.session,
+      stamp: (started.acc || ownerAcc) ? require("./_account-settings").stampWho(person, shop, started.acc || ownerAcc) : null,
+      card: started.result && started.result.card,
+      previous: previous,
+      body: body,
+      was: started.was,
+      already: already,
+      action: "install",
+      retry: body.retry === true || body.installMode === "retry"
+    });
+    if (!finished.saved && ownerAcc && ownedWas != null) ownerAcc.packsOwned = JSON.parse(ownedWas);
     const hold = collectHoldOf(pack);
     const rails = ais.railsOf(shop);
     const rulesNotKept = Array.isArray(pack.rulesNotKept) ? pack.rulesNotKept : [];
+    if (!finished.saved) {
+      return res.status(503).json(writeSetupFields({
+        ok: false,
+        error: "That did not save. Nothing was kept.",
+        history: finished.history,
+        already: already,
+        charged: false,
+        never: ["send", "stop", "pay"]
+      }, started, false));
+    }
     return res.status(200).json(writeSetupFields({
       ok: true,
       pack: publicPack(pack, acc),
@@ -986,11 +1115,139 @@ async function packHandler(req, res) {
       never: ["send", "stop", "pay"],
       rails: rails.rails,
       rulesNotKept: rulesNotKept,
+      history: finished.history,
       note: withRulesNote(already
         ? "Already on this desk. " + hold.note
         : "Pack JSON is on this desk. " + (rails.count ? rails.count + " desk AI" + (rails.count === 1 ? "" : "s") + " attached. " : "") + hold.note, rulesNotKept)
-    }, started, saved));
+    }, started, finished.saved));
   }
+
+  if (action === "remove-pack" || action === "uninstall-pack") {
+    if (!workspace) return res.status(400).json({ error: "Open a desk first." });
+    const found = personOf(req, workspace);
+    const shop = found.workspace;
+    const person = found.person;
+    if (!shop) return res.status(404).json({ error: "Open a desk first." });
+    if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can remove a pack." });
+    const previous = installHistory.deskPackSnapshot(shop);
+    const want = String(body.id || body.pack || body.name || body.aia || previous.packId || "").toLowerCase();
+    if (!previous.packId) return res.status(404).json({ ok: false, error: "No pack on this desk." });
+    if (want && want !== String(previous.packId).toLowerCase() && want !== String(shop.packName || "").toLowerCase()) {
+      return res.status(404).json({ ok: false, error: "That pack is not on this desk." });
+    }
+    const removedPack = pack || findPack(previous.packId, { mine: true, workspace: workspace }) || {
+      id: previous.packId,
+      name: previous.packName || previous.packId,
+      version: previous.version || "1",
+      moduleType: body.moduleType || "pack"
+    };
+    installHistory.clearDeskPack(shop);
+    const ownerAcc = installerAccount(shop, person, found.session);
+    const entry = installHistory.recordInstallEvent({
+      pack: removedPack,
+      shop: shop,
+      person: person,
+      acc: ownerAcc,
+      session: found.session,
+      stamp: ownerAcc ? require("./_account-settings").stampWho(person, shop, ownerAcc) : null,
+      moduleType: packModuleType(removedPack, body),
+      moduleId: previous.packId,
+      version: previous.version || installHistory.versionOf(removedPack, body),
+      previousVersion: previous.version || null,
+      previousModuleId: previous.packId,
+      action: "remove",
+      status: "succeeded",
+      body: body
+    });
+    const saved = (await require("./_lib").save()) !== false;
+    if (!saved) {
+      installHistory.markFailed(entry, "State did not save.");
+      installHistory.restoreDeskPack(shop, previous);
+      return res.status(503).json({ ok: false, error: "That did not save. Nothing was kept.", history: installHistory.publicEntry(entry) });
+    }
+    return res.status(200).json({
+      ok: true,
+      removed: previous.packId,
+      desk: shop.slug,
+      history: installHistory.publicEntry(entry),
+      note: "Pack removed from this desk. Collect stays HOLD. Nothing was sent."
+    });
+  }
+
+  if (action === "rollback-pack") {
+    if (!workspace) return res.status(400).json({ error: "Open a desk first." });
+    const found = personOf(req, workspace);
+    const shop = found.workspace;
+    const person = found.person;
+    if (!shop) return res.status(404).json({ error: "Open a desk first." });
+    if (!isOwner(person)) return res.status(403).json({ error: "Only the owner can roll back a pack." });
+    const current = installHistory.deskPackSnapshot(shop);
+    const targetVersion = String(body.version || body.previousVersion || "").trim();
+    const prior = installHistory.installHistoryOf({ deskId: shop.slug, moduleId: current.packId || body.id || body.pack }).find(function (e) {
+      if (!e || e.status !== "succeeded") return false;
+      if (e.action !== "installed" && e.action !== "upgraded") return false;
+      if (targetVersion) return e.version === targetVersion;
+      return !!(current.version && e.version && e.version !== current.version);
+    });
+    if (!prior && !body.pack) {
+      return res.status(404).json({ ok: false, error: "No earlier install to roll back to." });
+    }
+    const rollPack = body.pack && typeof body.pack === "object"
+      ? body.pack
+      : (findPack(prior && prior.moduleId || current.packId || body.id, { mine: true, workspace: workspace }) || null);
+    if (!rollPack) return res.status(404).json({ ok: false, error: "No pack by that name to roll back." });
+    if (targetVersion) rollPack.version = targetVersion;
+    else if (prior && prior.version) rollPack.version = prior.version;
+    const previous = current;
+    installPackOnDesk(shop, rollPack);
+    installHistory.applyDeskPackVersion(shop, installHistory.versionOf(rollPack, body));
+    const ownerAcc = installerAccount(shop, person, found.session);
+    const entry = installHistory.recordInstallEvent({
+      pack: rollPack,
+      shop: shop,
+      person: person,
+      acc: ownerAcc,
+      session: found.session,
+      stamp: ownerAcc ? require("./_account-settings").stampWho(person, shop, ownerAcc) : null,
+      moduleType: packModuleType(rollPack, body),
+      version: installHistory.versionOf(rollPack, body),
+      previousVersion: previous.version || null,
+      previousModuleId: previous.packId || "",
+      action: "rollback",
+      status: "rolled_back",
+      body: body
+    });
+    const saved = (await require("./_lib").save()) !== false;
+    if (!saved) {
+      installHistory.markFailed(entry, "State did not save.");
+      installHistory.restoreDeskPack(shop, previous);
+      return res.status(503).json({ ok: false, error: "That did not save. Nothing was kept.", history: installHistory.publicEntry(entry) });
+    }
+    return res.status(200).json({
+      ok: true,
+      pack: publicPack(rollPack, acc),
+      desk: shop.slug,
+      history: installHistory.publicEntry(entry),
+      note: "Rolled back on this desk. Collect stays HOLD. Nothing was sent."
+    });
+  }
+
+  if (action === "install-history") {
+    if (!workspace) return res.status(400).json({ error: "Open a desk first." });
+    const { workspace: shop, person } = personOf(req, workspace);
+    if (!shop) return res.status(404).json({ error: "Open a desk first." });
+    if (!person) return res.status(403).json({ error: "Sign in on this desk first." });
+    return res.status(200).json({
+      ok: true,
+      desk: shop.slug,
+      history: installHistory.installHistoryOf({
+        deskId: shop.slug,
+        moduleId: body.id || body.pack || body.moduleId,
+        moduleType: body.moduleType
+      })
+    });
+  }
+
   return res.status(400).json({ error: "Unknown pack action." });
 }
 
