@@ -36,7 +36,7 @@ const path = require("path");
 const BASE = "a7bf2ed8157511a7124cb7d6b0ea7cbf8f61e664";
 const PIN = {
   "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
-  "api/_account-connect.js": "87e78227c06f4b6179209bdee7d5589a06b554dc",
+  "api/_account-connect.js": "0de124217a15e5fdef9b5ad2e019227e2160b858",
   "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
   "api/_account-follow.js": "2af2b60dea22484d495bf547deea9eada05e9466",
   "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",

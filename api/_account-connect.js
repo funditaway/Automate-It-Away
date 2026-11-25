@@ -627,10 +627,11 @@ async function handle(req, res, body) {
       refresh(card);
       const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Stopped for good. Nothing more happens on this card.");
       s.addHistory(acc, person, "setup", (verb === "stop" ? "Stopped" : "Stopped for good. Nothing more happens on") + " the setup card for " + card.source.name + ".", stamp.whoKind);
+      let installEntry = null;
       let installMeta = null;
       if (verb === "kill" && card.source && (card.source.type === "addon" || card.source.type === "pack")) {
         const ih = require("./_install-history");
-        const removed = ih.recordInstallEvent({
+        installEntry = ih.recordInstallEvent({
           pack: { id: card.source.id, name: card.source.name, type: card.source.type, version: "1" },
           shop: card.deskId ? { slug: card.deskId } : null,
           person: person,
@@ -643,14 +644,16 @@ async function handle(req, res, body) {
           action: "remove",
           status: "succeeded"
         });
-        installMeta = ih.publicEntry(removed);
+        installMeta = ih.publicEntry(installEntry);
       }
       let saved = false;
       try { saved = (await lib.save()) !== false; } catch (e) { saved = false; }
-      if (!saved && installMeta) {
-        const tip = (lib.mem.installHistory || [])[0];
-        if (tip && tip.id === installMeta.id) require("./_install-history").markFailed(tip, "State did not save.");
-        if (tip) installMeta = require("./_install-history").publicEntry(tip);
+      // Mark the same entry object we recorded — never re-read mem tip (another
+      // desk can unshift first while save() awaits).
+      if (!saved && installEntry) {
+        const ih = require("./_install-history");
+        ih.markFailed(installEntry, "State did not save.");
+        installMeta = ih.publicEntry(installEntry);
       }
       const out = { ok: true, changed: true, saved: saved, card: publicCard(card), entry: entry, history: installMeta };
       if (!saved) out.hint = (verb === "stop" ? "Stopped" : "Stopped for good") + " here, but it did not save. Tap " + (verb === "stop" ? "Stop" : "Kill") + " again.";
