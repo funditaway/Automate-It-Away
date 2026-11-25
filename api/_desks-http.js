@@ -84,7 +84,7 @@ module.exports = async function handler(req, res) {
   const body = await readBody(req);
   const action = String(body.action || "list").toLowerCase();
 
-  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai", "download-pack", "export-pack", "install-aia", "import-pack", "install-file"].indexOf(action) >= 0) {
+  if (["packs", "pack-search", "marketplace", "list-pack", "publish-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "buy-pack", "preview-pack", "studio-draft", "grok-pack", "private-pack", "save-ai", "attach-ai", "remove-ai", "download-pack", "export-pack", "install-aia", "import-pack", "install-file", "remove-pack", "uninstall-pack", "rollback-pack", "install-history"].indexOf(action) >= 0) {
     req.body = body;
     return packHandler(req, res);
   }
@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       opened.push(row);
       const jobs = (mem.jobs || []).filter((j) => j && j.workspace === slug);
       const audit = advanced ? (mem.audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 40) : [];
-      historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit }).items.forEach((it) => items.push(it));
+      historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit, viewer: person }).items.forEach((it) => items.push(it));
     });
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
     // seat=<id>&desk=<slug>: one seat's cards on one opened desk, by seat id; a legacy name-only card only
@@ -389,5 +389,5 @@ module.exports = async function handler(req, res) {
     await save();
     return res.status(200).json({ ok: true, deleted: wiped.slug, name: wiped.name, event: wiped.event });
   }
-  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove", "leave", "ask"] });
+  return res.status(400).json({ ok: false, error: "Unknown desk action.", actions: ["list", "search", "mine", "packs", "list-pack", "submit-pack", "test-pack", "unlist-pack", "use-pack", "install-pack", "preview-pack", "studio-draft", "remove-pack", "uninstall-pack", "rollback-pack", "install-history", "listed", "history", "priority", "explore", "update", "close", "open", "code", "export", "perms", "seat", "delete", "mail", "mail-add", "mail-remove", "leave", "ask"] });
 };

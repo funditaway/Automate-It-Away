@@ -15,6 +15,7 @@ const PROVIDERS = {
 const EMPTY = {
   account: null, accounts: [], sessions: [], approvals: [], locks: [],
   connections: [], jobs: [], audit: [], money: [], workspaces: [], inbox: [], files: [], tickets: [], packs: [], mail: [],
+  installHistory: [],
   migrations: {}
 };
 const SESSION_DAYS = 14;
@@ -73,6 +74,7 @@ function shape(parsed) {
     tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
     packs: Array.isArray(parsed.packs) ? parsed.packs : [],
     mail: Array.isArray(parsed.mail) ? parsed.mail : [],
+    installHistory: Array.isArray(parsed.installHistory) ? parsed.installHistory : [],
     migrations: parsed.migrations && typeof parsed.migrations === "object" && !Array.isArray(parsed.migrations) ? parsed.migrations : {}
   };
 }
@@ -94,6 +96,7 @@ function payload() {
     tickets: mem.tickets,
     packs: mem.packs,
     mail: mem.mail,
+    installHistory: Array.isArray(mem.installHistory) ? mem.installHistory : [],
     migrations: mem.migrations && typeof mem.migrations === "object" ? mem.migrations : {}
   };
 }
@@ -1307,6 +1310,7 @@ function applyStore(parsed) {
   mem.tickets = next.tickets;
   mem.packs = next.packs;
   mem.mail = next.mail;
+  mem.installHistory = next.installHistory;
   mem.migrations = next.migrations;
   return mem;
 }

@@ -69,9 +69,15 @@ function packOf(res, id) {
   return rows.find((p) => p && (p.id === id || p.packId === id)) || null;
 }
 function normalizeBuy(body) {
-  return JSON.stringify(body == null ? null : body)
+  // Install history is tip-only structured audit; strip it so buy-pack still
+  // matches main for ownership / charge / setup-card shape.
+  const copy = body == null ? null : Object.assign({}, body);
+  if (copy) delete copy.history;
+  return JSON.stringify(copy)
     .replace(/setup_[a-f0-9]+/gi, "setup_X")
-    .replace(/\d{4}-\d{2}-\d{2}T[0-9:.Z+-]+/g, "TS");
+    .replace(/\d{4}-\d{2}-\d{2}T[0-9:.Z+-]+/g, "TS")
+    .replace(/,"history":null/g, "")
+    .replace(/"history":null,/g, "");
 }
 function loadMainPacks() {
   let src;
