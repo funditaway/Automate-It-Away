@@ -243,6 +243,36 @@ async function main() {
   // install-history action
   const listed = await call(packs, "POST", hdr, { action: "install-history" });
   ok(listed.statusCode === 200 && Array.isArray(listed.body.history) && listed.body.history.length >= 1, "install-history lists rows");
+  ok(listed.body.history[0].actor && listed.body.history[0].actor.accountId === ACC, "owner install-history keeps accountId");
+
+  // Helper cannot read accountId / seatOverride on install-history
+  const helper = {
+    id: "p_hel_hist", name: "Hel", role: "employee", kind: "helper",
+    status: "approved", pin: pin("5555"), accountId: "acct_hel_hist", email: "", createdAt: now
+  };
+  desk.people.push(helper);
+  const helListed = await call(packs, "POST", { "x-workspace": DESK, "x-pin": "5555" }, { action: "install-history" });
+  ok(helListed.statusCode === 200 && Array.isArray(helListed.body.history), "helper can read install-history");
+  const helActor = (helListed.body.history[0] && helListed.body.history[0].actor) || {};
+  ok(!helActor.accountId && !helActor.seatId && !helActor.permission && helActor.seatOverride == null, "helper actor is display-only");
+
+  // rollback must not mutate OFFICIAL catalog version
+  const homeBefore = packs.findPack("home");
+  const homeVerBefore = homeBefore && homeBefore.version;
+  desk.pack = "home";
+  desk.packVersion = "9.9.9";
+  lib.mem.installHistory.unshift(ih.normalizeEntry({
+    pack: { id: "home", name: "Home", version: "1.0.0" },
+    shop: desk,
+    person: person,
+    acc: acc,
+    status: "succeeded",
+    action: "install"
+  }));
+  const rolled = await call(packs, "POST", hdr, { action: "rollback-pack", id: "home", version: "1.0.0", pack: "home" });
+  ok(rolled.statusCode === 200 && rolled.body && rolled.body.ok === true, "rollback-pack with string pack id ok");
+  const homeAfter = packs.findPack("home");
+  ok((homeAfter && homeAfter.version) === homeVerBefore, "rollback does not poison OFFICIAL pack.version");
 
   // Static wiring asserts
   const packsSrc = fs.readFileSync(path.join(root, "api/_packs.js"), "utf8");

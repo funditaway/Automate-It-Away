@@ -153,7 +153,7 @@ module.exports = async function handler(req, res) {
       opened.push(row);
       const jobs = (mem.jobs || []).filter((j) => j && j.workspace === slug);
       const audit = advanced ? (mem.audit || []).filter((a) => a && (!a.workspace || a.workspace === slug)).slice(0, 40) : [];
-      historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit }).items.forEach((it) => items.push(it));
+      historyOf(row, jobs, deskEventsOf(slug, advanced ? 40 : 20), { audit, viewer: person }).items.forEach((it) => items.push(it));
     });
     items.sort((a, b) => String(b.t || "").localeCompare(String(a.t || "")));
     // seat=<id>&desk=<slug>: one seat's cards on one opened desk, by seat id; a legacy name-only card only

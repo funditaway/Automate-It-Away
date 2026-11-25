@@ -188,7 +188,40 @@ function normalizeEntry(input) {
   return entry;
 }
 
-function publicEntry(entry) {
+function maskActor(actor, viewer) {
+  if (!actor || typeof actor !== "object") return null;
+  let owner = false;
+  try {
+    owner = !!(viewer && require("./_lib").isOwner(viewer));
+  } catch (e) {
+    owner = false;
+  }
+  if (owner) {
+    return {
+      id: actor.id || "",
+      seatId: actor.seatId || "",
+      accountId: actor.accountId || "",
+      name: actor.name || "",
+      whoKind: actor.whoKind || "",
+      role: actor.role || "",
+      seatOverride: actor.seatOverride || null,
+      permission: actor.permission || ""
+    };
+  }
+  // Helpers / staff / desk-code: display name + kind only (matches viewSeat).
+  return {
+    id: "",
+    seatId: "",
+    accountId: "",
+    name: actor.name || "",
+    whoKind: actor.whoKind || "",
+    role: "",
+    seatOverride: null,
+    permission: ""
+  };
+}
+
+function publicEntry(entry, viewer) {
   if (!entry || typeof entry !== "object") return null;
   return {
     id: entry.id,
@@ -202,7 +235,7 @@ function publicEntry(entry) {
     version: entry.version,
     previousVersion: entry.previousVersion || null,
     scope: entry.scope || null,
-    actor: entry.actor || null,
+    actor: maskActor(entry.actor, viewer),
     status: entry.status,
     error: entry.error || null,
     installMode: entry.installMode,
@@ -291,19 +324,20 @@ function installHistoryOf(opts) {
   const desk = clip(q.deskId || q.workspace || q.slug || "", 40);
   const moduleId = clip(q.moduleId || q.id || "", 80);
   const moduleType = q.moduleType ? moduleTypeOf(q.moduleType) : "";
+  const viewer = q.viewer || null;
   return ensureInstallHistory().filter((e) => {
     if (!e) return false;
     if (desk && !(e.scope && (e.scope.deskId === desk || e.scope.workspace === desk))) return false;
     if (moduleId && e.moduleId !== moduleId) return false;
     if (moduleType && e.moduleType !== moduleType) return false;
     return true;
-  }).map(publicEntry).filter(Boolean);
+  }).map((e) => publicEntry(e, viewer)).filter(Boolean);
 }
 
-function historyFeedItems(desk, limit) {
+function historyFeedItems(desk, limit, viewer) {
   const n = Math.min(Math.max(Number(limit) || 40, 1), 80);
   const slug = desk && (desk.slug || desk);
-  return installHistoryOf({ deskId: slug }).slice(0, n).map((e) => ({
+  return installHistoryOf({ deskId: slug, viewer: viewer }).slice(0, n).map((e) => ({
     kind: "install",
     id: e.id,
     t: e.timestamp,
@@ -316,7 +350,7 @@ function historyFeedItems(desk, limit) {
     status: e.eventType,
     step: e.installMode || "",
     waitingOn: "",
-    who: (e.actor && (e.actor.name || e.actor.seatId)) || "",
+    who: (e.actor && e.actor.name) || "",
     hands: e.actor && e.actor.name ? [e.actor.name] : [],
     work: e.moduleType,
     pack: e.moduleId,
@@ -393,6 +427,7 @@ module.exports = {
   classifyLifecycle,
   normalizeEntry,
   publicEntry,
+  maskActor,
   whatLine,
   recordInstallEvent,
   markFailed,

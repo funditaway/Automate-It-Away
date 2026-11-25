@@ -1189,13 +1189,22 @@ async function packHandler(req, res) {
       if (targetVersion) return e.version === targetVersion;
       return !!(current.version && e.version && e.version !== current.version);
     });
-    if (!prior && !body.pack) {
+    const bodyPack = body.pack && typeof body.pack === "object" && !Array.isArray(body.pack) ? body.pack : null;
+    if (!prior && !bodyPack) {
       return res.status(404).json({ ok: false, error: "No earlier install to roll back to." });
     }
-    const rollPack = body.pack && typeof body.pack === "object"
-      ? body.pack
-      : (findPack(prior && prior.moduleId || current.packId || body.id, { mine: true, workspace: workspace }) || null);
-    if (!rollPack) return res.status(404).json({ ok: false, error: "No pack by that name to roll back." });
+    const lookupId = (bodyPack && (bodyPack.packId || bodyPack.id || bodyPack.aia))
+      || (typeof body.pack === "string" ? body.pack : "")
+      || (prior && prior.moduleId)
+      || current.packId
+      || body.id
+      || body.name;
+    const catalog = findPack(lookupId, { mine: true, workspace: workspace });
+    // Never mutate OFFICIAL / mem.packs rows — copy before setting version.
+    const rollPack = Object.assign({}, catalog || {}, bodyPack || {});
+    if (!rollPack.id && !rollPack.packId && !rollPack.name) {
+      return res.status(404).json({ ok: false, error: "No pack by that name to roll back." });
+    }
     if (targetVersion) rollPack.version = targetVersion;
     else if (prior && prior.version) rollPack.version = prior.version;
     const previous = current;
@@ -1237,13 +1246,15 @@ async function packHandler(req, res) {
     const { workspace: shop, person } = personOf(req, workspace);
     if (!shop) return res.status(404).json({ error: "Open a desk first." });
     if (!person) return res.status(403).json({ error: "Sign in on this desk first." });
+    // Helpers see display-only actor fields (no accountId / seatOverride / permission).
     return res.status(200).json({
       ok: true,
       desk: shop.slug,
       history: installHistory.installHistoryOf({
         deskId: shop.slug,
         moduleId: body.id || body.pack || body.moduleId,
-        moduleType: body.moduleType
+        moduleType: body.moduleType,
+        viewer: person
       })
     });
   }

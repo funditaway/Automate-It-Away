@@ -438,7 +438,7 @@ function historyOf(row, jobs, extras, opts) {
   });
   try {
     const install = require("./_install-history");
-    install.historyFeedItems(row, (opts && opts.installLimit) || 40).forEach((it) => {
+    install.historyFeedItems(row, (opts && opts.installLimit) || 40, opts && opts.viewer).forEach((it) => {
       if (it) items.push(it);
     });
   } catch (e) { /* install history optional when module missing */ }
