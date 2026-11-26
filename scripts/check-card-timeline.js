@@ -99,5 +99,10 @@ else {
   for (let i = 1; i < ev.length; i++) if (ev[i].at < ev[i - 1].at) fail("events not sorted oldest first");
 }
 
+// BL2: the read-only Build steps list under the timeline (build-log-steps-ui.js) has its own check. It runs here as a child and must pass too.
+const stepsUi = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env });
+if (stepsUi.status !== 0) fail("check-build-log-steps-ui failed (exit " + stepsUi.status + ")");
+else pass("check-build-log-steps-ui ok");
+
 if (failed) { console.error(failed + " failed"); process.exit(1); }
 console.log("check-card-timeline ok");
