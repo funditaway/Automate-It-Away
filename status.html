@@ -35,7 +35,7 @@
     <div class="row"><span>This site</span><span class="up">Up</span></div>
     <div class="row"><span>Talk on desk</span><span class="up">Drafts only. You still tap Yes or Stop.</span></div>
     <div class="row"><span>Helpers</span><span class="up">Own desk code. Owner Stop.</span></div>
-    <div class="row"><span>Drop</span><span class="up">From a link or this phone. No money.</span></div>
+    <div class="row"><span>Drop</span><span class="up">From a link or this account. No money.</span></div>
     <div class="row"><span>Incoming</span><span class="up">Writes a card. No money.</span></div>
     <div class="row"><span>Square / eBay / Calendar</span><span id="pipes" class="hold">Off for now</span></div>
     <div class="row"><span>Desk AI drafts</span><span id="grok" class="hold">Checking…</span></div>
@@ -89,8 +89,8 @@
       const g = (data.automation && (data.automation.deskAi || data.automation.grok)) || {};
       if (grokEl) {
         grokEl.textContent = deskFaceNote(g.note, g.on
-          ? "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."
-          : "A Desk AI can't draft on this phone yet.");
+          ? "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop."
+          : "A Desk AI can't draft on this account yet.");
         grokEl.className = g.on ? "up" : "hold";
       }
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
