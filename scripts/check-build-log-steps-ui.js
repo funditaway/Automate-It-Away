@@ -75,8 +75,14 @@ function fakeDoc() {
       }
     });
   }
-  return { byId, createElement: (t) => { const e = mk(t); if (/^(button|form|input|a|textarea|select|iframe|script|img)$/i.test(t)) bad("element " + t); return e; },
+  const d = { byId, createElement: (t) => { const e = mk(t); if (/^(button|form|input|a|textarea|select|iframe|script|img)$/i.test(t)) bad("element " + t); return e; },
     getElementById: (id) => byId[id] || null, write() { bad("document.write"); }, mkBox(id) { const e = mk("div"); e.id = id; byId[id] = e; return e; } };
+  Object.defineProperty(d, "cookie", {
+    get: function () { trapCall("cookie")(); return ""; },
+    set: function () { trapCall("cookie")(); },
+    enumerable: true, configurable: true
+  });
+  return d;
 }
 function trapCall(name) {
   return function () { PWN.calls = (PWN.calls || []).concat(name); PWN.hit = (PWN.hit || []).concat(name); };
@@ -96,6 +102,7 @@ function load(src) {
   Object.assign(win, traps);
   const box = Object.assign({ window: win, document: doc, Array: Array, Object: Object, String: String }, traps);
   vm.createContext(box);
+  box.globalThis = box;
   vm.runInContext(src, box);
   return { api: win.AIABuildSteps, doc, win };
 }
@@ -191,6 +198,9 @@ function suiteRun(S) {
     const heads = [];
     (function walk(n) { if (n.tagName === "P") heads.push(n._t); n.children.forEach(walk); })(box);
     must(heads.length === 1 && heads[0] === "Build steps", "heading is exactly \"Build steps\", once: " + JSON.stringify(heads));
+    const ols = []; (function walkOl(n) { if (n.tagName === "OL") ols.push(n); n.children.forEach(walkOl); })(box);
+    must(ols.length === 1 && ols[0].getAttribute("aria-label") === "Build steps", "list aria-label is exactly \"Build steps\"");
+    must(li.every((n) => !n.title && n.getAttribute("title") == null), "rows have no title attribute");
     assertCleanAttrs(box, want.concat([H1, H2, H1.slice(0, 8), H2.slice(0, 8), DPL, "2026-11-26T00:00:00.000Z", "Sam Jones", "Sam", "Jones", "draft-opened", "new-head", "probe", "named", "landed", "deployed", "ramp", "decision", "PASS", "FAIL", "GREEN", "ORANGE", "RED", "HOLD", "raw posted text", "posted text"]), must);
   }
   // Each piece on its own and in the fixed order.
@@ -307,6 +317,7 @@ function suiteRun(S) {
   const many = []; for (let i = 0; i < 200; i++) many.push(row(i % 2 ? "named" : "probe", { head: i % 2 ? "" : H1, verdict: i % 2 ? "" : (i % 4 ? "FAIL" : "PASS") }));
   const ml = lines(many);
   must(ml.length === 200 && ml[0] === "Probe: PASS on 1a2b3c4d" && ml[1] === "Named" && ml[2] === "Probe: FAIL on 1a2b3c4d" && ml[199] === "Named", "200 rows all show, in order");
+  must(!(PWN.calls && PWN.calls.length), "mount must not call fetch / XMLHttpRequest / storage / sendBeacon: " + JSON.stringify(PWN.calls));
 
   // 7. Wiring in desk-card.js (desk.html is not touched).
   const dc = S[DC];
@@ -463,7 +474,16 @@ const MUTANTS = [
   ["heading duplicated", rep(M, "box.appendChild(head);\n    var list", "box.appendChild(head); var headDup = doc.createElement(\"p\"); headDup.className = \"meta\"; headDup.textContent = \"Build steps\"; box.appendChild(headDup);\n    var list")],
   ["computed fetch on the window", rep(M, "var MARK = \"data-build-steps\";", "var MARK = \"data-build-steps\"; root[\"fe\"+\"tch\"](\"https://example.invalid\");")],
   ["parent ignores a failing child exit", rep(PARENT, 'const stepsUi = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env });', 'const stepsUi = Object.assign(require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env }), { status: 0 });')],
-  ["not in the npm test chain", rep(PK, " && node scripts/check-build-log-steps-ui.js", "")]
+  ["not in the npm test chain", rep(PK, " && node scripts/check-build-log-steps-ui.js", "")],
+  ["computed fetch inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    var fn = root[\"fe\" + \"tch\"]; if (fn) fn(\"/x\");\n    if (box) el.appendChild(box);")],
+  ["globalThis fetch inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    globalThis[\"fe\"+\"tch\"](\"/x\");\n    if (box) el.appendChild(box);")],
+  ["XHR inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    var X = root[\"XMLHttp\" + \"Request\"]; if (X) new X();\n    if (box) el.appendChild(box);")],
+  ["sendBeacon inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    root.navigator[\"send\" + \"Beacon\"](\"/x\");\n    if (box) el.appendChild(box);")],
+  ["computed storage inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    var st = root[\"local\" + \"Storage\"]; if (st) st[\"set\" + \"Item\"](\"k\", \"v\");\n    if (box) el.appendChild(box);")],
+  ["computed fetch on mount's no-target return", rep(M, "    if (!el) return null;", "    if (!el) { root[\"fe\"+\"tch\"](\"/x\"); return null; }")],
+  ["computed cookie write inside mount", rep(M, "    var box = build(card, opts);\n    if (box) el.appendChild(box);", "    var box = build(card, opts);\n    doc[\"coo\"+\"kie\"] = \"a=1\";\n    if (box) el.appendChild(box);")],
+  ["list aria-label changed to Build log", rep(M, "list.setAttribute(\"aria-label\", \"Build steps\");", "list.setAttribute(\"aria-label\", \"Build log\");")],
+  ["constant title details on a row", rep(M, "li.textContent = text;", "li.title = \"details\"; li.textContent = text;")]
 ];
 
 const base = suite(SRC);
