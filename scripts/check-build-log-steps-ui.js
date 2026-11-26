@@ -13,44 +13,97 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const crypto = require("crypto");
+const os = require("os");
+const { spawnSync } = require("child_process");
 const root = path.join(__dirname, "..");
 const read = (f) => fs.readFileSync(path.join(root, f), "utf8");
-const MOD = "build-log-steps-ui.js", DC = "desk-card.js", JOBS = "api/jobs.js", PARENT = "scripts/check-card-timeline.js";
-const SRC = {}; SRC[MOD] = read(MOD); SRC[DC] = read(DC); SRC[JOBS] = read(JOBS); SRC[PARENT] = read(PARENT);
+const MOD = "build-log-steps-ui.js", DC = "desk-card.js", JOBS = "api/jobs.js", PARENT = "scripts/check-card-timeline.js", PK = "package.json";
+const SRC = {}; SRC[MOD] = read(MOD); SRC[DC] = read(DC); SRC[JOBS] = read(JOBS); SRC[PARENT] = read(PARENT); SRC[PK] = read(PK);
 
 const H1 = "1a2b3c4d" + "0".repeat(32), H2 = "ffeeddcc" + "a1".repeat(16);
 const DPL = "dpl_Hp8gavfM";
 let PWN = null;
 
+function recordSet(n, how, key, val) {
+  const rec = { how: how, key: String(key), val: val == null ? "" : String(val), tag: n.tagName };
+  n.sets = n.sets || [];
+  n.sets.push(rec);
+  PWN.sets = (PWN.sets || []).concat(rec);
+}
 function fakeDoc() {
   const byId = {};
   const bad = (what) => { PWN.hit = (PWN.hit || []).concat(what); };
   function mk(tag) {
     const n = {
-      tagName: String(tag).toUpperCase(), children: [], attrs: {}, style: {}, className: "", id: "", _t: "", parent: null,
-      appendChild(c) { n.children.push(c); c.parent = n; if (c.id) byId[c.id] = c; return c; },
+      tagName: String(tag).toUpperCase(), children: [], attrs: {}, _style: {}, _t: "", parent: null, sets: [],
+      appendChild(c) { n.children.push(c); c.parent = n; if (c._id) byId[c._id] = c; return c; },
       removeChild(c) { const i = n.children.indexOf(c); if (i >= 0) n.children.splice(i, 1); return c; },
-      setAttribute(k, v) { n.attrs[k] = String(v); if (/^on/i.test(k) || /^(href|src|action|formaction)$/i.test(k)) bad("attr " + k); },
+      setAttribute(k, v) {
+        n.attrs[k] = String(v);
+        recordSet(n, "setAttribute", k, v);
+        if (/^on/i.test(k) || /^(href|src|action|formaction)$/i.test(k)) bad("attr " + k);
+      },
       getAttribute(k) { return Object.prototype.hasOwnProperty.call(n.attrs, k) ? n.attrs[k] : null; },
       addEventListener() { bad("listener"); },
       insertAdjacentHTML() { bad("insertAdjacentHTML"); }
     };
+    n.classList = { add: function () { Array.prototype.forEach.call(arguments, function (c) { recordSet(n, "classList.add", "class", c); n.className = (n.className ? n.className + " " : "") + c; }); } };
+    n.dataset = new Proxy({}, { set: function (t, k, v) { recordSet(n, "dataset", "data-" + String(k), v); t[k] = v; return true; } });
+    n.style = new Proxy(n._style, { set: function (t, k, v) { recordSet(n, "style", k, v); t[k] = v; return true; } });
     Object.defineProperty(n, "textContent", { get: () => n._t, set: (v) => { n._t = String(v); n.children = []; } });
     Object.defineProperty(n, "innerHTML", { get: () => "", set: () => bad("innerHTML") });
     Object.defineProperty(n, "outerHTML", { get: () => "", set: () => bad("outerHTML") });
-    return n;
+    ["className", "id", "title", "ariaLabel", "ariaLabelledBy"].forEach(function (prop) {
+      let cur = "";
+      Object.defineProperty(n, prop, {
+        get: () => (prop === "id" ? (n._id || "") : cur),
+        set: (v) => {
+          cur = v == null ? "" : String(v);
+          if (prop === "id") { n._id = cur; if (cur) byId[cur] = n; }
+          recordSet(n, "prop", prop === "className" ? "className" : prop, cur);
+        },
+        enumerable: true, configurable: true
+      });
+    });
+    return new Proxy(n, {
+      set: function (t, k, v) {
+        if (k === "parent" || k === "children" || k === "_t" || k === "sets" || k === "tagName" || k === "attrs" || k === "_style" || k === "_id" || k === "style" || k === "dataset" || k === "classList") { t[k] = v; return true; }
+        if (k === "textContent" || k === "innerHTML" || k === "outerHTML") { t[k] = v; return true; }
+        recordSet(t, "prop", k, v);
+        t[k] = v;
+        return true;
+      }
+    });
   }
   return { byId, createElement: (t) => { const e = mk(t); if (/^(button|form|input|a|textarea|select|iframe|script|img)$/i.test(t)) bad("element " + t); return e; },
     getElementById: (id) => byId[id] || null, write() { bad("document.write"); }, mkBox(id) { const e = mk("div"); e.id = id; byId[id] = e; return e; } };
 }
+function trapCall(name) {
+  return function () { PWN.calls = (PWN.calls || []).concat(name); PWN.hit = (PWN.hit || []).concat(name); };
+}
 function load(src) {
-  PWN = { hit: null };
+  PWN = { hit: null, sets: [], calls: [] };
   const doc = fakeDoc();
+  const store = function () { return { getItem: trapCall("storage"), setItem: trapCall("storage"), removeItem: trapCall("storage"), clear: trapCall("storage") }; };
   const win = { document: doc };
-  const box = { window: win, Array: Array, Object: Object, String: String };
+  const traps = {
+    fetch: trapCall("fetch"),
+    XMLHttpRequest: function () { trapCall("XMLHttpRequest")(); },
+    localStorage: store(),
+    sessionStorage: store(),
+    navigator: { sendBeacon: trapCall("sendBeacon") }
+  };
+  Object.assign(win, traps);
+  const box = Object.assign({ window: win, document: doc, Array: Array, Object: Object, String: String }, traps);
   vm.createContext(box);
   vm.runInContext(src, box);
-  return { api: win.AIABuildSteps, doc };
+  return { api: win.AIABuildSteps, doc, win };
+}
+function allSets(node, out) {
+  out = out || [];
+  if (node && node.sets) node.sets.forEach(function (r) { out.push(r); });
+  (node && node.children || []).forEach(function (c) { allSets(c, out); });
+  return out;
 }
 function texts(node, out) {
   out = out || [];
@@ -63,6 +116,22 @@ function tags(node, out) {
   out.push(node.tagName);
   node.children.forEach((c) => tags(c, out));
   return out;
+}
+const ALLOWED_CLASS = { "build-steps": 1, meta: 1, "bs-list": 1, "bs-row": 1 };
+function assertCleanAttrs(node, banned, must) {
+  const sets = allSets(node);
+  const leaks = sets.filter(function (r) {
+    if (r.key === "textContent" || r.how === "textContent") return false;
+    const v = r.val;
+    return banned.some(function (b) { return b && v.indexOf(b) >= 0; });
+  });
+  must(leaks.length === 0, "attributes must not carry row data: " + JSON.stringify(leaks.slice(0, 8)));
+  const classes = sets.filter(function (r) { return r.key === "className" || r.key === "class" || r.how === "classList.add"; }).map(function (r) { return r.val; });
+  const unexpected = [];
+  classes.forEach(function (v) {
+    String(v).split(/\s+/).filter(Boolean).forEach(function (c) { if (!ALLOWED_CLASS[c]) unexpected.push(c); });
+  });
+  must(unexpected.length === 0, "only static class names build-steps, meta, bs-list, bs-row: " + JSON.stringify(unexpected.concat(classes)));
 }
 function row(step, extra) {
   return Object.assign({ step, at: "2026-11-26T00:00:00.000Z", head: "", verdict: "", deploy: "", done: false, by: "Sam Jones" }, extra || {});
@@ -119,6 +188,10 @@ function suiteRun(S) {
     const li = []; (function w(n) { if (n.tagName === "LI") li.push(n); n.children.forEach(w); })(box);
     must(li.length === want.length && li.every((n) => n.children.length === 0), "one plain li per row, text only inside");
     must(sameArr(tags(box).filter((t, i, a) => a.indexOf(t) === i).sort(), ["DIV", "LI", "OL", "P"]), "only div, p, ol and li are drawn: " + tags(box).join(","));
+    const heads = [];
+    (function walk(n) { if (n.tagName === "P") heads.push(n._t); n.children.forEach(walk); })(box);
+    must(heads.length === 1 && heads[0] === "Build steps", "heading is exactly \"Build steps\", once: " + JSON.stringify(heads));
+    assertCleanAttrs(box, want.concat([H1, H2, H1.slice(0, 8), H2.slice(0, 8), DPL, "2026-11-26T00:00:00.000Z", "Sam Jones", "Sam", "Jones", "draft-opened", "new-head", "probe", "named", "landed", "deployed", "ramp", "decision", "PASS", "FAIL", "GREEN", "ORANGE", "RED", "HOLD", "raw posted text", "posted text"]), must);
   }
   // Each piece on its own and in the fixed order.
   must(sameArr(lines([row("probe", { head: H1 })]), ["Probe on 1a2b3c4d"]), "head8 is the first 8 characters, no verdict");
@@ -153,6 +226,9 @@ function suiteRun(S) {
     row("probe", { head: 12345678 }), row("probe", { head: "1a2b3c4d" }), row("probe", { head: "<b>" + H1 + "</b>" }),
     row("deployed", { deploy: "dpl_" }), row("deployed", { deploy: "dpl_abc" }), row("deployed", { deploy: "xpl_Hp8gavfM" }), row("deployed", { deploy: "dpl_<img onerror=x>" }),
     row("deployed", { deploy: "dpl_" + "a".repeat(41) }), row("deployed", { deploy: 7 }),
+    row("deployed", { deploy: "dpl_../x" }), row("deployed", { deploy: "dpl_ab.cdef" }), row("deployed", { deploy: "dpl_ab_cdef" }),
+    row("deployed", { deploy: "DPL_Hp8gavfM" }), row("deployed", { deploy: "Dpl_Hp8gavfM" }),
+    row("deployed", { deploy: "xdpl_Hp8gavfM" }), row("deployed", { deploy: "dpl_Hp8gavfM." }), row("deployed", { deploy: "dpl_Hp8gavfM/x" }),
     null, undefined, 5, "probe", [], { verdict: "PASS" }, { step: 7 }, { step: ["probe"] }, { step: { toString() { return "probe"; } } }
   ];
   must(lines(trash).length === 0, "unknown step / result / head / deploy rows are skipped: " + JSON.stringify(lines(trash)));
@@ -161,7 +237,10 @@ function suiteRun(S) {
   const tb = api.build(cardOf(trash.concat([row("named")])));
   must(tb && sameArr(texts(tb).slice(1), ["Named"]), "skipped rows never reach the screen");
 
+  must(!(PWN.calls && PWN.calls.length), "module must not call fetch / XMLHttpRequest / storage / sendBeacon on the window: " + JSON.stringify(PWN.calls));
+
   // 4. HTML-like and name payloads never show, never inject.
+  const callsAtLoad = (PWN.calls || []).slice();
   PWN.hit = null;
   const evil = row("probe", { verdict: "PASS", head: H1, by: "<script>alert('by')</script>Sam Jones", at: "<img src=x onerror=alert('at')>",
     note: "<b>posted text</b>", text: "raw posted text", name: "Sam Jones", title: "<i>t</i>", why: "<u>why</u>", charged: true, amount: 99 });
@@ -172,6 +251,8 @@ function suiteRun(S) {
   must(eb && sameArr(texts(eb).slice(1), ["Probe: PASS on 1a2b3c4d", "Named"]), "payload keys are not read: " + all);
   must(!/[<>]|script|onerror|onload|posted|Sam|Jones|Riley|Park|99|charged|alert/i.test(all), "no payload, name, time or money text on screen: " + all);
   must(!PWN.hit, "nothing is parsed as HTML (innerHTML / outerHTML / insertAdjacentHTML / write / on* attributes): " + JSON.stringify(PWN.hit));
+  must(!(PWN.calls && PWN.calls.length > callsAtLoad.length), "build must not call fetch / XMLHttpRequest / storage / sendBeacon: " + JSON.stringify(PWN.calls));
+  if (eb) assertCleanAttrs(eb, ["Probe: PASS on 1a2b3c4d", "Named", H1, H1.slice(0, 8), "PASS", "probe", "Sam Jones", "Sam", "Jones", "raw posted text", "posted text", "2026-11-26T00:00:00.000Z"], must);
 
   // 5. Nothing written, nothing clickable.
   const src = S[MOD];
@@ -275,7 +356,36 @@ function suiteRun(S) {
   must(deskHtml.toString("utf8").indexOf(MOD) < 0, "desk.html does not load the new file (desk-card.js does)");
   const par = S[PARENT];
   must(par.indexOf('spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env })') >= 0 && /if \(stepsUi\.status !== 0\) fail\(/.test(par) && par.indexOf("if (failed) { console.error(failed") > par.indexOf("stepsUi.status"), "check-card-timeline.js runs this check as a child and fails when it fails");
+  must(/node scripts\/check-build-log-steps\.js && node scripts\/check-build-log-steps-ui\.js && node scripts\/check-blob-store\.js/.test(S[PK]), "package.json test runs this check right after check-build-log-steps");
+  const parentRun = parentFailsWhenChildFails(S[PARENT]);
+  must(parentRun.failed, "check-card-timeline must exit non-zero when this check fails (status " + parentRun.status + ")");
   return f;
+}
+
+const parentFailCache = new Map();
+function parentFailsWhenChildFails(parentSrc) {
+  if (parentFailCache.has(parentSrc)) return parentFailCache.get(parentSrc);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aia-bl2-par-"));
+  const copy = (rel) => {
+    const dst = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(dst), { recursive: true });
+    fs.copyFileSync(path.join(root, rel), dst);
+  };
+  ["card-timeline.js", "desk.html", "desk-card.js", "history.html",
+    "api/jobs.js", "api/_fields.js", "api/_engine.js", "api/_handoff.js", "api/_grok.js", "api/_history.js",
+    "scripts/_env-guard.js"].forEach(copy);
+  fs.writeFileSync(path.join(dir, "scripts/check-card-timeline.js"), parentSrc);
+  fs.writeFileSync(path.join(dir, "scripts/check-build-log-steps-ui.js"), "#!/usr/bin/env node\nconsole.error(\"FAIL stub\");\nprocess.exit(2);\n");
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/check-card-timeline.js")], {
+    cwd: dir,
+    env: { PATH: process.env.PATH || "", HOME: dir, TMPDIR: dir, LANG: "C.UTF-8" },
+    encoding: "utf8",
+    timeout: 30000
+  });
+  try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
+  const out = { failed: r.status !== 0 && r.status !== null, status: r.status, text: ((r.stdout || "") + (r.stderr || "")).slice(-400) };
+  parentFailCache.set(parentSrc, out);
+  return out;
 }
 
 function rep(file, find, repl) {
@@ -338,7 +448,22 @@ const MUTANTS = [
   ["BL1 word drifts (Probe -> Probed)", rep(JOBS, '"probe": "Probe"', '"probe": "Probed"')],
   ["BL1 line drifts (on -> at)", rep(JOBS, 'line += " on " + row.head.slice(0, 8);', 'line += " at " + row.head.slice(0, 8);')],
   ["BL1 verdict list drifts", rep(JOBS, 'const BUILD_STEP_VERDICTS = ["PASS", "FAIL", "GREEN", "ORANGE", "RED", "HOLD"];', 'const BUILD_STEP_VERDICTS = ["PASS", "FAIL", "GREEN", "ORANGE", "RED"];')],
-  ["parent check stops running this check", rep(PARENT, "check-build-log-steps-ui.js", "check-build-log-steps-uix.js")]
+  ["parent check stops running this check", rep(PARENT, "check-build-log-steps-ui.js", "check-build-log-steps-uix.js")],
+  ["deploy id allows a dot", rep(M, "/^dpl_[A-Za-z0-9]{6,40}$/", "/^dpl_[A-Za-z0-9.]{6,40}$/")],
+  ["deploy id allows a slash", rep(M, "/^dpl_[A-Za-z0-9]{6,40}$/", "/^dpl_[A-Za-z0-9./]{1,40}$/")],
+  ["deploy id allows an underscore", rep(M, "/^dpl_[A-Za-z0-9]{6,40}$/", "/^dpl_[A-Za-z0-9_]{6,40}$/")],
+  ["deploy id accepts any case", rep(M, "/^dpl_[A-Za-z0-9]{6,40}$/", "/^dpl_[A-Za-z0-9]{6,40}$/i")],
+  ["deploy id has no anchor", rep(M, "/^dpl_[A-Za-z0-9]{6,40}$/", "/dpl_[A-Za-z0-9]{6,40}/")],
+  ["at in the title attribute", rep(M, "li.textContent = text;", "li.title = \"2026-11-26T00:00:00.000Z\"; li.textContent = text;")],
+  ["row text in aria-label", rep(M, "li.textContent = text;", "li.setAttribute(\"aria-label\", text); li.textContent = text;")],
+  ["row text in the class name", rep(M, "li.className = \"bs-row\";", "li.className = \"bs-row \" + text;")],
+  ["head in a data- attribute", rep(M, "li.textContent = text;", "li.setAttribute(\"data-head\", \"" + H1 + "\"); li.textContent = text;")],
+  ["heading capitalized Build Steps", rep(M, "head.textContent = \"Build steps\";", "head.textContent = \"Build Steps\";")],
+  ["heading missing", rep(M, "box.appendChild(head);\n    var list", "var list")],
+  ["heading duplicated", rep(M, "box.appendChild(head);\n    var list", "box.appendChild(head); var headDup = doc.createElement(\"p\"); headDup.className = \"meta\"; headDup.textContent = \"Build steps\"; box.appendChild(headDup);\n    var list")],
+  ["computed fetch on the window", rep(M, "var MARK = \"data-build-steps\";", "var MARK = \"data-build-steps\"; root[\"fe\"+\"tch\"](\"https://example.invalid\");")],
+  ["parent ignores a failing child exit", rep(PARENT, 'const stepsUi = require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env });', 'const stepsUi = Object.assign(require("child_process").spawnSync(process.execPath, [path.join(__dirname, "check-build-log-steps-ui.js")], { stdio: "inherit", env: process.env }), { status: 0 });')],
+  ["not in the npm test chain", rep(PK, " && node scripts/check-build-log-steps-ui.js", "")]
 ];
 
 const base = suite(SRC);
