@@ -34,7 +34,7 @@
       return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
     }
     function packSelect() {
-      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="fund">Fund</option><option value="land">Land</option><option value="aia-adoption">AIA · Try it on this desk</option><option value="aia-implement">AIA · Four steps on this desk</option></select>`;
+      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="qia">Quote ops</option><option value="meta">Meta.aia</option><option value="meta-gemini">Meta.aia + Gemini</option><option value="fund">Fund</option><option value="land">Land</option><option value="aia-adoption">AIA · Try it on this desk</option><option value="aia-implement">AIA · Four steps on this desk</option></select>`;
     }
     function kindSelect() {
       return `<label class="adv">What is it?</label><select class="adv" name="dropKind"><option value="task">A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project</option><option value="build">A build</option><option value="request">A request</option><option value="note">A note</option><option value="call">Missed call</option><option value="message">A message to send</option><option value="pickup">Pickup / drop-off</option><option value="ride">A ride</option><option value="reminder">A reminder</option><option value="book">Book a time</option><option value="form">Form / paper</option><option value="photo">A photo</option><option value="quote">Need a quote</option><option value="follow">Follow up</option><option value="walk-in">Walk-in job</option></select>`;
@@ -50,7 +50,8 @@
         if (packChip === "market" && !p.priced) return false;
         if (["home","consign","insurance","fund","land","aia"].indexOf(packChip) >= 0) {
           const blob = [p.id, p.name, p.family, p.aisle].join(" ").toLowerCase();
-          if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0;
+          if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0 || blob.indexOf("qia") >= 0 || p.id === "qia";
+          if (packChip === "meta") return blob.indexOf("meta") >= 0 || p.id === "meta";
           if (packChip === "aia") return blob.indexOf("aia") >= 0 || p.id === "aia-adoption" || p.id === "aia-implement";
           return blob.indexOf(packChip) >= 0;
         }
@@ -388,20 +389,23 @@
       }
       return n;
     }
+    // Reads this desk's own /api/status. Only deskAi.on === true counts as can draft.
     function deskAiFromHealth(h) {
       const a = (h && h.automation) || {};
-      const g = a.deskAi || a.grok || {};
-      const drafts = a.drafts || {};
-      const on = !!(g && g.on) || !!drafts.included;
-      const note = (g && g.note) || (on
+      const g = a.deskAi || {};
+      const on = g.on === true;
+      // When off, a server note that still says "can draft" is not shown.
+      const said = (typeof g.note === "string" && !(!on && /\bcan draft\b/i.test(g.note))) ? g.note : "";
+      const note = said || (on
         ? "A Desk AI can draft. You still tap Yes or Stop."
         : "A Desk AI can't draft on this phone yet. You can still type the work below and put it in your Queue.");
       return { on: on, note: note };
     }
-    // The health check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
+    // The status check always ends in a plain next step: on, off, failed, or no answer within 7 seconds.
+    // It asks /api/status for this desk (same X-Workspace / X-Session / X-Pin headers as the rest of Create).
     const AIA_WAIT_MS = 7000;
     const AIA_NO_ANSWER = "Could not reach the desk. A Desk AI can't draft yet. You can still type the work below and put it in your Queue.";
-    function healthWithin(ms) {
+    function healthWithin(ms, hdrs) {
       return new Promise(function (resolve, reject) {
         const ctl = typeof AbortController === "function" ? new AbortController() : null;
         const timer = setTimeout(function () {
@@ -409,7 +413,12 @@
           reject(new Error("timeout"));
         }, ms);
         Promise.resolve()
-          .then(function () { return fetch("/api/health", ctl ? { signal: ctl.signal } : undefined); })
+          .then(function () {
+            const opts = { method: "GET" };
+            if (hdrs) opts.headers = hdrs;
+            if (ctl) opts.signal = ctl.signal;
+            return fetch("/api/status", opts);
+          })
           .then(function (r) {
             // A 500 or other error status is "no answer", not a desk that says drafts are off.
             if (r && r.ok === false) throw new Error("health " + r.status);
@@ -422,7 +431,7 @@
       const el = document.getElementById("aia-line");
       if (!el) return;
       try {
-        const h = await healthWithin(AIA_WAIT_MS);
+        const h = await healthWithin(AIA_WAIT_MS, typeof headers === "function" ? headers() : undefined);
         const face = deskAiFromHealth(h);
         grokOn = !!face.on;
         el.classList.toggle("off", !grokOn);

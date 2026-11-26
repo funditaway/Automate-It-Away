@@ -4,15 +4,29 @@
  */
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runDoctor } from '../doctor.js'
-import { verifyLedgerFile } from '../lib/ledger.js'
+import { archiveLedgerWindow } from '../archiveLedgerWindow.js'
+import { buildAuditBundle, writeAuditBundle } from '../exportAudit.js'
+import { loadTrustedPublicKeys, loadKeyring, rotateKeypair } from '../lib/keys.js'
+import { runRotateKey } from '../rotateKey.js'
+import { Ledger, verifyLedgerFile } from '../lib/ledger.js'
+import { flushSpool } from '../flushSpool.js'
+import { requeueDeadletter } from '../requeueDeadletter.js'
+import { reconcileQueue } from '../reconcileQueue.js'
+import { generateRunbook } from '../generateRunbook.js'
+import { verifyAllIntegrity } from '../verifyAllIntegrity.js'
+import { runWatchdog } from '../watchdog.js'
 import { createCommandCenter } from '../server.js'
+import { canonicalJson, sha256Text } from '../lib/canonical.js'
+import { buildStatusSummary } from '../statusSummary.js'
+import { verifyAuditBundle, verifyAuditBundleFile } from '../verifyAuditBundle.js'
+import { verifyLedgerSlice } from '../verifyLedgerSlice.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const commandRoot = join(here, '..')
@@ -47,6 +61,23 @@ async function request(base, path, options = {}) {
   const body = await res.json().catch(() => ({}))
   return { status: res.status, body }
 }
+
+test('healthz and readyz report liveness and readiness without mutating state', async () => {
+  await withCenter(async ({ base, ledger }) => {
+    const tipBefore = ledger.tipHash()
+    const live = await request(base, '/healthz')
+    assert.equal(live.status, 200)
+    assert.equal(live.body.ok, true)
+    assert.equal(live.body.check, 'liveness')
+
+    const ready = await request(base, '/readyz')
+    assert.equal(ready.status, 200)
+    assert.equal(ready.body.ok, true)
+    assert.equal(ready.body.check, 'readiness')
+    assert.equal(ready.body.ledgerTip, tipBefore)
+    assert.equal(ledger.readEntries().length, 0)
+  })
+})
 
 test('webhook ingest queues a card and does not sign the ledger', async () => {
   await withCenter(async ({ base, ledger }) => {
@@ -441,4 +472,744 @@ test('verifyLedger CLI accepts an empty ledger', () => {
   })
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, /ledger ok/)
+})
+
+test('exportAudit builds a private-key-free bundle with a stable bundleSha256', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'audit-export', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const outDir = join(dataDir, 'audits')
+    const bundle = buildAuditBundle({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      cardId: queued.body.cardId,
+      exportedAt: '2026-01-01T00:00:00.000Z',
+    })
+    assert.equal(bundle.exportedEntryCount, 1)
+    assert.equal(bundle.verification.ok, true)
+    assert.equal(bundle.scope.cardId, queued.body.cardId)
+    assert.ok(bundle.bundleSha256)
+    assert.equal(JSON.stringify(bundle).includes('BEGIN PRIVATE KEY'), false)
+    assert.equal(JSON.stringify(bundle).includes('ed25519.pem'), false)
+
+    const { bundleSha256, ...unsigned } = bundle
+    assert.equal(sha256Text(canonicalJson(unsigned)), bundleSha256)
+
+    const outPath = writeAuditBundle(bundle, join(outDir, 'proof.json'), outDir)
+    const written = JSON.parse(readFileSync(outPath, 'utf8'))
+    assert.equal(written.bundleSha256, bundle.bundleSha256)
+    assert.equal(written.entries[0].record.cardId, queued.body.cardId)
+
+    const verified = verifyAuditBundleFile(outPath)
+    assert.equal(verified.ok, true, verified.issues.join('; '))
+    assert.equal(verified.bundleDigestValid, true)
+    assert.equal(verified.signaturesValid, true)
+
+    written.entries[0].record.payloadHash = 'f'.repeat(64)
+    const tampered = verifyAuditBundle(written)
+    assert.equal(tampered.ok, false)
+    assert.equal(tampered.bundleDigestValid, false)
+  })
+})
+
+test('statusSummary reports keyring and ledger tip without mutating state', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'status-check', packId: 'aia' },
+    })
+    await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+
+    mkdirSync(join(dataDir), { recursive: true })
+    writeFileSync(
+      join(dataDir, 'active_queue.json'),
+      JSON.stringify(
+        [
+          {
+            cardId: 'pending-1',
+            status: 'pending',
+            riskLevel: 'high',
+            payload: { riskLevel: 'high' },
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const summary = buildStatusSummary({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      checkedAt: '2026-01-01T00:00:00.000Z',
+    })
+    assert.equal(summary.queue.totalCards, 1)
+    assert.equal(summary.queue.byStatus.PENDING, 1)
+    assert.equal(summary.queue.byRisk.high, 1)
+    assert.equal(summary.ledger.entries, 1)
+    assert.equal(summary.ledger.latestCardId, queued.body.cardId)
+    assert.equal(summary.ledger.latestAction, 'authorize')
+    assert.ok(summary.keyring.activeKeyId)
+    assert.equal(summary.keyring.activeKeys >= 1, true)
+    assert.equal(summary.keyring.totalKeys >= 1, true)
+    assert.ok(keypair.publicKeyHex)
+  })
+})
+
+test('archiveLedgerWindow trims the hot ledger and keeps verification continuous', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    for (let i = 0; i < 3; i += 1) {
+      const queued = await request(base, '/webhook/telemetry', {
+        method: 'POST',
+        body: { event: `archive-${i}`, packId: 'aia', idempotencyKey: `arch-${i}` },
+      })
+      const signed = await request(base, '/api/sign', {
+        method: 'POST',
+        body: { cardId: queued.body.cardId, confirm: true },
+      })
+      assert.equal(signed.status, 200)
+    }
+
+    const ledgerPath = join(dataDir, 'ledger.ndjson')
+    const before = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(before.ok, true)
+    assert.equal(before.count, 3)
+
+    const dry = archiveLedgerWindow({
+      dataDir,
+      ledgerPath,
+      keepLast: 1,
+      dryRun: true,
+      stamp: '2026-01-02T00:00:00.000Z',
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.wouldArchiveCount, 2)
+    assert.equal(dry.wouldRetainCount, 1)
+
+    const archived = archiveLedgerWindow({
+      dataDir,
+      ledgerPath,
+      keepLast: 1,
+      stamp: '2026-01-02T00:00:00.000Z',
+    })
+    assert.equal(archived.archived, true)
+    assert.equal(archived.archivedCount, 2)
+    assert.equal(archived.retainedCount, 1)
+    assert.ok(existsSync(archived.sliceFile))
+    assert.ok(existsSync(archived.metaFile))
+    assert.ok(existsSync(join(dataDir, 'ledger.anchor.json')))
+
+    const sliceReport = verifyLedgerSlice({
+      slicePath: archived.sliceFile,
+      metaPath: archived.metaFile,
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+    })
+    assert.equal(sliceReport.ok, true, sliceReport.issues.join('; '))
+    assert.equal(sliceReport.sliceSha256Valid, true)
+    assert.equal(sliceReport.entryCount, 2)
+    assert.equal(sliceReport.boundaryHandoff.lastArchivedHash, archived.boundaryPrevHash)
+
+    const after = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(after.ok, true, after.errors.join('; '))
+    assert.equal(after.count, 1)
+    assert.ok(after.anchor)
+    assert.equal(after.anchor.lastArchivedHash, archived.boundaryPrevHash)
+
+    const next = new Ledger(ledgerPath)
+    next.appendSigned({
+      cardId: 'post-archive',
+      action: 'authorize',
+      payload: { note: 'continues after archive' },
+      privateKeyPem: keypair.privateKeyPem,
+      publicKeyHex: keypair.publicKeyHex,
+      timestamp: Date.now(),
+    })
+    const continued = verifyLedgerFile(ledgerPath, keypair.publicKeyPem)
+    assert.equal(continued.ok, true, continued.errors.join('; '))
+    assert.equal(continued.count, 2)
+  })
+})
+
+test('reconcileQueue updates pending queue cards that already have ledger decisions', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'reconcile-check', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const queuePath = join(dataDir, 'active_queue.json')
+    writeFileSync(
+      queuePath,
+      JSON.stringify(
+        [
+          {
+            cardId: queued.body.cardId,
+            status: 'pending',
+            riskLevel: 'medium',
+            summary: 'stale pending after crash',
+          },
+          {
+            cardId: 'still-open',
+            status: 'pending',
+            riskLevel: 'low',
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const dry = reconcileQueue({
+      dataDir,
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      dryRun: true,
+      reconciledAt: '2026-01-03T00:00:00.000Z',
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.driftCount, 1)
+    assert.equal(dry.changes[0].toStatus, 'signed')
+    assert.equal(JSON.parse(readFileSync(queuePath, 'utf8'))[0].status, 'pending')
+
+    const live = reconcileQueue({
+      dataDir,
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      reconciledAt: '2026-01-03T00:00:00.000Z',
+    })
+    assert.equal(live.reconciled, true)
+    assert.equal(live.driftCount, 1)
+    const after = JSON.parse(readFileSync(queuePath, 'utf8'))
+    assert.equal(after[0].status, 'signed')
+    assert.equal(after[0].reconciledAt, '2026-01-03T00:00:00.000Z')
+    assert.equal(after[1].status, 'pending')
+  })
+})
+
+test('flushSpool drains ordered spool lines and quarantines poison payloads', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const spoolPath = join(dataDir, 'spool.ndjson')
+    const deadletterPath = join(dataDir, 'spool.deadletter.ndjson')
+    writeFileSync(
+      spoolPath,
+      [
+        JSON.stringify({
+          channel: 'telemetry',
+          payload: { event: 'spool-ok', packId: 'aia', summary: 'healthy drain' },
+        }),
+        'not-json{{{',
+        JSON.stringify({
+          channel: 'telemetry',
+          payload: { event: 'spool-second', packId: 'aia' },
+        }),
+      ].join('\n') + '\n',
+    )
+
+    const dry = await flushSpool({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      dryRun: true,
+      quarantineInvalid: true,
+    })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.flushed, 2)
+    assert.equal(dry.remaining, 1)
+    assert.equal(readFileSync(spoolPath, 'utf8').split('\n').filter(Boolean).length, 3)
+
+    const live = await flushSpool({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      quarantineInvalid: true,
+    })
+    assert.equal(live.flushed, 2)
+    assert.equal(live.quarantined, 1)
+    assert.equal(live.remaining, 0)
+    assert.equal(readFileSync(spoolPath, 'utf8').trim(), '')
+    const dead = readFileSync(deadletterPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(dead.length, 1)
+    assert.equal(dead[0].reason, 'MALFORMED_JSON')
+
+    const queue = await request(base, '/queue?status=pending')
+    assert.equal(queue.body.cards.length, 2)
+    const events = queue.body.cards.map((c) => c.payload?.webhookEvent || c.payload?.summary || '')
+    assert.ok(events.some((e) => /spool-ok|healthy drain/i.test(String(e))))
+    assert.ok(events.some((e) => /spool-second/i.test(String(e))))
+  })
+})
+
+test('requeueDeadletter inspects then recovers recoverable dead-letter payloads', async () => {
+  await withCenter(async ({ base, dataDir }) => {
+    const spoolPath = join(dataDir, 'spool.ndjson')
+    const deadletterPath = join(dataDir, 'spool.deadletter.ndjson')
+    writeFileSync(
+      deadletterPath,
+      [
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:00:00.000Z',
+          reason: 'HTTP_400',
+          channel: 'telemetry',
+          payload: { event: 'deadletter-ok', packId: 'aia', summary: 'recover me' },
+        }),
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:01:00.000Z',
+          reason: 'MALFORMED_JSON',
+          rawLine: 'not-json{{{',
+        }),
+        JSON.stringify({
+          quarantinedAt: '2026-01-04T00:02:00.000Z',
+          reason: 'HTTP_422',
+          channel: 'telemetry',
+          payload: { event: 'deadletter-other', packId: 'aia' },
+        }),
+      ].join('\n') + '\n',
+    )
+
+    const inspected = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      inspectOnly: true,
+    })
+    assert.equal(inspected.inspectOnly, true)
+    assert.equal(inspected.totalQuarantined, 3)
+    assert.equal(inspected.entries[0].reason, 'HTTP_400')
+    assert.equal(readFileSync(deadletterPath, 'utf8').split('\n').filter(Boolean).length, 3)
+
+    const filtered = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      reasonFilter: 'HTTP_400',
+      limit: 1,
+    })
+    assert.equal(filtered.mode, 'spool-requeue')
+    assert.equal(filtered.requeued, 1)
+    assert.equal(filtered.remaining, 2)
+
+    const spoolLines = readFileSync(spoolPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(spoolLines.length, 1)
+    assert.equal(spoolLines[0].payload.event, 'deadletter-ok')
+    assert.equal(spoolLines[0].channel, 'telemetry')
+
+    const remainingDead = readFileSync(deadletterPath, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    assert.equal(remainingDead.length, 2)
+    assert.equal(remainingDead[0].reason, 'MALFORMED_JSON')
+    assert.equal(remainingDead[1].reason, 'HTTP_422')
+
+    const direct = await requeueDeadletter({
+      dataDir,
+      spoolPath,
+      deadletterPath,
+      ingestUrl: base,
+      sendDirect: true,
+      reasonFilter: 'HTTP_422',
+    })
+    assert.equal(direct.mode, 'direct-ingest')
+    assert.equal(direct.requeued, 1)
+    assert.equal(direct.remaining, 1)
+
+    const queue = await request(base, '/queue?status=pending')
+    assert.ok(
+      queue.body.cards.some((c) => /deadletter-other/i.test(String(c.payload?.webhookEvent || ''))),
+    )
+  })
+})
+
+test('watchdog reports healthy daemon and dry-runs restart on failure', async () => {
+  await withCenter(async ({ base }) => {
+    const healthy = await runWatchdog({
+      daemonUrl: base,
+      checkIngest: false,
+      checkedAt: '2026-01-05T00:00:00.000Z',
+    })
+    assert.equal(healthy.healthy, true)
+    assert.equal(healthy.initialHealthy, true)
+    assert.equal(healthy.checks.length, 2)
+    assert.equal(healthy.recovery, null)
+
+    let restarted = 0
+    const failed = await runWatchdog({
+      daemonUrl: 'http://127.0.0.1:9',
+      checkIngest: false,
+      timeoutMs: 200,
+      dryRun: true,
+      restartCmd: 'echo should-not-run',
+      checkedAt: '2026-01-05T00:00:01.000Z',
+      runRestartCommand: async () => {
+        restarted += 1
+        return { invoked: true, ok: true, exitCode: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(failed.initialHealthy, false)
+    assert.equal(failed.healthy, false)
+    assert.equal(failed.recovery.dryRun, true)
+    assert.equal(failed.recovery.wouldRun, 'echo should-not-run')
+    assert.equal(restarted, 0)
+
+    const recovered = await runWatchdog({
+      daemonUrl: 'http://127.0.0.1:9',
+      checkIngest: false,
+      timeoutMs: 200,
+      restartCmd: 'true',
+      checkedAt: '2026-01-05T00:00:02.000Z',
+      runRestartCommand: async (cmd) => {
+        restarted += 1
+        assert.equal(cmd, 'true')
+        return { invoked: true, ok: true, exitCode: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(recovered.initialHealthy, false)
+    assert.equal(recovered.healthy, true)
+    assert.equal(recovered.recovery.ok, true)
+    assert.equal(restarted, 1)
+  })
+})
+
+test('generateRunbook writes a secret-safe RUNBOOK without private key material', async () => {
+  await withCenter(async ({ dataDir, keypair }) => {
+    const outPath = join(dataDir, 'handover', 'RUNBOOK.md')
+    writeFileSync(join(dataDir, 'spool.ndjson'), JSON.stringify({ event: 'pending' }) + '\n')
+    writeFileSync(
+      join(dataDir, 'active_queue.json'),
+      JSON.stringify([{ cardId: 'c1', status: 'pending' }]) + '\n',
+    )
+
+    const report = generateRunbook({
+      rootDir: commandRoot,
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      outPath,
+      generatedAt: '2026-01-07T00:00:00.000Z',
+      daemonUrl: 'http://127.0.0.1:3000',
+    })
+    assert.equal(report.written, true)
+    assert.equal(report.queueCards, 1)
+    assert.equal(report.spoolPending, 1)
+    assert.equal(existsSync(outPath), true)
+
+    const md = readFileSync(outPath, 'utf8')
+    assert.match(md, /Operator Runbook/)
+    assert.match(md, /127\.0\.0\.1:3000/)
+    assert.match(md, /flushSpool\.js/)
+    assert.match(md, /verifyAllIntegrity\.js/)
+    assert.equal(md.includes('BEGIN PRIVATE KEY'), false)
+    assert.equal(md.includes(keypair.privateKeyPem || 'PRIVATE KEY'), false)
+    assert.equal(/AIA_WEBHOOK_SECRET=\S+/.test(md), false)
+    assert.match(md, /ed25519\.pem/)
+  })
+})
+
+test('releaseCheck.sh --quick fails fast on missing keyring when --strict-keyring is set', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-rel-'))
+  const missing = spawnSync('bash', [join(commandRoot, 'releaseCheck.sh'), '--quick', '--strict-keyring'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: join(dataDir, '.keys'),
+      AIA_KEYRING_PATH: join(dataDir, '.keys', 'keyring.json'),
+      AIA_LEDGER_PATH: join(dataDir, 'ledger.ndjson'),
+    },
+    encoding: 'utf8',
+  })
+  assert.notEqual(missing.status, 0)
+  assert.match(missing.stderr + missing.stdout, /Required keyring missing|ERROR/)
+
+  const ok = spawnSync('bash', [join(commandRoot, 'releaseCheck.sh'), '--quick'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(ok.status, 0, ok.stderr || ok.stdout)
+  assert.match(ok.stdout, /\[AIA ReleaseCheck\] PASSED/)
+})
+
+test('installService.sh dry-run previews a systemd or launchd unit for server.js', () => {
+  const result = spawnSync('bash', [join(commandRoot, 'installService.sh'), '--dry-run'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.match(result.stdout, /\[DRY-RUN\]/)
+  assert.match(result.stdout, /server\.js/)
+  if (process.platform === 'linux') {
+    assert.match(result.stdout, /systemd unit path/)
+    assert.match(result.stdout, /Restart=on-failure/)
+    assert.match(result.stdout, /aia-command\.service/)
+  } else if (process.platform === 'darwin') {
+    assert.match(result.stdout, /launchd plist path/)
+    assert.match(result.stdout, /com\.aia\.aia\.command/)
+  }
+
+  const ingest = spawnSync('bash', [join(commandRoot, 'installService.sh'), '--ingest', '--dry-run'], {
+    cwd: commandRoot,
+    encoding: 'utf8',
+  })
+  assert.equal(ingest.status, 0, ingest.stderr || ingest.stdout)
+  assert.match(ingest.stdout, /server\.js/)
+  assert.match(ingest.stderr + ingest.stdout, /webhook routes are mounted by server\.js|Note:/)
+})
+
+test('maintain.sh dry-run reports stale temps and never deletes ledger or keys', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-mnt-'))
+  const keyDir = join(dataDir, '.keys')
+  const logDir = join(dataDir, 'logs')
+  mkdirSync(keyDir, { recursive: true })
+  mkdirSync(logDir, { recursive: true })
+  writeFileSync(join(dataDir, 'ledger.ndjson'), '')
+  writeFileSync(join(keyDir, 'keyring.json'), JSON.stringify({ activeKeyId: null, keys: [] }) + '\n')
+  writeFileSync(join(keyDir, 'ed25519.pem'), 'PRIVATE\n')
+  const staleTmp = join(dataDir, 'stale.write.tmp')
+  writeFileSync(staleTmp, 'old\n')
+  // Age the temp file beyond the default maintain threshold.
+  const past = new Date(Date.now() - 120 * 60 * 1000)
+  spawnSync('touch', ['-d', past.toISOString(), staleTmp], { encoding: 'utf8' })
+  const logPath = join(logDir, 'daemon.log')
+  writeFileSync(logPath, Array.from({ length: 12 }, (_, i) => `line-${i}`).join('\n') + '\n')
+
+  const dry = spawnSync('bash', [join(commandRoot, 'maintain.sh'), '--dry-run', '--skip-verify'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: keyDir,
+      AIA_LOG_DIR: logDir,
+      AIA_BACKUP_DIR: join(dataDir, 'backups'),
+      AIA_TMP_MAX_AGE_MIN: '60',
+      AIA_LOG_MAX_LINES: '5',
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(dry.status, 0, dry.stderr || dry.stdout)
+  assert.match(dry.stdout, /\[DRY-RUN\] Would remove stale temp file/)
+  assert.match(dry.stdout, /\[DRY-RUN\] Would trim/)
+  assert.equal(existsSync(staleTmp), true)
+  assert.equal(existsSync(join(dataDir, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(keyDir, 'ed25519.pem')), true)
+
+  const live = spawnSync('bash', [join(commandRoot, 'maintain.sh'), '--skip-verify'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: dataDir,
+      AIA_KEY_DIR: keyDir,
+      AIA_LOG_DIR: logDir,
+      AIA_BACKUP_DIR: join(dataDir, 'backups'),
+      AIA_TMP_MAX_AGE_MIN: '60',
+      AIA_LOG_MAX_LINES: '5',
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(live.status, 0, live.stderr || live.stdout)
+  assert.equal(existsSync(staleTmp), false)
+  const trimmed = readFileSync(logPath, 'utf8').trim().split('\n')
+  assert.equal(trimmed.length, 5)
+  assert.equal(trimmed[0], 'line-7')
+  assert.equal(existsSync(join(dataDir, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(keyDir, 'keyring.json')), true)
+})
+
+test('backup.sh writes checksummed archive and restore.sh dry-run validates it', async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'aia-bak-'))
+  const backupDir = join(dataDir, 'backups')
+  const packsDir = join(dataDir, 'packs')
+  mkdirSync(join(dataDir, 'data', '.keys'), { recursive: true })
+  mkdirSync(packsDir, { recursive: true })
+  writeFileSync(join(dataDir, 'data', 'ledger.ndjson'), '')
+  writeFileSync(join(dataDir, 'data', '.keys', 'keyring.json'), JSON.stringify({ activeKeyId: null, keys: [] }) + '\n')
+  writeFileSync(join(packsDir, 'demo.json'), JSON.stringify({ id: 'demo', name: 'Demo' }) + '\n')
+
+  const backup = spawnSync('bash', [join(commandRoot, 'backup.sh'), '--plain'], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: join(dataDir, 'data'),
+      AIA_PACKS_DIR: packsDir,
+      AIA_BACKUP_DIR: backupDir,
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(backup.status, 0, backup.stderr || backup.stdout)
+  assert.match(backup.stdout, /Backup created:/)
+  assert.match(backup.stdout, /Checksum file:/)
+
+  const archives = spawnSync('bash', ['-lc', `ls "${backupDir}"/aia-state-*.tar.gz`], { encoding: 'utf8' })
+  assert.equal(archives.status, 0, archives.stderr || archives.stdout)
+  const archivePath = archives.stdout.trim().split('\n')[0]
+  assert.equal(existsSync(`${archivePath}.sha256`), true)
+
+  const dry = spawnSync('bash', [join(commandRoot, 'restore.sh'), '--dry-run', archivePath], {
+    cwd: commandRoot,
+    env: {
+      ...process.env,
+      AIA_DATA_DIR: join(dataDir, 'restore-data'),
+      AIA_PACKS_DIR: join(dataDir, 'restore-packs'),
+      AIA_BACKUP_DIR: backupDir,
+    },
+    encoding: 'utf8',
+  })
+  assert.equal(dry.status, 0, dry.stderr || dry.stdout)
+  assert.match(dry.stdout, /\[DRY-RUN\]/)
+  assert.match(dry.stdout, /data\//)
+
+  const restoreTarget = join(dataDir, 'restore-data')
+  mkdirSync(restoreTarget, { recursive: true })
+  writeFileSync(join(restoreTarget, 'stale.txt'), 'replace-me\n')
+  const live = spawnSync(
+    'bash',
+    [join(commandRoot, 'restore.sh'), '--skip-verify', archivePath],
+    {
+      cwd: commandRoot,
+      env: {
+        ...process.env,
+        AIA_DATA_DIR: restoreTarget,
+        AIA_PACKS_DIR: join(dataDir, 'restore-packs'),
+        AIA_BACKUP_DIR: backupDir,
+      },
+      encoding: 'utf8',
+    },
+  )
+  assert.equal(live.status, 0, live.stderr || live.stdout)
+  assert.match(live.stdout, /pre-restore-/)
+  assert.equal(existsSync(join(restoreTarget, 'ledger.ndjson')), true)
+  assert.equal(existsSync(join(dataDir, 'restore-packs', 'demo.json')), true)
+})
+
+test('verifyAllIntegrity gates ledger, optional bundle, and reports queue drift without writes', async () => {
+  await withCenter(async ({ base, dataDir, keypair }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'integrity-gate', packId: 'aia', summary: 'integrity check' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+
+    const queuePath = join(dataDir, 'active_queue.json')
+    writeFileSync(
+      queuePath,
+      JSON.stringify(
+        [
+          {
+            cardId: queued.body.cardId,
+            status: 'pending',
+            riskLevel: 'medium',
+            summary: 'stale pending for drift report',
+          },
+        ],
+        null,
+        2,
+      ) + '\n',
+    )
+
+    const bundle = buildAuditBundle({ dataDir, keyDir: join(dataDir, '.keys') })
+    const outPath = writeAuditBundle(bundle, join(dataDir, 'audits', 'integrity.json'), join(dataDir, 'audits'))
+
+    const beforeQueue = readFileSync(queuePath, 'utf8')
+    const report = verifyAllIntegrity({
+      dataDir,
+      keyDir: join(dataDir, '.keys'),
+      queuePath,
+      ledgerPath: join(dataDir, 'ledger.ndjson'),
+      bundlePath: outPath,
+      checkedAt: '2026-01-06T00:00:00.000Z',
+    })
+
+    assert.equal(report.ok, true)
+    assert.equal(report.ledger.ok, true)
+    assert.equal(report.ledger.entriesVerified, 1)
+    assert.equal(report.bundle.ok, true)
+    assert.equal(report.queueDrift.driftCount, 1)
+    assert.equal(report.queueDrift.driftedCards[0].queueStatus, 'PENDING')
+    assert.equal(report.queueDrift.driftedCards[0].ledgerDecision, 'SIGNED')
+    assert.equal(report.queueDrift.dryRun, true)
+    assert.equal(readFileSync(queuePath, 'utf8'), beforeQueue)
+    assert.equal(report.summary.keyring.totalKeys >= 1, true)
+    assert.equal(report.ledger.activePublicKey, keypair.publicKeyHex)
+  })
+})
+
+test('key rotation keeps historical ledger lines verifiable via keyring', async () => {
+  await withCenter(async ({ base, ledger, keypair, dataDir }) => {
+    const queued = await request(base, '/webhook/telemetry', {
+      method: 'POST',
+      body: { event: 'rotation-check', packId: 'aia' },
+    })
+    const signed = await request(base, '/api/sign', {
+      method: 'POST',
+      body: { cardId: queued.body.cardId, confirm: true },
+    })
+    assert.equal(signed.status, 200)
+    assert.equal(ledger.readEntries().length, 1)
+    assert.equal(ledger.readEntries()[0].publicKey, keypair.publicKeyHex)
+
+    const keyDir = join(dataDir, '.keys')
+    const beforeRing = loadKeyring(keyDir)
+    const dry = runRotateKey({ keyDir, dryRun: true, rotatedAt: '2026-01-08T00:00:00.000Z' })
+    assert.equal(dry.dryRun, true)
+    assert.equal(dry.rotated, false)
+    assert.equal(dry.previousActiveKeyId, beforeRing.activeKeyId)
+    assert.ok(dry.newKeyId)
+    assert.equal(loadKeyring(keyDir).activeKeyId, beforeRing.activeKeyId)
+    assert.equal(readFileSync(join(keyDir, 'ed25519.pub.pem'), 'utf8'), keypair.publicKeyPem)
+
+    const rotated = rotateKeypair(keyDir)
+    assert.notEqual(rotated.publicKeyHex, keypair.publicKeyHex)
+    assert.equal(rotated.previousActiveKeyId, beforeRing.activeKeyId)
+    assert.equal(rotated.keyring.keys.length >= 2, true)
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'RETIRED'))
+    assert.ok(rotated.keyring.keys.some((k) => k.status === 'ACTIVE' && k.keyId === rotated.keyId))
+
+    const trust = loadTrustedPublicKeys(keyDir)
+    const verified = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(verified.ok, true, verified.errors.join('; '))
+    assert.equal(verified.count, 1)
+
+    const activeOnly = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), rotated.publicKeyPem)
+    assert.equal(activeOnly.ok, false)
+    assert.ok(activeOnly.errors.some((line) => /trusted keyring/i.test(line)))
+
+    const nextLedger = new Ledger(join(dataDir, 'ledger.ndjson'))
+    nextLedger.appendSigned({
+      cardId: 'post-rotation',
+      action: 'authorize',
+      payload: { note: 'signed with new key' },
+      privateKeyPem: rotated.privateKeyPem,
+      publicKeyHex: rotated.publicKeyHex,
+      timestamp: Date.now(),
+    })
+    const both = verifyLedgerFile(join(dataDir, 'ledger.ndjson'), trust)
+    assert.equal(both.ok, true, both.errors.join('; '))
+    assert.equal(both.count, 2)
+  })
 })

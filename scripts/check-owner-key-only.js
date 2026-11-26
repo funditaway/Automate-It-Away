@@ -40,9 +40,13 @@ const SLUG_B = "owner-key-b";
 const PIN = "4821";
 const DESK_KEY = "xai-owner-desk-key-0001";
 const SECRET = "owner-key-check-secret";
-const NOTE = "A Desk AI can't draft on this phone yet.";
+const NOTE = "A Desk AI can't draft on this account yet.";
+const OLD_NOTE = "A Desk AI can't draft on this phone yet.";
+// api/_packs.js grok note was not part of #587 and keeps its own words.
+const PACKS_NOTE = "A Desk AI can't draft on this phone yet.";
 const ON_NOTE = "A Desk AI can draft.";
-const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
+const SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this account yet. You can still put the work on the queue.";
+const PHONE_SUGGEST_NOTE = "Add your key on Connections. A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const OLD_SUGGEST_NOTE = "A Desk AI can't draft on this phone yet. You can still put the work on the queue.";
 const LOCK_NOTE = "This desk can't save a key yet. Nothing was saved.";
 const GROK_NOTE = "Log in at console.x.ai. Paste the API key. Drafts only. Your key, your xAI bill. AIA charges nothing.";
@@ -141,6 +145,8 @@ function assertDraftsOff(body, label) {
     eq(auto.drafts.included, false, label + ": drafts.included is false");
   }
   eq(desk.note, NOTE, label + ": deskAi note does not claim drafting");
+  if (JSON.stringify(body || {}).indexOf(OLD_NOTE) >= 0) fail(label + ": still says the old on-this-phone note");
+  else pass(label + ": old on-this-phone note is gone");
   if (JSON.stringify(auto).indexOf(ON_NOTE) >= 0) fail(label + ": note says a Desk AI can draft");
   else pass(label + ": notes do not say a Desk AI can draft");
 }
@@ -250,6 +256,8 @@ async function main() {
   else pass("suggest note starts with the add-your-key step");
   if (suggest.body && suggest.body.note === OLD_SUGGEST_NOTE) fail("suggest still has the old note without the add-your-key step");
   else pass("suggest old note without the add-your-key step is gone");
+  if (!suggest.body || String(suggest.body.note || "").indexOf("on this phone") >= 0 || suggest.body.note === PHONE_SUGGEST_NOTE) fail("suggest still says on this phone");
+  else pass("suggest old on-this-phone note is gone");
   eq(fetches, 0, "suggest did not fetch");
 
   const captured = await call(jobs, "POST", owner, { action: "capture", title: "Capture porch" });
@@ -276,7 +284,7 @@ async function main() {
   const listed = await call(packs, "GET", owner, {}, {});
   eq(listed.statusCode, 200, "packs list answers");
   eq(listed.body && listed.body.grok && listed.body.grok.on, false, "packs list is off without a desk key");
-  eq(listed.body && listed.body.grok && listed.body.grok.note, NOTE, "packs list uses the drafts-off note");
+  eq(listed.body && listed.body.grok && listed.body.grok.note, PACKS_NOTE, "packs list uses the drafts-off note");
   if (JSON.stringify(listed.body && listed.body.grok || {}).indexOf("XAI_API_KEY") >= 0) fail("packs list still names XAI_API_KEY");
   else pass("packs list does not name XAI_API_KEY");
 
@@ -334,6 +342,8 @@ async function main() {
   eq(sugB.statusCode, 200, "desk B suggest answers");
   eq(sugB.body && sugB.body.grok, "needsKey", "desk B suggest needs a key");
   eq(sugB.body && sugB.body.note, SUGGEST_NOTE, "desk B suggest tells them to add a key");
+  if (!sugB.body || String(sugB.body.note || "").indexOf("on this phone") >= 0) fail("desk B suggest still says on this phone");
+  else pass("desk B suggest old on-this-phone note is gone");
   eq(fetches, beforeB, "desk B suggest did not fetch");
 
   delete process.env.AIA_CONNECT_SECRET;

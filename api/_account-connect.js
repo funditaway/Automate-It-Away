@@ -574,7 +574,31 @@ async function handle(req, res, body) {
     if (cardsOf(acc).length >= CARD_MAX) return refuse(res, 409, "This account already has " + CARD_MAX + " setup cards.");
     const card = newCard(acc, source, groups, desk, stamp);
     addCard(acc, card);
-    return done(200, { ok: true, created: true, card: publicCard(card), hint: hint }, "Setup card for " + source.name + (source.type === "connection" ? "." : " (preview, nothing bought)."), "setup");
+    let installEntry = null;
+    let installMeta = null;
+    if (source.type === "addon" || source.type === "pack") {
+      const ih = require("./_install-history");
+      installEntry = ih.recordInstallEvent({
+        pack: { id: source.id, name: source.name, type: source.type, version: from.version || "1" },
+        shop: desk,
+        person: person,
+        acc: acc,
+        stamp: stamp,
+        card: card,
+        moduleType: source.type === "addon" ? "addon" : "pack",
+        moduleId: source.id,
+        version: String(from.version || "1"),
+        action: "install",
+        status: "succeeded",
+        installMode: "fresh"
+      });
+      installMeta = ih.publicEntry(installEntry);
+    }
+    const reply = await done(200, { ok: true, created: true, card: publicCard(card), hint: hint, history: installMeta }, "Setup card for " + source.name + (source.type === "connection" ? "." : " (preview, nothing bought)."), "setup");
+    if (installEntry && reply && reply.statusCode === 503) {
+      require("./_install-history").markFailed(installEntry, "State did not save.");
+    }
+    return reply;
   }
 
   if (action === "setup-step") {
@@ -603,9 +627,35 @@ async function handle(req, res, body) {
       refresh(card);
       const entry = cardEntry(card, null, verb, from, to, stamp, verb === "stop" ? "Stopped this setup card." : "Stopped for good. Nothing more happens on this card.");
       s.addHistory(acc, person, "setup", (verb === "stop" ? "Stopped" : "Stopped for good. Nothing more happens on") + " the setup card for " + card.source.name + ".", stamp.whoKind);
+      let installEntry = null;
+      let installMeta = null;
+      if (verb === "kill" && card.source && (card.source.type === "addon" || card.source.type === "pack")) {
+        const ih = require("./_install-history");
+        installEntry = ih.recordInstallEvent({
+          pack: { id: card.source.id, name: card.source.name, type: card.source.type, version: "1" },
+          shop: card.deskId ? { slug: card.deskId } : null,
+          person: person,
+          acc: acc,
+          stamp: stamp,
+          card: card,
+          moduleType: card.source.type === "addon" ? "addon" : "pack",
+          moduleId: card.source.id,
+          version: "1",
+          action: "remove",
+          status: "succeeded"
+        });
+        installMeta = ih.publicEntry(installEntry);
+      }
       let saved = false;
       try { saved = (await lib.save()) !== false; } catch (e) { saved = false; }
-      const out = { ok: true, changed: true, saved: saved, card: publicCard(card), entry: entry };
+      // Mark the same entry object we recorded — never re-read mem tip (another
+      // desk can unshift first while save() awaits).
+      if (!saved && installEntry) {
+        const ih = require("./_install-history");
+        ih.markFailed(installEntry, "State did not save.");
+        installMeta = ih.publicEntry(installEntry);
+      }
+      const out = { ok: true, changed: true, saved: saved, card: publicCard(card), entry: entry, history: installMeta };
       if (!saved) out.hint = (verb === "stop" ? "Stopped" : "Stopped for good") + " here, but it did not save. Tap " + (verb === "stop" ? "Stop" : "Kill") + " again.";
       return res.status(200).json(out);
     }

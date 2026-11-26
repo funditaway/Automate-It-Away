@@ -122,7 +122,8 @@ if (!create.includes("#start-queue[hidden]") || !create.includes("#start-note[hi
 if (!create.includes("task") || !create.includes("idea") || !create.includes("project") || !create.includes("build")) {
   fail("create.html must start real AIA work kinds");
 } else pass("Create kinds are task/errand/list/idea/project/build");
-if (!createJs.includes("action: \"suggest\"") || !createJs.includes("/api/health") || !createJs.includes("A Desk AI can't draft on this phone yet.")) {
+// The top line asks this desk's own /api/status (public /api/health is always off since #587).
+if (!createJs.includes("action: \"suggest\"") || !createJs.includes("fetch(\"/api/status\"") || /fetch\(\s*["']\/api\/health/.test(createJs) || !createJs.includes("A Desk AI can't draft on this phone yet.")) {
   fail("create-desk.js must ask the desk and stay honest when drafts are off");
 } else pass("Create asks the desk and stays honest offline");
 if (createJs.includes("XAI_API_KEY") || createJs.includes("this box") || create.includes("XAI_API_KEY") || create.includes("this box") || create.includes("when a key is on")) {
@@ -327,6 +328,12 @@ else pass("jobs.js suggest does not save a fake card");
 const grok = fs.readFileSync(path.join(root, "api/_grok.js"), "utf8");
 if (!grok.includes("normalizeCites") || !grok.includes("search_parameters")) fail("grok must keep citations and optional web search");
 else pass("Grok stores citations when the web was used");
+
+// The /create top line reads this desk's own /api/status, not public /api/health. That check rides
+// this npm entry (package.json is not touched): run it as a clean child and fail if it fails.
+const draftLine = require("child_process").spawnSync(process.execPath, [path.join(root, "scripts/check-create-draft-line.js")], { encoding: "utf8", env: { PATH: process.env.PATH || "" } });
+if (draftLine.status !== 0 || !/PASS check-create-draft-line/.test(draftLine.stdout || "")) fail("check-create-draft-line failed:\n" + String(draftLine.stderr || draftLine.stdout || "").slice(0, 2000));
+else pass("check-create-draft-line passes (/create reads this desk's /api/status)");
 
 if (process.exitCode) {
   console.error("check-desk-nav failed");

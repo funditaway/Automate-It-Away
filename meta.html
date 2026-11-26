@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="theme-color" content="#0F4C4C">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Meta.aia Official World Pack · Automate It Away</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="description" content="Meta.aia Official World Pack for automateitaway.com/desk. Name your desk. Meta + Claude draft. You decide. The card is the UI. Collect stays HOLD.">
+  <script>
+  (function(){var t=localStorage.getItem('aia_theme')||'system';var d=t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.classList.toggle('light',!d);})();
+  </script>
+  <link rel="stylesheet" href="theme.css?v=20261008b"><link rel="stylesheet" href="/phone-clear.css">
+  <style>
+    .wrap{width:min(960px,94vw);margin:0 auto;padding:20px 0 56px}
+    .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+    .lead{color:var(--muted);margin:8px 0 16px;max-width:40rem;font-size:1.05rem;line-height:1.55}
+    .hero h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.02;letter-spacing:-.02em;color:var(--heading);margin:0 0 8px}
+    .hero h1 em{font-style:normal;color:var(--teal)}
+    .hero h1 .sub{display:block;font-size:clamp(1.1rem,2.5vw,1.55rem);font-weight:650;color:var(--muted);letter-spacing:-.01em;margin-top:6px}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+    .chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;font-size:12px;font-weight:700}
+    .chip.ok{background:color-mix(in srgb,var(--teal) 14%,var(--card));border-color:color-mix(in srgb,var(--teal) 35%,var(--line));color:var(--heading)}
+    .chip.hold{background:color-mix(in srgb,var(--orange) 16%,var(--card));border-color:color-mix(in srgb,var(--orange) 40%,var(--line))}
+    .cta{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 8px}
+    .cta .btn{border-radius:10px;padding:12px 16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;min-height:44px;text-decoration:none;border:0;font:inherit;cursor:pointer}
+    .cta .btn.go{background:var(--teal);color:#fff}
+    .cta .btn.quiet{background:var(--card);color:var(--teal);border:1px solid var(--line)}
+    .note{font-size:13px;color:var(--muted);margin:10px 0 0}
+    .banner{background:var(--banner);color:var(--banner-ink);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600;margin:14px 0 0}
+    .sec{margin:28px 0 10px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+    .grid3,.grid2,.grid4{display:grid;gap:10px}
+    .grid3{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+    .grid2{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+    .grid4{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+    .card h3{margin:6px 0 4px;color:var(--heading);font-size:1.1rem}
+    .card .sub{color:var(--teal);font-weight:700;font-size:13px}
+    .card p{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+    .demo{background:#0F4C4C;color:#f4fbfb;border-radius:16px;padding:16px;margin:8px 0 0}
+    .demo .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+    .demo h2{margin:6px 0 0;font-size:1.55rem}
+    .qcard{overflow:hidden}
+    .qcard > button{width:100%;text-align:left;background:transparent;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .qcard .body{display:none;border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+    .qcard.open .body{display:block}
+    .qcard .chev{font-weight:800;color:var(--muted)}
+    .tag{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;background:var(--bg-soft);color:var(--heading);margin-right:4px}
+    .stepn{display:flex;gap:12px;align-items:flex-start;margin:8px 0}
+    .stepn i{flex:0 0 34px;height:34px;border-radius:999px;background:var(--teal);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800}
+    .stepn b{display:block;color:var(--heading)}
+    .stepn span{font-size:13px;color:var(--muted)}
+    .guard{background:#0F4C4C;color:#f4fbfb;border-radius:16px;padding:18px}
+    .guard h2{margin:6px 0 12px;font-size:1.5rem}
+    .guard .g{background:color-mix(in srgb,white 10%,transparent);border-radius:12px;padding:12px}
+    .guard .g b{display:block}
+    .guard .g span{display:block;margin-top:4px;font-size:13px;opacity:.8}
+    .pyramid{display:grid;gap:8px;max-width:280px;margin:12px auto 0}
+    .pyramid .row{display:grid;gap:6px;grid-template-columns:1fr 1fr}
+    .pyramid .cap{grid-column:1 / -1;background:#F99D1C;color:#0c1116;border-radius:10px;padding:12px;text-align:center;font-weight:800}
+    .pyramid .mid{background:#1A5F5F;color:#fff;border-radius:10px;padding:12px;text-align:center;font-weight:700}
+    .pyramid .base{background:#0F4C4C;color:#fff;border-radius:10px;padding:14px;text-align:center;font-weight:700}
+    .live-card{border:1px solid color-mix(in srgb,white 18%,transparent);background:color-mix(in srgb,white 8%,transparent);border-radius:12px;padding:12px;margin-top:10px}
+    .live-card b{display:block;margin:4px 0}
+    .live-card .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .live-card .acts span{border:1px solid color-mix(in srgb,white 25%,transparent);border-radius:8px;padding:4px 8px;font-size:12px}
+    .foot{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+    .foot a{color:var(--teal);font-weight:700}
+    @media(max-width:480px){.hero h1{font-size:2rem}}
+  </style>
+</head>
+<body class="page-bg">
+  <header class="site-header">
+    <a class="brand" href="index.html"><img class="brand-mark" src="img/aia-mark-light.png" data-mark="header" width="28" height="28" alt=""><span class="brand-name">Automate It Away</span></a>
+    <div class="nav">
+      <a href="how.html">How</a>
+      <a href="market.html?pack=meta">Market</a>
+      <a href="help.html">Help</a>
+      <a href="desk.html">Desk</a>
+      <button class="theme-btn" data-theme-btn type="button" onclick="AIATheme.cycle()">Auto</button>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">AIA Pack · Meta.aia · v1.1 Official · Claude included</p>
+      <div class="chips">
+        <span class="chip ok">Official · FREE</span>
+        <span class="chip hold">Usage fees HOLD</span>
+        <span class="chip">@meta.aia · Desk 3690</span>
+        <span class="chip">Claude included</span>
+      </div>
+      <h1>Meta.aia<br><em>Official World Pack</em><span class="sub">Name your desk. Meta + Claude draft. You decide.</span></h1>
+      <p class="lead">Works with <b>automateitaway.com/desk</b> that already exists. The cards in the queue are the UI — each pack card brings its own face. Desk AIs draft. You tap Yes or Stop. Collect stays HOLD.</p>
+      <div class="cta">
+        <a class="btn go" href="market.html?pack=meta">Install Meta.aia with Yes</a>
+        <a class="btn quiet" href="#queue">Live queue demo</a>
+        <a class="btn quiet" href="packs/meta.json">Open pack JSON</a>
+      </div>
+      <p class="banner">Give is the file. They install with Yes. Update is install again. Recurring update HOLD. Nothing silent. AIA does not hold keys.</p>
+    </section>
+
+    <p class="sec" id="brand">Brand</p>
+    <h2 style="margin:0 0 8px;color:var(--heading)">Pyramid A · 6 facets</h2>
+    <p class="lead">A = Automate It Away. Teal <code>#0F4C4C</code> · Orange <code>#F99D1C</code>. Stable at the base. Intelligent at the top.</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="pyramid" aria-hidden="true">
+          <div class="cap">L3 · Meta AI</div>
+          <div class="row"><div class="mid">Shop</div><div class="mid">Front Desk</div></div>
+          <div class="row"><div class="base">House</div><div class="base">Account</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <p class="sub">How world users use it</p>
+        <div class="stepn"><i>1</i><div><b>Open existing desk</b><span>automateitaway.com/desk — same AIA account.</span></div></div>
+        <div class="stepn"><i>2</i><div><b>Install Meta.aia FREE</b><span>Market → Meta.aia → Yes. Or install the .aia file.</span></div></div>
+        <div class="stepn"><i>3</i><div><b>Work cards in Queue</b><span>Meta + Claude draft. You decide with Yes.</span></div></div>
+      </div>
+    </div>
+
+    <p class="sec" id="packs">Official packs included</p>
+    <h2 style="margin:0 0 8px;color:var(--heading)">World pack · Gemini add-on</h2>
+    <p class="lead">Packs travel as <code>.aia</code> files. Install with Yes. Each card owns its UI/UX per pack automation and AI. Gemini is an optional Meta-family pack — bind your own Google AI key on Pipes.</p>
+    <div class="grid2" id="packGrid"></div>
+
+    <p class="sec" id="queue">Live queue demo · Desk 3690</p>
+    <div class="demo">
+      <p class="mono">Visual only · no real send</p>
+      <h2>The card is the UI.</h2>
+      <p style="opacity:.85;margin:8px 0 0;font-size:14px">Meta AIs draft. You decide. Yes moves it forward. HOLD keeps it recurring. History through the AIA account.</p>
+      <div id="liveQueue"></div>
+      <p class="note" style="color:color-mix(in srgb,white 70%,transparent)">Simulation only. Does not create a real card, send a message, or charge anything.</p>
+    </div>
+
+    <p class="sec" id="ais">Desk AIs</p>
+    <h2 style="margin:0 0 8px;color:var(--heading)">Meta + Claude + Gemini · draft side-by-side</h2>
+    <p class="lead">Five Meta desk AIs, five Claude desk AIs, and three Gemini desk AIs (optional pack). They draft under desk rules. They never Yes, Stop, money, or mail.</p>
+    <div class="grid2" id="aiGrid"></div>
+
+    <div class="grid2" style="margin-top:28px">
+      <section>
+        <p class="sec" id="setup">Setup · 9 Yes cards</p>
+        <h2 style="margin:0 0 8px;color:var(--heading)">Each step needs Yes</h2>
+        <div class="card" id="setupSteps"></div>
+      </section>
+      <section>
+        <p class="sec">Worker</p>
+        <h2 style="margin:0 0 8px;color:var(--heading)">Webhook live · draft only</h2>
+        <article class="card">
+          <p class="sub">workers/aia-meta-worker.js</p>
+          <p>POST <code>/aia/card.created</code> → Meta + Claude drafts → PUT draft back. Verify signature when a secret is set. Never sends.</p>
+          <p class="note">Connect on Pipes. Buyer binds their own keys. Collect stays HOLD.</p>
+          <div class="cta">
+            <a class="btn quiet" href="workers/aia-meta-worker.js">Open worker</a>
+            <a class="btn quiet" href="pipes.html">Open Pipes</a>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <section style="margin-top:28px">
+      <div class="guard">
+        <p class="mono" style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85">Safety rails</p>
+        <h2>Automation with a brake pedal.</h2>
+        <div class="grid2">
+          <div class="g"><b>Desk AIs draft. Humans decide.</b><span>No AI sends without human Yes.</span></div>
+          <div class="g"><b>AIA never sends — only DRAFTS</b><span>Yes / Stop / Kill are human. Always.</span></div>
+          <div class="g"><b>Nothing silent</b><span>Give is the file. Update is install again. Recurring update HOLD.</span></div>
+          <div class="g"><b>AIA does not hold keys</b><span>MetaMask / WalletConnect. Not Wallet.AIA.</span></div>
+          <div class="g"><b>Verify signature</b><span>Worker verifies HMAC when a secret is set.</span></div>
+          <div class="g"><b>Collect + usage fees HOLD</b><span>Until Yes + a real money pipe. No on-chain claim.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="cta" style="margin-top:22px">
+      <a class="btn go" href="market.html?pack=meta">Install with Yes</a>
+      <a class="btn quiet" href="desk.html">Open the desk</a>
+      <a class="btn quiet" href="examples.html">See examples</a>
+    </div>
+
+    <div class="foot">
+      <div>
+        <b style="color:var(--heading)">Automate It Away — Meta.aia</b>
+        <div>@meta.aia · Desk 3690 · James Oddo · Verified Developer</div>
+      </div>
+      <div>
+        <a href="/desk">automateitaway.com/desk ↗</a>
+        ·
+        <a href="/market?pack=meta">Marketplace</a>
+      </div>
+    </div>
+  </main>
+  <script src="theme.js?v=20261008b"></script>
+  <script>
+  (function () {
+    var PACKS = [
+      { file: "meta-world-desk.aia", name: "World Desk", does: "Core world desk that owns queue and cards. Name your desk.", href: "packs/meta-world-desk.json" },
+      { file: "meta-automations-account.aia", name: "Automations Account", does: "Required for automations. Connects worker and history.", href: "packs/meta-automations-account.json" },
+      { file: "meta-creator-studio.aia", name: "Creator Studio", does: "Create your own Meta AI pack. Give is the .aia file.", href: "packs/meta-creator-studio.json" },
+      { file: "meta-setup.aia", name: "Setup · 9 cards", does: "Nine setup cards. Each requires Yes. Then LIVE.", href: "packs/meta-setup.json" },
+      { file: "meta-house.aia", name: "House", does: "Thermostat, lights, locks. Physical actions wait on Yes.", href: "packs/meta-house.json" },
+      { file: "meta-shop.aia", name: "Shop", does: "Missed call + photo card. Customer ops drafts.", href: "packs/meta-shop.json" },
+      { file: "meta-front-desk.aia", name: "Front Desk", does: "Reception queue — inbound, follow-ups, one nudge.", href: "packs/meta-front-desk.json" },
+      { file: "meta-office.aia", name: "Office", does: "Bills and invoices. HOLD until Yes + a real money pipe.", href: "packs/meta-office.json" },
+      { file: "meta-gemini.aia", name: "Gemini", does: "Gemini desk AIs draft beside Meta. Bind your Google AI key on Pipes.", href: "packs/meta-gemini.json" }
+    ];
+    var AIS = [
+      { name: "Meta - Catch", kind: "Meta", does: "Catches drops and hooks. FIT draft only." },
+      { name: "Meta - Next Step", kind: "Meta", does: "FIT / WHEN / WHO next step. Nothing leaves without Yes." },
+      { name: "Meta - Words", kind: "Meta", does: "Short text / email draft. DRAFT READY." },
+      { name: "Meta - Follow Up", kind: "Meta", does: "One nudge draft. Then stop." },
+      { name: "Meta - Collect Guard", kind: "Meta", does: "Keeps Collect HOLD. Never charges." },
+      { name: "Claude - Catch", kind: "Claude", does: "Deeper catch reasoning on the same card." },
+      { name: "Claude - Next Step", kind: "Claude", does: "Thoughtful next-step draft beside Meta." },
+      { name: "Claude - Words", kind: "Claude", does: "Thoughtful reply draft. Human picks." },
+      { name: "Claude - Follow Up", kind: "Claude", does: "One thoughtful nudge. Then stop." },
+      { name: "Claude - Collect Guard", kind: "Claude", does: "Collect HOLD reminder. Never charges." },
+      { name: "Gemini - Catch", kind: "Gemini", does: "Fast multimodal catch beside Meta. Draft only." },
+      { name: "Gemini - Words", kind: "Gemini", does: "Clear reply draft. Human picks." },
+      { name: "Gemini - Collect Guard", kind: "Gemini", does: "Collect HOLD reminder. Never charges." }
+    ];
+    var SETUP = [
+      ["Open Desk 3690", "Login to automateitaway.com — same login owns all desks."],
+      ["Install World Desk", "Give is the file. Install with Yes: meta-world-desk.aia"],
+      ["Install Automations Account", "Required for automations — meta-automations-account.aia"],
+      ["Connect Wallet", "MetaMask / WalletConnect — Not Wallet.AIA — AIA does not hold keys"],
+      ["Connect Meta AI Worker", "aia-meta-worker.js webhook live — POST /aia/card.created"],
+      ["Drop First Work", "Drop a file, forward email, missed call — card appears in Queue"],
+      ["Activate Additional Desks", "World user can activate pack on any desk owned"],
+      ["Choose Mode", "Creator vs World User — Creator builds packs. World uses packs."],
+      ["Verify Full History → LIVE", "Full history accounted through AIA account. Then LIVE."]
+    ];
+    var LIVE = [
+      { kind: "House", title: "Thermostat drift · 72°", draft: "Meta draft: nudge temp −2° and leave lights as-is. Unlock stays off.", acts: ["Adjust · Draft", "Yes", "Stop"] },
+      { kind: "Office · HOLD", title: "Invoice #1841 · $247.00", draft: "Collect Guard: HOLD until Yes + a real money pipe. Nothing charged.", acts: ["Stop", "Yes", "Pay · HOLD"] },
+      { kind: "Shop · Missed call", title: "+1 (555) 014-2930 · photo attached", draft: "Meta Words: Hey — saw your call, that part is in stock…", acts: ["Copy", "Text", "Yes"] }
+    ];
+
+    var packGrid = document.getElementById("packGrid");
+    if (packGrid) {
+      packGrid.innerHTML = PACKS.map(function (p) {
+        return '<article class="card qcard"><button type="button"><div><span class="tag">' + p.file + '</span><h3>' + p.name + '</h3><p>' + p.does + '</p></div><span class="chev">+</span></button><div class="body"><p class="sub">Install with Yes</p><p><a href="' + p.href + '">Open ' + p.file.replace(/\.aia$/, ".json") + '</a> · <a href="market.html?pack=meta">Use world pack</a></p></div></article>';
+      }).join("");
+    }
+
+    var aiGrid = document.getElementById("aiGrid");
+    if (aiGrid) {
+      aiGrid.innerHTML = AIS.map(function (a) {
+        return '<article class="card"><span class="tag">' + a.kind + '</span><h3>' + a.name + '</h3><p>' + a.does + '</p><p class="note">Never Yes / Stop / money / mail.</p></article>';
+      }).join("");
+    }
+
+    var setup = document.getElementById("setupSteps");
+    if (setup) {
+      setup.innerHTML = SETUP.map(function (row, i) {
+        return '<div class="stepn"><i>' + (i + 1) + '</i><div><b>' + row[0] + '</b><span>' + row[1] + '</span></div></div>';
+      }).join("");
+    }
+
+    var live = document.getElementById("liveQueue");
+    if (live) {
+      live.innerHTML = LIVE.map(function (c, i) {
+        return '<div class="live-card"><span class="mono">' + (i + 1) + ' · ' + c.kind + '</span><b>' + c.title + '</b><span style="opacity:.85;font-size:13px">' + c.draft + '</span><div class="acts">' + c.acts.map(function (a) { return '<span>' + a + '</span>'; }).join("") + '</div></div>';
+      }).join("");
+    }
+
+    document.querySelectorAll(".qcard > button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        btn.parentNode.classList.toggle("open");
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

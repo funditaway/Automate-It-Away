@@ -399,7 +399,7 @@
       if (document.getElementById("ai-key")) document.getElementById("ai-key").value = "";
       const r = await fetch("/api/connections", { method: "POST", headers: headers(), body: JSON.stringify({ action: "ai-start", provider }) });
       const data = await r.json().catch(() => ({}));
-      if (title) title.textContent = "Log in to " + (provider === "openai" ? "ChatGPT" : provider === "anthropic" ? "Claude" : "Grok");
+      if (title) title.textContent = "Log in to " + (provider === "openai" ? "ChatGPT" : provider === "anthropic" ? "Claude" : provider === "gemini" ? "Gemini" : "Grok");
       if (note) note.textContent = data.next || "Log in, make an API key, paste it here.";
       if (data.login) window.open(data.login, "_blank", "noopener");
     }

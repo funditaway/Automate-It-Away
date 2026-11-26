@@ -1,0 +1,56 @@
+{
+  "id": "meta-creator-studio",
+  "name": "Meta Creator Studio",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-creator-studio.aia",
+  "file": "meta-creator-studio.aia",
+  "price": 0,
+  "blurb": "Create your own Meta AI pack. Any creation imaginable. List an ask or keep private. Collect stays HOLD.",
+  "face": {
+    "who": { "key": "contactName", "label": "Creator" },
+    "what": { "key": "need", "label": "What the pack does" },
+    "when": { "key": "timing", "label": "When to ship" },
+    "where": { "key": "deskName", "label": "Studio desk" },
+    "how": "Draft the pack face and rules on Creators Studio. Give is the .aia file. They install with Yes."
+  },
+  "capture": ["idea", "note", "drop"],
+  "qualify": ["who buys", "rails", "pipes"],
+  "do": ["pack draft", "desk AI draft"],
+  "collect": ["listed ask · Collect HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "hand", "cap", "yes", "stop"],
+  "kill": ["not shipping", "duplicate idea"],
+  "pipes": ["webhook"],
+  "artifacts": ["pack draft", ".aia file note"],
+  "kinds": ["content", "setup"],
+  "rails": [
+    "Creators earn by the ask they set. AIA has no published payout baseline.",
+    "Give is the file. They install with Yes. Update is install again.",
+    "Collect stays HOLD until Yes + a real money pipe."
+  ],
+  "rules": [
+    { "text": "Draft on pack idea drop.", "when": "drop", "then": "draft", "contains": "pack" },
+    { "text": "Wait on listed ask collect.", "when": "collect", "then": "wait", "contains": "ask" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Words",
+      "role": "Writer",
+      "does": "Drafts pack blurbs and desk AI prompts. Never lists or charges alone.",
+      "prompt": "Studio draft ready. I cannot list, charge, or send. You stay in control.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "Studio",
+    "family": "Meta.aia",
+    "empty": "Drop a pack idea. Meta drafts the face. Give is the .aia. They Yes.",
+    "chips": ["content", "setup"],
+    "taps": ["copy", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the pack idea and who it is for. Meta drafts. You ship the .aia."
+}

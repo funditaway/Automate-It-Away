@@ -1,0 +1,68 @@
+{
+  "id": "meta-setup",
+  "name": "Meta Setup",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-setup.aia",
+  "file": "meta-setup.aia",
+  "price": 0,
+  "blurb": "Nine setup cards must be done. Each requires Yes. Verify and go LIVE.",
+  "face": {
+    "who": { "key": "contactName", "label": "Owner" },
+    "what": { "key": "need", "label": "Which setup step" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "This desk" },
+    "how": "Complete setup cards 1–9. Each needs Yes. Nothing silent."
+  },
+  "capture": ["note", "form"],
+  "qualify": ["which step", "blocked on"],
+  "do": ["setup checklist"],
+  "collect": ["usage fees HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "hand", "cap", "yes", "stop"],
+  "kill": ["skip forever", "wrong desk"],
+  "pipes": ["webhook"],
+  "artifacts": ["setup card", "checklist"],
+  "kinds": ["setup"],
+  "help": [
+    "1 Open Desk — same login owns all desks.",
+    "2 Install World Desk — Give is the file. Install with Yes.",
+    "3 Install Automations Account — required for automations.",
+    "4 Connect Wallet — MetaMask / WalletConnect. AIA does not hold keys.",
+    "5 Connect Meta AI Worker — aia-meta-worker.js webhook live.",
+    "6 Drop First Work — card appears in Queue.",
+    "7 Activate Additional Desks — any desk this account owns.",
+    "8 Choose Mode — Creator vs World User.",
+    "9 Verify Full History → LIVE."
+  ],
+  "rails": [
+    "Each setup card requires Yes. Yes blocks next.",
+    "Wallet MetaMask / WalletConnect. Not Wallet.AIA.",
+    "Worker drafts only. Collect stays HOLD."
+  ],
+  "rules": [
+    { "text": "Cap incomplete setup.", "when": "qualify", "then": "cap", "contains": "setup" },
+    { "text": "Wait on wallet connect Yes.", "when": "do", "then": "wait", "contains": "wallet" },
+    { "text": "Wait on worker connect Yes.", "when": "do", "then": "wait", "contains": "worker" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Next Step",
+      "role": "Doer",
+      "does": "Drafts the next setup card. Never skips Yes.",
+      "prompt": "Setup draft ready. Each step needs your Yes. I cannot skip ahead.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "Setup",
+    "family": "Meta.aia",
+    "empty": "Nine setup cards. Each needs Yes. Then LIVE.",
+    "chips": ["setup"],
+    "taps": ["copy", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name which setup step (1–9). Meta drafts. You Yes."
+}

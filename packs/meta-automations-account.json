@@ -1,0 +1,56 @@
+{
+  "id": "meta-automations-account",
+  "name": "Meta Automations Account",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-automations-account.aia",
+  "file": "meta-automations-account.aia",
+  "price": 0,
+  "blurb": "Required for automations. Connects worker and history. Full history through the AIA account.",
+  "face": {
+    "who": { "key": "contactName", "label": "Account owner" },
+    "what": { "key": "need", "label": "What to connect" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "This desk" },
+    "how": "Connect the Meta worker webhook on Pipes. History stays on the AIA account. Draft only."
+  },
+  "capture": ["hook", "note"],
+  "qualify": ["worker connected", "history path"],
+  "do": ["worker connect note"],
+  "collect": ["usage fees HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "hand", "cap", "yes", "stop"],
+  "kill": ["wrong account", "duplicate"],
+  "pipes": ["webhook"],
+  "artifacts": ["automations card", "worker note"],
+  "kinds": ["setup"],
+  "rails": [
+    "Worker drafts only. Never Yes / Stop / pay / send.",
+    "Full history accounted through the AIA account.",
+    "Usage fees HOLD until Yes + a real money pipe."
+  ],
+  "rules": [
+    { "text": "Cap incomplete worker connect.", "when": "qualify", "then": "cap", "contains": "worker" },
+    { "text": "Draft on webhook connect.", "when": "pipe", "then": "draft", "contains": "webhook" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Next Step",
+      "role": "Doer",
+      "does": "Drafts worker-connect next steps. Never binds secrets alone.",
+      "prompt": "Connect note ready. Buyer binds their own keys on Pipes. I cannot send.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "Automations",
+    "family": "Meta.aia",
+    "empty": "Connect worker and history. Draft only. Keys stay yours.",
+    "chips": ["setup"],
+    "taps": ["copy", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name the worker endpoint or history need. Meta drafts. You Yes on Pipes."
+}

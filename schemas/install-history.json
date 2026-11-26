@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AIAInstallHistoryEntry",
+  "type": "object",
+  "required": [
+    "id",
+    "timestamp",
+    "eventType",
+    "action",
+    "moduleType",
+    "moduleId",
+    "version",
+    "scope",
+    "actor",
+    "status",
+    "installMode"
+  ],
+  "properties": {
+    "id": { "type": "string", "description": "Unique event id (ih_…)" },
+    "timestamp": { "type": "string", "format": "date-time", "description": "UTC ISO-8601" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "pack.installed",
+        "pack.upgraded",
+        "pack.removed",
+        "pack.rolled_back",
+        "addon.installed",
+        "addon.upgraded",
+        "addon.removed",
+        "addon.rolled_back"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "enum": ["installed", "upgraded", "removed", "rolled_back"]
+    },
+    "moduleType": { "type": "string", "enum": ["pack", "addon"] },
+    "moduleId": { "type": "string" },
+    "slug": { "type": "string" },
+    "version": { "type": "string" },
+    "previousVersion": { "type": ["string", "null"] },
+    "scope": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["global", "desk", "card", "desk+card"] },
+        "deskId": { "type": ["string", "null"] },
+        "workspace": { "type": ["string", "null"] },
+        "cardId": { "type": ["string", "null"] },
+        "agentId": { "type": ["string", "null"] }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "seatId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "name": { "type": "string" },
+        "whoKind": { "type": "string" },
+        "role": { "type": "string" },
+        "seatOverride": { "type": ["string", "null"] },
+        "permission": { "type": "string" }
+      }
+    },
+    "status": { "type": "string", "enum": ["succeeded", "failed", "rolled_back"] },
+    "error": { "type": ["string", "null"] },
+    "installMode": { "type": "string", "enum": ["fresh", "retry", "noop"] },
+    "kind": { "type": "string", "const": "install" }
+  }
+}
