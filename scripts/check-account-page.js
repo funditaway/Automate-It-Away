@@ -51,8 +51,20 @@ function exportSuccessLine(accountSrc) {
   const m = accountSrc.match(/hint\.textContent\s*=\s*"(Exported\.[^"]+)"/);
   return m ? m[1] : "";
 }
+// Opening '<' of the tag that has this id, so attributes before the id stay in the slice.
+function tagOpenStart(src, id) {
+  const s = String(src || "");
+  const re = new RegExp("\\bid\\s*=\\s*([\"'])" + String(id).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\1", "i");
+  const m = re.exec(s);
+  if (!m) return -1;
+  const lt = s.lastIndexOf("<", m.index);
+  if (lt < 0) return m.index;
+  const gt = s.indexOf(">", lt);
+  if (gt >= 0 && gt < m.index) return m.index;
+  return lt;
+}
 function mfaCard(accountSrc) {
-  const start = accountSrc.indexOf('id="mfa-card"');
+  const start = tagOpenStart(accountSrc, "mfa-card");
   if (start < 0) return "";
   const end = accountSrc.indexOf("</div>", accountSrc.indexOf("mfa-hint", start));
   return accountSrc.slice(start, end > start ? end + 6 : start + 700);
@@ -78,7 +90,7 @@ function mfaOnButton(accountSrc) {
 const AUTH_META = "Off for now. No email codes. No SMS codes.";
 function visibleCardText(cardHtml) {
   const attrs = [];
-  String(cardHtml || "").replace(/\b(?:title|aria-label|alt|placeholder|value)\s*=\s*"([^"]*)"/gi, function (m, v) { attrs.push(v); return m; });
+  String(cardHtml || "").replace(/\b(?:title|aria-label|alt|placeholder|value)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi, function (m, dq, sq) { attrs.push(dq !== undefined ? dq : sq); return m; });
   const body = String(cardHtml || "")
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ")
@@ -91,8 +103,92 @@ function authenticatorTextFaults(accountSrc) {
   if (!card) { bad.push("authenticator card missing"); return bad; }
   if (card.indexOf('<p class="meta">' + AUTH_META + "</p>") < 0) bad.push("authenticator meta is not main's exact text");
   if (/\bhold\b/i.test(visibleCardText(card))) bad.push("HOLD visible on the authenticator card");
-  if (/getElementById\(\s*["']mfa-(?:hint|card|on)["']\s*\)\s*\.\s*(?:textContent|innerText|innerHTML|insertAdjacentHTML|setAttribute|title)\b/.test(accountSrc)) bad.push("a script paints the authenticator card");
+  if (scriptPaintsAuthenticator(accountSrc)) bad.push("a script paints the authenticator card");
   return bad;
+}
+
+// Comments in scripts do not count. Strings in scripts that target #mfa-hint / #mfa-card / #mfa-on do.
+function stripJsComments(src) {
+  let out = "";
+  let i = 0;
+  const s = String(src || "");
+  while (i < s.length) {
+    const c = s[i];
+    const n = s[i + 1];
+    if (c === "/" && n === "/") {
+      i += 2;
+      while (i < s.length && s[i] !== "\n") i++;
+      out += " ";
+      continue;
+    }
+    if (c === "/" && n === "*") {
+      i += 2;
+      while (i + 1 < s.length && !(s[i] === "*" && s[i + 1] === "/")) i++;
+      i += 2;
+      out += " ";
+      continue;
+    }
+    if (c === "'" || c === '"' || c === "`") {
+      const q = c;
+      out += c;
+      i++;
+      while (i < s.length) {
+        if (s[i] === "\\") { out += s[i] + (s[i + 1] || ""); i += 2; continue; }
+        if (s[i] === q) { out += s[i]; i++; break; }
+        out += s[i];
+        i++;
+      }
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+function inlineScriptBodies(html) {
+  const bodies = [];
+  String(html || "").replace(/<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi, function (_, body) {
+    bodies.push(body);
+    return _;
+  });
+  return bodies;
+}
+function selectorTargetsMfa(arg) {
+  const a = String(arg || "");
+  if (/^\s*mfa-(?:hint|card|on)\s*$/.test(a)) return true;
+  if (/#mfa-(?:hint|card|on)\b/.test(a)) return true;
+  if (/\[\s*id\s*[=*^$|~]?\s*['"]?mfa-(?:hint|card|on)['"]?\s*\]/.test(a)) return true;
+  return false;
+}
+function isAuthenticatorWrite(after) {
+  return /^(?:\s*\[\s*\d+\s*\]|\s*\.\s*item\s*\(\s*\d+\s*\))*(?:\s*\.\s*(?:textContent|innerText|innerHTML|outerHTML|title|ariaLabel)\s*(?:=|\+=)|\s*\[\s*['"`](?:textContent|innerText|innerHTML|outerHTML|title|ariaLabel)['"`]\s*\]\s*(?:=|\+=)|\s*\.\s*(?:insertAdjacentHTML|append|appendChild|prepend|replaceWith|replaceChildren|setAttribute|setAttributeNS|before|after)\s*\()/.test(after);
+}
+function lookupCallRe() {
+  const meth = "(?:getElementById|querySelector|querySelectorAll)";
+  const access = "(?:(?:document|window)\\s*(?:\\.\\s*" + meth + "|\\s*\\[\\s*['\"`]" + meth + "['\"`]\\s*\\])|\\b" + meth + ")\\s*\\(\\s*";
+  return new RegExp(access + "(['\"`])([\\s\\S]*?)\\1\\s*\\)", "g");
+}
+function scriptPaintsAuthenticator(accountSrc) {
+  const js = stripJsComments(inlineScriptBodies(accountSrc).join("\n"));
+  const names = Object.create(null);
+  const re = lookupCallRe();
+  let m;
+  while ((m = re.exec(js))) {
+    if (!selectorTargetsMfa(m[2])) continue;
+    const after = js.slice(m.index + m[0].length);
+    if (isAuthenticatorWrite(after)) return true;
+    const before = js.slice(0, m.index);
+    const assign = /(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\s*=\s*$/.exec(before);
+    if (assign) names[assign[1]] = true;
+  }
+  return Object.keys(names).some(function (name) {
+    const use = new RegExp("\\b" + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "g");
+    let u;
+    while ((u = use.exec(js))) {
+      if (isAuthenticatorWrite(js.slice(u.index + u[0].length))) return true;
+    }
+    return false;
+  });
 }
 function authenticatorTapFaults(accountSrc) {
   const bad = [];
@@ -361,6 +457,27 @@ const textMutants = [
   }],
   ["a script paints the authenticator card", "a script writes HOLD into the hint", function (src) {
     return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    document.getElementById("mfa-hint").textContent="Authenticator stays HOLD.";');
+  }],
+  ["a script paints the authenticator card", "querySelector writes to the hint", function (src) {
+    return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    document.querySelector("#mfa-hint").textContent="Authenticator stays HOLD.";');
+  }],
+  ["a script paints the authenticator card", "temp-var writes to the hint", function (src) {
+    return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    var h = document.getElementById("mfa-hint");\n    h.textContent = "Authenticator stays HOLD.";');
+  }],
+  ["a script paints the authenticator card", "querySelector writes to the card", function (src) {
+    return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    document.querySelector("#mfa-card").innerHTML="<p>HOLD</p>";');
+  }],
+  ["a script paints the authenticator card", "temp-var writes to the card", function (src) {
+    return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    const c = document.getElementById("mfa-card");\n    c.appendChild(document.createElement("p"));');
+  }],
+  ["HOLD visible on the authenticator card", "aria-label HOLD before the card id", function (src) {
+    return src.replace('<div class="card" id="mfa-card">', '<div class="card" aria-label="HOLD" id="mfa-card">');
+  }],
+  ["HOLD visible on the authenticator card", "title HOLD before the card id", function (src) {
+    return src.replace('<div class="card" id="mfa-card">', '<div class="card" title="HOLD" id="mfa-card">');
+  }],
+  ["HOLD visible on the authenticator card", "lowercase hold in title before the card id", function (src) {
+    return src.replace('<div class="card" id="mfa-card">', '<div class="card" title="hold" id="mfa-card">');
   }]
 ];
 let textCaught = 0;
@@ -378,6 +495,13 @@ else pass("authenticator text asserts are clean on the real page");
 const hiddenOk = account.replace("<h2>Authenticator</h2>", "<h2>Authenticator</h2><!-- HOLD -->");
 if (authenticatorTextFaults(hiddenOk).indexOf("HOLD visible on the authenticator card") >= 0) fail("a HOLD comment is not visible and must not trip the assert");
 else pass("a HOLD comment on the card is not visible text");
+const commentedWrite = account.replace(
+  'document.getElementById("mfa-on").onclick=function(){ return; };',
+  'document.getElementById("mfa-on").onclick=function(){ return; };\n    // document.querySelector("#mfa-hint").textContent="Authenticator stays HOLD.";'
+);
+if (commentedWrite === account) fail("commented script write control did not apply");
+else if (authenticatorTextFaults(commentedWrite).indexOf("a script paints the authenticator card") >= 0) fail("a commented script write must not trip the paint assert");
+else pass("a commented script write does not trip the paint assert");
 if (textCaught !== textMutants.length) fail("authenticator text mutants: " + textCaught + "/" + textMutants.length + " caught");
 else pass("authenticator text mutants: " + textCaught + "/" + textMutants.length + " caught");
 
