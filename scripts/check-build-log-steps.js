@@ -179,7 +179,10 @@ const MUTANTS = [
   { name: "P6: the work name allows _ and .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9._-]{0,39}$/.test(body.work)"]] },
   { name: "P6: the work name allows _", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(body.work)"]] },
   { name: "P6: the work name allows .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9.-]{0,39}$/.test(body.work)"]] },
-  { name: "P6: the work name may start with _ or .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9_.][a-z0-9-]{0,39}$/.test(body.work)"]] }
+  { name: "P6: the work name may start with _ or .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9_.][a-z0-9-]{0,39}$/.test(body.work)"]] },
+  // BL1 child 2: Probe's F10 and F1 survivors
+  { name: "F10: the 200 cap is skipped on a PR-keyed card", edits: [["if (stepCard && stepCard.custom.buildLog.steps.length >= BUILD_STEP_MAX)", "if (stepCard && stepWork && stepCard.custom.buildLog.steps.length >= BUILD_STEP_MAX)"]] },
+  { name: "F1: the step-card lookup is keyed on the desk display name, not the desk id", edits: [["if (!j || j.workspace !== workspace || !b || !Array.isArray(b.steps)) return false;", "const nameOf = function (slug) { const w = (mem.workspaces || []).find(function (x) { return x && x.slug === slug; }); return w ? String(w.biz || w.name || slug) : slug; };\n    if (!j || nameOf(j.workspace) !== nameOf(workspace) || !b || !Array.isArray(b.steps)) return false;"]] }
 ];
 
 function applyEdits(src, edits, name) {
@@ -639,6 +642,67 @@ async function main() {
     if ((r.statusCode !== 200 && r.statusCode !== 201) || r.body.job.title !== "Build log: " + w || r.body.job.custom.buildLog.work !== w) fail("work " + w + " must be accepted as sent, got " + r.statusCode + " " + JSON.stringify(r.body.error || ""));
   }
   pass(workBad.length + " work names with an underscore, dot, slash, space, or unicode are refused with no write; lowercase letters, digits, and dashes up to 40 are accepted as sent");
+
+  // ---- BL1 child 2 (Probe's F10 and F1 survivors) ----
+  // F10: a PR-keyed card (pr, no work) takes exactly 200 posts. The 201st is 409 and the store stays byte-identical.
+  let prCapId = null;
+  for (let i = 0; i < 200; i++) {
+    const r = await post({ step: i % 2 ? "probe" : "ramp", pr: 702, head: HEAD_A, verdict: "PASS" });
+    if (r.statusCode !== (i === 0 ? 201 : 200)) fail("PR-keyed row " + (i + 1) + " must be accepted, got " + r.statusCode + " " + JSON.stringify(r.body));
+    prCapId = r.body.job.id;
+  }
+  const prCapCard = lib.mem.jobs.find((j) => j.id === prCapId);
+  if (!prCapCard || prCapCard.custom.buildLog.steps.length !== 200 || prCapCard.custom.buildLog.pr !== 702 || "work" in prCapCard.custom.buildLog) fail("the PR-keyed card should hold exactly 200 rows, keyed on pr 702 only");
+  const prCapRows = JSON.stringify(prCapCard.custom.buildLog.steps);
+  for (const extra of [{ step: "decision", pr: 702 }, { step: "ramp", pr: 702, done: true }]) {
+    const r = await mustRefuse("PR-keyed row 201", extra, null, [409]);
+    if (r.body.error !== "This card already has 200 steps. Nothing was saved.") fail("PR-keyed cap wording drifted: " + r.body.error);
+  }
+  if (JSON.stringify(prCapCard.custom.buildLog.steps) !== prCapRows || prCapCard.custom.buildLog.steps.length !== 200) fail("the PR-keyed cap must never trim or change a row");
+  if (stepCards(lib, slug).filter((j) => j.custom.buildLog.pr === 702).length !== 1) fail("the PR-keyed cap must not make a second card");
+  pass("a PR-keyed card takes exactly 200 posts; the 201st is refused with 409 and the store is byte-identical");
+
+  // F1: two desks that share a display name still keep their own cards. The lookup is by desk id, not by biz or name.
+  const twinBiz = "Twin Shop";
+  async function openTwin(slug, pin, email, personName) {
+    const opened = await call(auth, "POST", { "x-workspace": slug }, { action: "open", slug: slug, biz: slug, name: personName, pin: pin }, {}, "/api/auth");
+    if (opened.statusCode !== 201) fail("could not open " + slug + ", got " + opened.statusCode + " " + JSON.stringify(opened.body));
+    const setPw = await call(auth, "POST", { "x-workspace": slug, "x-session": opened.body.session.token }, { action: "password", password: "twin-pass-steps-1234", email: email }, {}, "/api/auth");
+    if (setPw.statusCode !== 200) fail("could not set a password on " + slug + ", got " + setPw.statusCode + " " + JSON.stringify(setPw.body));
+    const login = await call(auth, "POST", {}, { action: "login", email: email, password: "twin-pass-steps-1234", workspace: slug }, {}, "/api/auth");
+    if (login.statusCode !== 200) fail("email login on " + slug + " failed, got " + login.statusCode);
+    const desk = lib.mem.workspaces.find((w) => w && w.slug === slug);
+    if (!desk) fail("opened desk " + slug + " is missing from the store");
+    // Same display name on both, so a lookup keyed on biz or name would collide.
+    desk.biz = twinBiz;
+    desk.name = twinBiz;
+    return { slug: slug, hdr: { "x-workspace": slug, "x-session": login.body.session.token }, desk: desk };
+  }
+  const twinA = await openTwin("bl-steps-twina", "8181", "twina@steps.test", "Ada");
+  const twinB = await openTwin("bl-steps-twinb", "8282", "twinb@steps.test", "Bea");
+  if (twinA.desk.biz !== twinBiz || twinB.desk.biz !== twinBiz || twinA.desk.name !== twinBiz || twinB.desk.name !== twinBiz) fail("the two desks must share the display name " + twinBiz);
+  if (twinA.slug === twinB.slug) fail("the two desks must have different ids");
+  const twinAWork = await post({ step: "named", work: "twin-work" }, twinA.hdr);
+  if (twinAWork.statusCode !== 201) fail("desk A must make a work card, got " + twinAWork.statusCode);
+  const twinAPr = await post({ step: "named", pr: 909 }, twinA.hdr);
+  if (twinAPr.statusCode !== 201) fail("desk A must make a PR card, got " + twinAPr.statusCode);
+  const twinAAfterOwn = JSON.stringify(jobsOn(lib, twinA.slug));
+  const twinBWork = await post({ step: "ramp", work: "twin-work", verdict: "RED" }, twinB.hdr);
+  if (twinBWork.statusCode !== 201 || twinBWork.body.created !== true || twinBWork.body.job.id === twinAWork.body.job.id || twinBWork.body.job.workspace !== twinB.slug) fail("desk B posting the same work must make its own card, got " + twinBWork.statusCode + " created=" + (twinBWork.body && twinBWork.body.created) + " id " + (twinBWork.body && twinBWork.body.job && twinBWork.body.job.id));
+  if (JSON.stringify(jobsOn(lib, twinA.slug)) !== twinAAfterOwn) fail("desk B's work post changed desk A's cards");
+  const twinBPr = await post({ step: "ramp", pr: 909, verdict: "RED" }, twinB.hdr);
+  if (twinBPr.statusCode !== 201 || twinBPr.body.created !== true || twinBPr.body.job.id === twinAPr.body.job.id || twinBPr.body.job.workspace !== twinB.slug) fail("desk B posting the same PR must make its own card, got " + twinBPr.statusCode);
+  if (JSON.stringify(jobsOn(lib, twinA.slug)) !== twinAAfterOwn) fail("desk B's PR post changed desk A's cards");
+  const twinBAfterOwn = JSON.stringify(jobsOn(lib, twinB.slug));
+  const twinAWork2 = await post({ step: "decision", work: "twin-work", verdict: "HOLD" }, twinA.hdr);
+  if (twinAWork2.statusCode !== 200 || twinAWork2.body.job.id !== twinAWork.body.job.id || twinAWork2.body.job.custom.buildLog.steps.length !== 2) fail("desk A's second work post must append to desk A's card");
+  if (JSON.stringify(jobsOn(lib, twinB.slug)) !== twinBAfterOwn) fail("desk A's follow-up changed desk B's cards");
+  const aCardWork = lib.mem.jobs.find((j) => j.id === twinAWork.body.job.id);
+  const bCardWork = lib.mem.jobs.find((j) => j.id === twinBWork.body.job.id);
+  if (aCardWork.custom.buildLog.steps.length !== 2 || aCardWork.custom.buildLog.steps.some((r) => r.verdict === "RED") || aCardWork.workspace !== twinA.slug) fail("desk A's work card must keep its own rows and gain no RED row from desk B");
+  if (bCardWork.custom.buildLog.steps.length !== 1 || bCardWork.workspace !== twinB.slug || bCardWork.custom.buildLog.desk !== twinB.slug) fail("desk B's work card must stay on B with its own row");
+  if (lib.mem.jobs.find((j) => j.id === twinAPr.body.job.id).custom.buildLog.steps.length !== 1 || lib.mem.jobs.find((j) => j.id === twinBPr.body.job.id).custom.buildLog.steps.length !== 1) fail("each desk's PR card must keep its own single row");
+  pass("two desks that share a display name each get their own card for the same PR and the same work; the other desk's cards stay byte-identical");
 
   // ---- Legacy posts answer as they did on main ----
   const legacyDesk = "bl-steps-legacy";
