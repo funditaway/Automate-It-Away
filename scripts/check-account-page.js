@@ -73,6 +73,27 @@ function mfaOnButton(accountSrc) {
   const m = accountSrc.match(/<button\b[^>]*id="mfa-on"[^>]*>Turn on authenticator<\/button>/);
   return m ? m[0] : "";
 }
+// What a person can read on the Authenticator card: the text, plus title / aria-label / alt / placeholder / value
+// attributes. Comments, scripts and styles are not visible, so they do not count.
+const AUTH_META = "Off for now. No email codes. No SMS codes.";
+function visibleCardText(cardHtml) {
+  const attrs = [];
+  String(cardHtml || "").replace(/\b(?:title|aria-label|alt|placeholder|value)\s*=\s*"([^"]*)"/gi, function (m, v) { attrs.push(v); return m; });
+  const body = String(cardHtml || "")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]*>/g, " ");
+  return (body + " " + attrs.join(" ")).replace(/\s+/g, " ").trim();
+}
+function authenticatorTextFaults(accountSrc) {
+  const bad = [];
+  const card = mfaCard(accountSrc);
+  if (!card) { bad.push("authenticator card missing"); return bad; }
+  if (card.indexOf('<p class="meta">' + AUTH_META + "</p>") < 0) bad.push("authenticator meta is not main's exact text");
+  if (/\bhold\b/i.test(visibleCardText(card))) bad.push("HOLD visible on the authenticator card");
+  if (/getElementById\(\s*["']mfa-(?:hint|card|on)["']\s*\)\s*\.\s*(?:textContent|innerText|innerHTML|insertAdjacentHTML|setAttribute|title)\b/.test(accountSrc)) bad.push("a script paints the authenticator card");
+  return bad;
+}
 function authenticatorTapFaults(accountSrc) {
   const bad = [];
   const btn = mfaOnButton(accountSrc);
@@ -164,7 +185,7 @@ const pkg = read("package.json");
   "action:\"export\"",
   "logout-all",
   "function leavePhone",
-  "Authenticator stays HOLD",
+  "Off for now. No email codes. No SMS codes.",
   "AIAAccountSecurity"
 ].forEach(function (bit) {
   if (account.indexOf(bit) < 0) fail("account.html missing " + bit);
@@ -207,9 +228,14 @@ const mfaPaint = mfaCard(account);
 if (!/off for now/i.test(mfaPaint) || !/Authenticator is off for now/i.test(account)) {
   fail("account.html authenticator card must stay off for now");
 } else pass("account.html authenticator card stays off for now");
-if (!/Authenticator stays HOLD/.test(mfaPaint) && !/Authenticator stays HOLD/.test(account)) {
-  fail("account.html authenticator card must still say Authenticator stays HOLD");
-} else pass("account.html authenticator card still says Authenticator stays HOLD");
+const mfaText = authenticatorTextFaults(account);
+if (mfaText.indexOf("authenticator meta is not main's exact text") >= 0) fail("account.html authenticator card meta must be main's exact text: " + AUTH_META);
+else pass("account.html authenticator card meta is main's exact text");
+if (mfaText.indexOf("HOLD visible on the authenticator card") >= 0) fail("the word HOLD must never be visible on the authenticator card");
+else pass("no HOLD on the authenticator card");
+if (mfaText.indexOf("a script paints the authenticator card") >= 0) fail("no script may paint text into the authenticator card");
+else pass("no script paints the authenticator card");
+if (mfaText.length) fail("authenticator card text faults: " + mfaText.join("; "));
 const mfaTap = authenticatorTapFaults(account);
 if (!mfaOnButton(account)) fail("account.html must keep the Turn on authenticator button on the Authenticator card");
 else pass("account.html keeps the Turn on authenticator button");
@@ -307,6 +333,53 @@ tapMutants.forEach(function (pair) {
 });
 if (tapCaught !== tapMutants.length) fail("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
 else pass("authenticator tap mutants: " + tapCaught + "/" + tapMutants.length + " caught");
+
+const textMutants = [
+  ["authenticator meta is not main's exact text", "HOLD back on the card meta", function (src) {
+    return src.replace('<p class="meta">' + AUTH_META + "</p>", '<p class="meta">' + AUTH_META + " Authenticator stays HOLD.</p>");
+  }],
+  ["HOLD visible on the authenticator card", "HOLD back on the card meta (both asserts)", function (src) {
+    return src.replace('<p class="meta">' + AUTH_META + "</p>", '<p class="meta">' + AUTH_META + " Authenticator stays HOLD.</p>");
+  }],
+  ["authenticator meta is not main's exact text", "card meta reworded without HOLD", function (src) {
+    return src.replace('<p class="meta">' + AUTH_META + "</p>", '<p class="meta">' + AUTH_META + " Not live.</p>");
+  }],
+  ["HOLD visible on the authenticator card", "HOLD in the hint line", function (src) {
+    return src.replace('id="mfa-hint">Authenticator is off for now.</p>', 'id="mfa-hint">Authenticator is off for now. HOLD.</p>');
+  }],
+  ["HOLD visible on the authenticator card", "HOLD in the card title", function (src) {
+    return src.replace("<h2>Authenticator</h2>", "<h2>Authenticator HOLD</h2>");
+  }],
+  ["HOLD visible on the authenticator card", "HOLD in the button label", function (src) {
+    return src.replace('disabled>Turn on authenticator</button>', 'disabled>Turn on authenticator (HOLD)</button>');
+  }],
+  ["HOLD visible on the authenticator card", "HOLD in the button tooltip", function (src) {
+    return src.replace('id="mfa-on" disabled>', 'id="mfa-on" disabled title="Authenticator stays HOLD">');
+  }],
+  ["HOLD visible on the authenticator card", "lowercase hold on the card", function (src) {
+    return src.replace('<p class="meta">' + AUTH_META + "</p>", '<p class="meta">' + AUTH_META + " On hold.</p>");
+  }],
+  ["a script paints the authenticator card", "a script writes HOLD into the hint", function (src) {
+    return src.replace('document.getElementById("mfa-on").onclick=function(){ return; };', 'document.getElementById("mfa-on").onclick=function(){ return; };\n    document.getElementById("mfa-hint").textContent="Authenticator stays HOLD.";');
+  }]
+];
+let textCaught = 0;
+textMutants.forEach(function (row) {
+  const label = row[0], name = row[1];
+  const next = row[2](account);
+  if (next === account) { fail("mutant did not apply: " + name); return; }
+  const faults = authenticatorTextFaults(next);
+  if (faults.indexOf(label) < 0) fail("mutant missed: " + name + " (got " + JSON.stringify(faults) + ")");
+  else { textCaught += 1; pass("mutant caught: " + name); }
+});
+// the unmutated page must be clean, and a mutant that hides HOLD only in a comment or script must NOT trip the visible-text assert
+if (authenticatorTextFaults(account).length) fail("authenticator text asserts must be clean on the real page");
+else pass("authenticator text asserts are clean on the real page");
+const hiddenOk = account.replace("<h2>Authenticator</h2>", "<h2>Authenticator</h2><!-- HOLD -->");
+if (authenticatorTextFaults(hiddenOk).indexOf("HOLD visible on the authenticator card") >= 0) fail("a HOLD comment is not visible and must not trip the assert");
+else pass("a HOLD comment on the card is not visible text");
+if (textCaught !== textMutants.length) fail("authenticator text mutants: " + textCaught + "/" + textMutants.length + " caught");
+else pass("authenticator text mutants: " + textCaught + "/" + textMutants.length + " caught");
 
 (function () {
   const next = account.replace(
