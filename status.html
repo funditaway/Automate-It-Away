@@ -89,8 +89,8 @@
       const g = (data.automation && (data.automation.deskAi || data.automation.grok)) || {};
       if (grokEl) {
         grokEl.textContent = deskFaceNote(g.note, g.on
-          ? "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."
-          : "A Desk AI can't draft on this phone yet.");
+          ? "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop."
+          : "A Desk AI can't draft on this account yet.");
         grokEl.className = g.on ? "up" : "hold";
       }
       const live = (data.pipes || []).filter(p => p.live && p.id !== "webhook");
