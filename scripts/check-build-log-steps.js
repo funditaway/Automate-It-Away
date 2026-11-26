@@ -162,7 +162,24 @@ const MUTANTS = [
   { name: "legacy post drifts: HOLD accepted as a legacy verdict", edits: [["const BUILD_VERDICTS = [\"PASS\", \"FAIL\", \"GREEN\", \"ORANGE\", \"RED\"];", "const BUILD_VERDICTS = [\"PASS\", \"FAIL\", \"GREEN\", \"ORANGE\", \"RED\", \"HOLD\"];"]] },
   { name: "legacy post drifts: a pr+head post is treated as a step post", edits: [["if (body.step !== undefined || body.work !== undefined", "if (body.head !== undefined || body.step !== undefined || body.work !== undefined"]] },
   { name: "legacy post drifts: the History line changes", edits: [["  const parts = [\"Head \" + String(fields.head).slice(0, 7) + \".\"];", "  const parts = [\"Head \" + String(fields.head).slice(0, 8) + \".\"];"]] },
-  { name: "legacy post drifts: the legacy repeat is keyed on pr only", edits: [["    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr) && b.head === head;", "    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr);"]] }
+  { name: "legacy post drifts: the legacy repeat is keyed on pr only", edits: [["    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr) && b.head === head;", "    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr);"]] },
+  // BL1 child 1: Probe's six survivors (P2, P18, P31, P10, P9, P6) and the audit row (P19)
+  { name: "P2: the step-card lookup drops the desk check (desk B's owner appends to desk A's card)", edits: [["    if (!j || j.workspace !== workspace || !b || !Array.isArray(b.steps)) return false;", "    if (!j || !b || !Array.isArray(b.steps)) return false;"]] },
+  { name: "P18: the thread entry carries the poster's name", edits: [["        addTalk(stepJob, \"helper\", stepLine, \"note\", stepActor);", "        addTalk(stepJob, actorName(person, {}), stepLine, \"note\", { actorKind: \"helper\", actorLabel: \"helper\" });"]] },
+  { name: "P18: the thread entry is labelled with the poster's name", edits: [["        const stepActor = { actorKind: \"helper\", actorLabel: \"helper\" };", "        const stepActor = { actorKind: \"helper\", actorLabel: actorName(person, {}) };"]] },
+  { name: "P19: the audit row carries the raw body", edits: [["        log(\"Build\", stepTitle + \" · \" + stepLine, \"OK\", workspace);", "        log(\"Build\", stepTitle + \" · \" + stepLine + \" \" + JSON.stringify(body), \"OK\", workspace);"]] },
+  { name: "P31: a step post lands on a legacy card (no steps array needed)", edits: [["    if (!j || j.workspace !== workspace || !b || !Array.isArray(b.steps)) return false;", "    if (!j || j.workspace !== workspace || !b) return false;"], ["        if (stepCard && stepCard.custom.buildLog.steps.length >= BUILD_STEP_MAX) {", "        if (stepCard && !Array.isArray(stepCard.custom.buildLog.steps)) stepCard.custom.buildLog.steps = [];\n        if (stepCard && stepCard.custom.buildLog.steps.length >= BUILD_STEP_MAX) {"]] },
+  { name: "P31: a legacy repost erases the step rows on a shared card", edits: [["    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr) && b.head === head;", "    return j && j.workspace === workspace && b && Number(b.pr) === Number(pr) && (b.head === head || Array.isArray(b.steps));"]] },
+  { name: "P10: the deploy id allows . _ and - (dpl_../x style)", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^dpl_[A-Za-z0-9._-]{6,40}$/.test(body.deploy)"]] },
+  { name: "P10: the deploy id allows a slash", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^dpl_[A-Za-z0-9/]{6,40}$/.test(body.deploy)"]] },
+  { name: "P10: the deploy id allows a space", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^dpl_[A-Za-z0-9 ]{6,40}$/.test(body.deploy)"]] },
+  { name: "P10: the deploy id may end with a newline", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^dpl_[A-Za-z0-9]{6,40}\\n?$/.test(body.deploy)"]] },
+  { name: "P9: the dpl_ prefix is case-insensitive (DPL_ accepted)", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^dpl_[A-Za-z0-9]{6,40}$/i.test(body.deploy)"]] },
+  { name: "P9: the dpl_ prefix accepts a capital D", edits: [["/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)", "/^[dD]pl_[A-Za-z0-9]{6,40}$/.test(body.deploy)"]] },
+  { name: "P6: the work name allows _ and .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9._-]{0,39}$/.test(body.work)"]] },
+  { name: "P6: the work name allows _", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(body.work)"]] },
+  { name: "P6: the work name allows .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9][a-z0-9.-]{0,39}$/.test(body.work)"]] },
+  { name: "P6: the work name may start with _ or .", edits: [["!/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)", "!/^[a-z0-9_.][a-z0-9-]{0,39}$/.test(body.work)"]] }
 ];
 
 function applyEdits(src, edits, name) {
@@ -469,6 +486,159 @@ async function main() {
   const edgeCard = stepCards(lib, slug).find((j) => j.custom.buildLog.work === "edge");
   if (accepted !== 3 || refusedN !== 2 || edgeCard.custom.buildLog.steps.length !== 200) fail("concurrent posts at the cap must take exactly the 3 free slots, got " + accepted + " ok / " + refusedN + " refused / " + edgeCard.custom.buildLog.steps.length + " rows");
   pass("concurrent posts keep every row, make one card, and respect the cap exactly");
+
+  // ---- BL1 child 1 (Probe's six survivors): cross-desk, who posted, legacy sharing, dpl charset, work charset ----
+  // P2: another desk's owner can never touch this desk's card. The same work name on desk B is a separate card on B only.
+  const deskB = "bl-steps-deskb";
+  const deskBOpen = await call(auth, "POST", { "x-workspace": deskB }, { action: "open", slug: deskB, biz: "Desk B", name: "Dee", pin: "7878" }, {}, "/api/auth");
+  if (deskBOpen.statusCode !== 201) fail("could not open desk B, got " + deskBOpen.statusCode);
+  const deskBPw = await call(auth, "POST", { "x-workspace": deskB, "x-session": deskBOpen.body.session.token }, { action: "password", password: "dee-pass-steps-1234", email: "deeb@steps.test" }, {}, "/api/auth");
+  if (deskBPw.statusCode !== 200) fail("could not set a password on desk B, got " + deskBPw.statusCode);
+  const deskBLogin = await call(auth, "POST", {}, { action: "login", email: "deeb@steps.test", password: "dee-pass-steps-1234", workspace: deskB }, {}, "/api/auth");
+  if (deskBLogin.statusCode !== 200) fail("email login on desk B failed, got " + deskBLogin.statusCode);
+  const otherHdr = { "x-workspace": deskB, "x-session": deskBLogin.body.session.token };
+  const aCard = lib.mem.jobs.find((j) => j.id === cardId);
+  const aBefore = JSON.stringify(jobsOn(lib, slug));
+  const aAuditBefore = (lib.mem.audit || []).filter((a) => a && a.workspace === slug).map((a) => JSON.stringify(a));
+  const aSteps = aCard.custom.buildLog.steps.length;
+  const bWork = await post({ step: "ramp", work: "alpha", verdict: "RED" }, otherHdr);
+  if (bWork.statusCode !== 201 || bWork.body.created !== true || bWork.body.job.id === cardId) fail("desk B's owner posting work alpha must make its own card on B, got " + bWork.statusCode + " created=" + (bWork.body && bWork.body.created) + " id " + (bWork.body && bWork.body.job && bWork.body.job.id));
+  const bPr = await post({ step: "ramp", pr: 601, verdict: "RED" }, otherHdr);
+  if (bPr.statusCode !== 201 || bPr.body.created !== true || bPr.body.job.id === p1.body.job.id) fail("desk B's owner posting PR 601 must make its own card on B");
+  if (JSON.stringify(jobsOn(lib, slug)) !== aBefore) fail("a post from desk B changed a card on desk A");
+  // The audit log keeps only the newest 200 rows, so desk B's rows may push desk A's oldest off the end. Desk A must gain none and change none.
+  const aAuditAfter = (lib.mem.audit || []).filter((a) => a && a.workspace === slug).map((a) => JSON.stringify(a));
+  if (aAuditAfter.length > aAuditBefore.length || aAuditAfter.some((row, ri) => row !== aAuditBefore[ri])) fail("a post from desk B added to or changed desk A's audit rows");
+  if (!(lib.mem.audit || []).some((a) => a && a.workspace === deskB && a.agent === "Build")) fail("desk B's own post must be audited on desk B");
+  if (aCard.custom.buildLog.steps.length !== aSteps || aCard.custom.buildLog.steps.some((r) => r.verdict === "RED")) fail("desk A's card must keep its rows and gain no RED row from desk B");
+  const bCards = stepCards(lib, deskB);
+  if (bCards.length !== 2 || bCards.some((j) => j.workspace !== deskB || j.custom.buildLog.desk !== deskB || j.custom.buildLog.steps.length !== 1)) fail("desk B must hold exactly its own two one-row cards, got " + bCards.length);
+  const bAgain = await post({ step: "decision", work: "alpha", verdict: "HOLD" }, otherHdr);
+  if (bAgain.statusCode !== 200 || bAgain.body.job.id !== bWork.body.job.id || bAgain.body.job.custom.buildLog.steps.length !== 2) fail("desk B's own second post must append to desk B's card");
+  if (JSON.stringify(jobsOn(lib, slug)) !== aBefore) fail("desk B's second post changed desk A");
+  if (stepCards(lib, slug).filter((j) => j.workspace !== slug).length) fail("a card on desk A carries another desk");
+  pass("cross-desk: desk B's owner posting the same work or PR makes its own card on B; desk A's cards stay byte-identical and its audit gains no row");
+
+  // P18: no seat or person name in any field of a thread entry (stored, replied, or in History).
+  const nameDesk = await post({ step: "named", work: "who-posted" });
+  if (nameDesk.statusCode !== 201) fail("who-posted card should be created");
+  await post({ step: "probe", work: "who-posted", head: HEAD_A, verdict: "PASS", done: true });
+  const nameCard = lib.mem.jobs.find((j) => j.id === nameDesk.body.job.id);
+  const nameHist = await call(desks, "POST", ownerHdr, { action: "history", desks: [{ slug: slug, pin: "" }] }, {}, "/api/desks");
+  const nameHc = (nameHist.body.items || []).find((it) => it && it.id === nameCard.id);
+  if (!nameHc) fail("History must show the who-posted card");
+  const seats = [];
+  (shop.people || []).forEach(function (p) { if (p && p.name) seats.push(String(p.name)); });
+  ["James", "Sam", "Dee", "Lee"].forEach(function (n) { if (seats.indexOf(n) < 0) seats.push(n); });
+  const threads = { stored: nameCard.thread, replied: nameDesk.body.job.thread, history: nameHc.thread };
+  Object.keys(threads).forEach(function (where) {
+    const th = threads[where];
+    if (!Array.isArray(th) || th.length !== 2) fail("the " + where + " thread must have exactly 2 entries, got " + JSON.stringify(th && th.length));
+    th.forEach(function (entry, ei) {
+      const wantText = ei === 0 ? "Named" : "Probe: PASS on 00afea2b. Done.";
+      if (entry.from !== "helper" || entry.actorLabel !== "helper" || entry.actorKind !== "helper" || entry.kind !== "note") fail("the " + where + " thread entry " + ei + " must be stamped helper, got " + JSON.stringify(entry));
+      if (entry.text !== wantText || entry.input !== wantText || (entry.output || "") !== "") fail("the " + where + " thread entry " + ei + " must carry only the allowlisted line, got " + JSON.stringify(entry));
+      const everything = JSON.stringify(entry).toLowerCase();
+      seats.forEach(function (n) { if (everything.indexOf(n.toLowerCase()) >= 0) fail("the " + where + " thread entry " + ei + " carries the name " + n + ": " + JSON.stringify(entry)); });
+    });
+  });
+  const nameDump = JSON.stringify([nameHc.title, nameHc.how, nameHc.result, nameCard.why, nameCard.result]).toLowerCase();
+  seats.forEach(function (n) { if (nameDump.indexOf(n.toLowerCase()) >= 0) fail("the History line, title, why or result carries the name " + n); });
+  pass("no seat or person name appears in any field of a thread entry (stored, replied, or in History)");
+
+  // P19: the audit row is the title and the allowlisted line only, never the body.
+  const audit0 = lib.mem.audit[0];
+  if (!audit0 || audit0.agent !== "Build" || audit0.result !== "OK" || audit0.workspace !== slug || audit0.action !== "Build log: who-posted · Probe: PASS on 00afea2b. Done.") fail("the step audit row must be exactly the title and the line, got " + JSON.stringify(audit0));
+  pass("the step audit row carries only the title and the allowlisted line");
+
+  // P31: a step card and a legacy card never share a card. A legacy repost never touches step rows, and a step post never lands on a legacy card.
+  const legacyKey = { pr: 557, head: HEAD_A, status: "draft", name: "Pack" };
+  const sharedBefore = jobsOn(lib, slug).length;
+  const l1 = await post(legacyKey);
+  if (l1.statusCode !== 201 || !l1.body.job.custom.buildLog || Array.isArray(l1.body.job.custom.buildLog.steps)) fail("a legacy post must make a legacy card without a steps array");
+  const legacyId = l1.body.job.id;
+  const legacyBytes = JSON.stringify(lib.mem.jobs.find((j) => j.id === legacyId));
+  const s1 = await post({ step: "probe", pr: 557, head: HEAD_A, verdict: "PASS" });
+  if (s1.statusCode !== 201 || s1.body.created !== true || s1.body.job.id === legacyId) fail("a step post on a PR that has a legacy card must make its own step card, got " + s1.statusCode + " same card " + (s1.body.job && s1.body.job.id === legacyId));
+  if (JSON.stringify(lib.mem.jobs.find((j) => j.id === legacyId)) !== legacyBytes) fail("a step post changed the legacy card");
+  const stepId = s1.body.job.id;
+  const stepBytes = JSON.stringify(lib.mem.jobs.find((j) => j.id === stepId));
+  const l2 = await post({ pr: 557, head: HEAD_A, status: "landed", name: "Pack" });
+  if (l2.statusCode !== 200 || l2.body.job.id !== legacyId) fail("a legacy repost must update the legacy card only, got " + l2.statusCode);
+  const stepAfter = lib.mem.jobs.find((j) => j.id === stepId);
+  if (JSON.stringify(stepAfter) !== stepBytes || stepAfter.custom.buildLog.steps.length !== 1 || stepAfter.custom.buildLog.steps[0].verdict !== "PASS") fail("a legacy repost changed or erased the step rows");
+  const s2 = await post({ step: "ramp", pr: 557, verdict: "GREEN" });
+  if (s2.statusCode !== 200 || s2.body.job.id !== stepId || s2.body.job.custom.buildLog.steps.length !== 2) fail("a second step post must append to the step card, not the legacy one");
+  const l3 = await post({ pr: 557, head: HEAD_A, status: "landed", name: "Pack" });
+  if (l3.statusCode !== 200 || l3.body.job.id !== legacyId) fail("a second legacy repost must still hit the legacy card");
+  const stepFinal = lib.mem.jobs.find((j) => j.id === stepId);
+  if (stepFinal.custom.buildLog.steps.length !== 2 || stepFinal.custom.buildLog.steps[0].verdict !== "PASS" || stepFinal.custom.buildLog.steps[1].verdict !== "GREEN") fail("the step rows must survive every legacy repost");
+  if (Array.isArray(lib.mem.jobs.find((j) => j.id === legacyId).custom.buildLog.steps)) fail("the legacy card must never gain a steps array");
+  if (jobsOn(lib, slug).length !== sharedBefore + 2) fail("PR 557 must be exactly two cards, one legacy and one step card");
+  // And the other way round: the step card exists first, then a legacy post makes its own card.
+  const s3 = await post({ step: "named", pr: 558 });
+  const l4 = await post({ pr: 558, head: HEAD_B, status: "draft", name: "Other" });
+  if (s3.statusCode !== 201 || l4.statusCode !== 201 || l4.body.job.id === s3.body.job.id || lib.mem.jobs.find((j) => j.id === s3.body.job.id).custom.buildLog.steps.length !== 1) fail("a legacy post on a PR that has a step card must make its own card and leave the step rows alone");
+  pass("a step card and a legacy card never share: a legacy repost never touches step rows, and a step post never lands on a legacy card");
+
+  // P10 and P9: the deploy id is dpl_ (lowercase, exact) plus 6 to 40 letters or digits, nothing else.
+  const deployBad = [
+    ["deploy dpl_../x", "dpl_../x"],
+    ["deploy with a path", "dpl_../../etc"],
+    ["deploy with a slash in the middle", "dpl_abc/defgh"],
+    ["deploy with a leading slash", "dpl_/abcdefgh"],
+    ["deploy with a trailing slash", "dpl_abcdefgh/"],
+    ["deploy with a backslash", "dpl_abc\\defgh"],
+    ["deploy with a dot", "dpl_abc.defgh"],
+    ["deploy with two dots", "dpl_abcdefgh.."],
+    ["deploy with an underscore", "dpl_abc_defgh"],
+    ["deploy with a dash", "dpl_abc-defgh"],
+    ["deploy with a colon", "dpl_abc:defgh"],
+    ["deploy with a percent", "dpl_abc%2Fdefgh"],
+    ["deploy with a plus", "dpl_abc+defgh"],
+    ["deploy with a unicode letter", "dpl_abcdéfgh"],
+    ["deploy with a fullwidth letter", "dpl_abcdefgｈ"],
+    ["deploy with a NUL", "dpl_abc\u0000defgh"],
+    ["deploy with a trailing space", "dpl_abcdefgh "],
+    ["deploy with a leading space", " dpl_abcdefgh"],
+    ["deploy with a tab", "dpl_abc\tdefgh"],
+    ["deploy with a trailing newline", "dpl_abcdefgh\n"],
+    ["deploy with a double dpl_ prefix", "dpl_dpl_abcdefgh"],
+    ["deploy in uppercase prefix", "DPL_abcdefgh"],
+    ["deploy in mixed case prefix Dpl_", "Dpl_abcdefgh"],
+    ["deploy in mixed case prefix dPl_", "dPl_abcdefgh"],
+    ["deploy in mixed case prefix dpL_", "dpL_abcdefgh"],
+    ["deploy in mixed case prefix DpL_", "DpL_abcdefgh"],
+    ["deploy uppercase prefix with a long id", "DPL_" + "A".repeat(40)],
+    ["deploy with a uppercase prefix and path", "DPL_../x"],
+    ["deploy with no underscore", "dplabcdefghi"],
+    ["deploy with a dash for the underscore", "dpl-abcdefgh"]
+  ];
+  for (const b of deployBad) {
+    const r = await mustRefuse(b[0], { step: "deployed", work: "alpha", deploy: b[1] }, null, [400]);
+    if (r.body.error !== "Deploy must be a dpl_ id.") fail(b[0] + " wording drifted: " + r.body.error);
+    await mustRefuse(b[0] + " (new card)", { step: "deployed", work: "dpl-fresh", deploy: b[1] }, null, [400]);
+  }
+  if (jobsOn(lib, slug).some((j) => j.custom && j.custom.buildLog && j.custom.buildLog.work === "dpl-fresh")) fail("a refused deploy id made a card");
+  const deployOk = ["dpl_" + "aB3".repeat(2), "dpl_" + "Z9".repeat(20), "dpl_Hp8gavfM", "dpl_000000", "dpl_" + "a".repeat(40)];
+  for (const d of deployOk) {
+    const r = await post({ step: "deployed", work: "dpl-ok", deploy: d });
+    if ((r.statusCode !== 200 && r.statusCode !== 201) || r.body.step.deploy !== d || r.body.job.why !== "Deployed. Deploy " + d) fail("deploy " + d + " (6 to 40 letters or digits) must be accepted exactly as sent, got " + r.statusCode + " " + JSON.stringify(r.body.error || r.body.job.why));
+  }
+  pass(deployBad.length + " deploy ids with a path, dot, dash, underscore, space, unicode, or an uppercase or mixed-case dpl_ prefix are refused with no write; 6 to 40 letters or digits after lowercase dpl_ are accepted");
+
+  // P6: the work name is a lowercase letter or digit, then up to 39 lowercase letters, digits, or dashes. Never _ or .
+  const workBad = ["my_work", "my.work", "a_b", "a.b", "_alpha", ".alpha", "alpha_", "alpha.", "a..b", "a._b", "work.v2", "work_v2", "alpha-beta_", "alpha.beta-gamma", "a_".repeat(10), "..", "_", ".", "a\u0000b", "a b", "alphä", "alpha/", "alpha\\beta"];
+  for (const w of workBad) {
+    const r = await mustRefuse("work " + JSON.stringify(w), { step: "named", work: w }, null, [400]);
+    if (r.body.error !== "Work name must be 1 to 40 lowercase letters, numbers, or dashes.") fail("work " + JSON.stringify(w) + " wording drifted: " + r.body.error);
+  }
+  const workOk = ["a", "0", "9z", "a-b", "alpha-2", "a--b", "a-", "x".repeat(40), "a1-".repeat(13) + "b"];
+  for (const w of workOk) {
+    const r = await post({ step: "named", work: w });
+    if ((r.statusCode !== 200 && r.statusCode !== 201) || r.body.job.title !== "Build log: " + w || r.body.job.custom.buildLog.work !== w) fail("work " + w + " must be accepted as sent, got " + r.statusCode + " " + JSON.stringify(r.body.error || ""));
+  }
+  pass(workBad.length + " work names with an underscore, dot, slash, space, or unicode are refused with no write; lowercase letters, digits, and dashes up to 40 are accepted as sent");
 
   // ---- Legacy posts answer as they did on main ----
   const legacyDesk = "bl-steps-legacy";
