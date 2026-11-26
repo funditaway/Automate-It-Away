@@ -574,7 +574,7 @@
     var out = !signedIn();
     markSignedOut(out);
     if (out) {
-      emptyState(box, "Sign in to see your Queue. It keeps every desk and card in one place.", "/login", "Sign in");
+      emptyState(box, "Sign in to see your Queue. Your desks and cards stay together in one place.", "/login", "Sign in");
       armAfterGoodPaint();
       return;
     }
