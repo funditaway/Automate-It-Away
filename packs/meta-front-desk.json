@@ -1,0 +1,57 @@
+{
+  "id": "meta-front-desk",
+  "name": "Meta Front Desk",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-front-desk.aia",
+  "file": "meta-front-desk.aia",
+  "price": 0,
+  "blurb": "Reception queue — inbound, follow-ups, nudges. One nudge then stop.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who walked in / called" },
+    "what": { "key": "need", "label": "What they need" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "Which desk" },
+    "how": "Draft the front-desk next step. One nudge max. You still tap."
+  },
+  "capture": ["call", "form", "drop", "hook"],
+  "qualify": ["who", "when", "which desk"],
+  "do": ["reception draft"],
+  "collect": ["none on front desk"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["duplicate", "spam", "wrong desk"],
+  "pipes": ["webhook"],
+  "artifacts": ["front-desk card", "nudge draft"],
+  "kinds": ["front-desk", "lead", "support"],
+  "rails": [
+    "Reception drafts only. Humans Yes / Stop / Kill.",
+    "One nudge, then stop.",
+    "Collect stays HOLD."
+  ],
+  "rules": [
+    { "text": "Draft on inbound front-desk work.", "when": "inbound", "then": "draft", "contains": "front" },
+    { "text": "One nudge then note stop.", "when": "follow", "then": "note", "contains": "nudge" },
+    { "text": "Cap spam.", "when": "qualify", "then": "cap", "contains": "spam" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Front Desk",
+      "role": "Catcher",
+      "does": "Drafts inbound reception cards and one nudge. Never sends.",
+      "prompt": "Front-desk draft ready. I cannot send. You stay in control.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "Front Desk",
+    "family": "Meta.aia",
+    "empty": "Inbound, follow-ups, nudges. Draft only. One nudge then stop.",
+    "chips": ["front-desk", "lead", "support"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Name who arrived and what they need. Meta drafts. You tap."
+}

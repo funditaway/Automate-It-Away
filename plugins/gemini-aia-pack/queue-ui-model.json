@@ -1,0 +1,68 @@
+{
+  "queue_view": {
+    "status_badges": {
+      "queued": {
+        "label": "Queued",
+        "tone": "neutral"
+      },
+      "processing": {
+        "label": "Running",
+        "tone": "info"
+      },
+      "needs_review": {
+        "label": "Needs Review",
+        "tone": "warning"
+      },
+      "ready": {
+        "label": "Draft Ready",
+        "tone": "success"
+      },
+      "completed": {
+        "label": "Done",
+        "tone": "muted"
+      },
+      "failed": {
+        "label": "Failed",
+        "tone": "danger"
+      }
+    },
+    "card_actions": [
+      {
+        "action_id": "run_triage",
+        "label": "Triage",
+        "target_card": "gemini-triage-card",
+        "requires_approval": false
+      },
+      {
+        "action_id": "draft_reply",
+        "label": "Draft Reply",
+        "target_card": "gemini-draft-card",
+        "requires_approval": true
+      },
+      {
+        "action_id": "build_workflow",
+        "label": "Build Spec",
+        "target_card": "gemini-deep-card",
+        "requires_approval": true
+      }
+    ],
+    "display_rules": {
+      "show_confidence_below": 0.85,
+      "highlight_when_status": [
+        "needs_review",
+        "failed"
+      ],
+      "max_summary_lines": 3,
+      "human_rail": [
+        "Yes",
+        "Stop",
+        "Kill"
+      ],
+      "never": [
+        "send",
+        "pay",
+        "auto-execute"
+      ]
+    }
+  }
+}

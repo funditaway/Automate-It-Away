@@ -1,0 +1,58 @@
+{
+  "id": "meta-shop",
+  "name": "Meta Shop",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "aia": "meta-shop.aia",
+  "file": "meta-shop.aia",
+  "price": 0,
+  "blurb": "Missed call + photo card. Customer ops with auto-drafts. You still tap.",
+  "face": {
+    "who": { "key": "contactName", "label": "Customer" },
+    "what": { "key": "need", "label": "What they need" },
+    "when": { "key": "timing", "label": "When they called" },
+    "where": { "key": "where", "label": "Channel / photo" },
+    "how": "Draft the reply. Copy / Text / Email / Hand after Yes. Nothing sends itself."
+  },
+  "capture": ["call", "photo", "form", "hook"],
+  "qualify": ["stock", "fit", "when to reply"],
+  "do": ["reply draft"],
+  "collect": ["order pay stays HOLD"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap"],
+  "kill": ["spam", "wrong number", "already helped"],
+  "pipes": ["webhook"],
+  "artifacts": ["shop card", "reply draft"],
+  "kinds": ["shop", "lead"],
+  "rails": [
+    "Missed-call cards draft only. You copy / text / email.",
+    "Collect stays HOLD until Yes + a real money pipe.",
+    "One nudge, then stop."
+  ],
+  "rules": [
+    { "text": "Queue missed-call cards.", "when": "inbound", "then": "queue", "contains": "missed call" },
+    { "text": "Draft on photo + call.", "when": "drop", "then": "draft", "contains": "photo" },
+    { "text": "Wait on order pay.", "when": "collect", "then": "wait", "contains": "pay" },
+    { "text": "Cap spam.", "when": "qualify", "then": "cap", "contains": "spam" }
+  ],
+  "ais": [
+    {
+      "name": "Meta - Shop Words",
+      "role": "Writer",
+      "does": "Drafts missed-call and photo replies. Never sends.",
+      "prompt": "Shop draft ready. I cannot send or charge. You stay in control.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    }
+  ],
+  "queue": {
+    "badge": "Shop",
+    "family": "Meta.aia",
+    "empty": "Drop a missed call or photo. Meta drafts the reply. You tap.",
+    "chips": ["shop", "lead"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Missed call, photo, or stock question. Meta drafts. You tap."
+}

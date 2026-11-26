@@ -34,7 +34,7 @@
       return !!(localStorage.getItem("aia_ws") && (localStorage.getItem("aia_session") || localStorage.getItem("aia_pin")));
     }
     function packSelect() {
-      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="fund">Fund</option><option value="land">Land</option><option value="aia-adoption">AIA · Try it on this desk</option><option value="aia-implement">AIA · Four steps on this desk</option></select>`;
+      return `<label class="adv">Pack</label><select class="adv" name="pack"><option value="">This desk / let the engine pick</option><option value="home">Home</option><option value="consign">Consign</option><option value="vita">Insurance</option><option value="qia">Quote ops</option><option value="meta">Meta.aia</option><option value="meta-gemini">Meta.aia + Gemini</option><option value="fund">Fund</option><option value="land">Land</option><option value="aia-adoption">AIA · Try it on this desk</option><option value="aia-implement">AIA · Four steps on this desk</option></select>`;
     }
     function kindSelect() {
       return `<label class="adv">What is it?</label><select class="adv" name="dropKind"><option value="task">A task</option><option value="chore">An errand</option><option value="list">A list</option><option value="idea">An idea</option><option value="project">A project</option><option value="build">A build</option><option value="request">A request</option><option value="note">A note</option><option value="call">Missed call</option><option value="message">A message to send</option><option value="pickup">Pickup / drop-off</option><option value="ride">A ride</option><option value="reminder">A reminder</option><option value="book">Book a time</option><option value="form">Form / paper</option><option value="photo">A photo</option><option value="quote">Need a quote</option><option value="follow">Follow up</option><option value="walk-in">Walk-in job</option></select>`;
@@ -50,7 +50,8 @@
         if (packChip === "market" && !p.priced) return false;
         if (["home","consign","insurance","fund","land","aia"].indexOf(packChip) >= 0) {
           const blob = [p.id, p.name, p.family, p.aisle].join(" ").toLowerCase();
-          if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0;
+          if (packChip === "insurance") return blob.indexOf("insurance") >= 0 || blob.indexOf("vita") >= 0 || blob.indexOf("quote") >= 0 || blob.indexOf("qia") >= 0 || p.id === "qia";
+          if (packChip === "meta") return blob.indexOf("meta") >= 0 || p.id === "meta";
           if (packChip === "aia") return blob.indexOf("aia") >= 0 || p.id === "aia-adoption" || p.id === "aia-implement";
           return blob.indexOf(packChip) >= 0;
         }

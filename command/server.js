@@ -166,6 +166,31 @@ export function createCommandCenter(opts = {}) {
     })
   })
 
+  // Liveness — process is up (watchdog.js /healthz).
+  app.get('/healthz', (_req, res) => {
+    res.json({ ok: true, service: 'aia-command', check: 'liveness' })
+  })
+
+  // Readiness — signing identity + ledger tip readable; never mutates state.
+  app.get('/readyz', (_req, res) => {
+    try {
+      if (!keypair?.publicKeyHex) {
+        return res.status(503).json({ ok: false, check: 'readiness', error: 'missing signing key' })
+      }
+      const tip = ledger.tipHash()
+      res.json({
+        ok: true,
+        service: 'aia-command',
+        check: 'readiness',
+        publicKey: shortPublicKey(keypair.publicKeyHex),
+        ledgerTip: tip,
+        queuePending: queue.list('pending').length,
+      })
+    } catch (err) {
+      res.status(503).json({ ok: false, check: 'readiness', error: err.message || String(err) })
+    }
+  })
+
   app.get('/card_ui.json', (_req, res) => {
     res.json(DEFAULT_CARD_UI)
   })

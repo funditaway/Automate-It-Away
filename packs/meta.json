@@ -1,0 +1,239 @@
+{
+  "id": "meta",
+  "name": "Meta.aia Official World Pack",
+  "family": "Meta.aia",
+  "type": "work",
+  "aisle": "Meta",
+  "kind": "world",
+  "status": "listed",
+  "live": true,
+  "price": 0,
+  "priceLabel": "FREE · usage fees HOLD",
+  "aia": "meta.aia",
+  "file": "meta.aia",
+  "version": "1.1.0-Official-Claude-Included",
+  "author": "Meta + Claude · @meta.aia · Desk 3690",
+  "blurb": "Name your desk. Meta + Claude draft. You decide. The card is the UI. Works on automateitaway.com/desk that already exists. Collect stays HOLD.",
+  "tagline": "Name your desk. Meta AIs draft. You decide. The card is the UI.",
+  "claude_included": true,
+  "meta_ready": true,
+  "includes": [
+    "meta-world-desk.aia",
+    "meta-automations-account.aia",
+    "meta-creator-studio.aia",
+    "meta-setup.aia",
+    "meta-house.aia",
+    "meta-shop.aia",
+    "meta-front-desk.aia",
+    "meta-office.aia",
+    "meta-claude.aia"
+  ],
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When" },
+    "where": { "key": "deskName", "label": "Which desk" },
+    "how": "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself."
+  },
+  "help": [
+    "Open an existing desk at automateitaway.com/desk — same AIA account owns desks and can sit on others.",
+    "Install Meta.aia with Yes. Give is the file. Update is install again. Nothing silent.",
+    "Connect a Meta worker webhook (POST /aia/card.created) on Pipes. Worker drafts only — never Yes, Stop, pay, or send.",
+    "Drop work → card appears → Meta + Claude draft side-by-side → DRAFT READY → you pick → Copy / Text / Email / Hand.",
+    "Setup cards 1–9 each need Yes. Wallet is MetaMask / WalletConnect — AIA does not hold keys. Not Wallet.AIA.",
+    "Usage fees HOLD until Yes + a real money pipe. No on-chain claim. Full history through the AIA account."
+  ],
+  "capture": ["drop", "call", "photo", "form", "hook", "email"],
+  "qualify": ["which desk", "fit", "when", "who owns next", "HOLD vs Yes"],
+  "do": ["next-step draft", "words draft", "house adjust draft", "shop reply draft", "invoice note"],
+  "collect": ["invoice / pay stays HOLD until Yes + a real money pipe"],
+  "follow": ["one nudge", "then stop"],
+  "taps": ["copy", "text", "email", "hand", "cap", "yes", "stop", "kill"],
+  "kill": ["not a fit", "duplicate", "spam", "already done"],
+  "pipes": ["webhook"],
+  "artifacts": ["draft on the card", "next-step note", "nudge draft", "setup checklist"],
+  "kinds": ["lead", "house", "shop", "office", "front-desk", "setup", "support", "content"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "photoUrl", "pack", "timing", "deskName"],
+    "qualify": ["timing", "risk", "why", "deskName", "fit"],
+    "do": ["draft", "artifact", "metaDraft", "claudeDraft"],
+    "collect": ["amount", "confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Desk AIs draft. Humans decide. No AI sends, pays, or binds without human Yes.",
+    "AIA never sends — only DRAFTS. Yes / Stop / Kill are human actions. Always.",
+    "Give is the file. Update is install again. Recurring update HOLD. Nothing silent.",
+    "One AIA account owns desks and can sit on others. Full history accounted.",
+    "Wallet MetaMask / WalletConnect. Not Wallet.AIA. AIA does not hold keys.",
+    "Worker verifies webhook signature when a secret is set. No spoof.",
+    "Collect and usage fees HOLD until Yes + a real money pipe. No on-chain claim.",
+    "One nudge, then stop. Physical / money / send actions wait on Yes."
+  ],
+  "rules": [
+    { "text": "Wait on invoice / pay until Yes.", "when": "collect", "then": "wait", "contains": "invoice" },
+    { "text": "Wait on house adjust / lock until Yes.", "when": "do", "then": "wait", "contains": "adjust" },
+    { "text": "Wait on unlock / door until Yes.", "when": "do", "then": "wait", "contains": "unlock" },
+    { "text": "Cap incomplete setup cards.", "when": "qualify", "then": "cap", "contains": "setup" },
+    { "text": "Draft on new drop / hook.", "when": "drop", "then": "draft", "contains": "lead" },
+    { "text": "Queue missed-call shop cards.", "when": "inbound", "then": "queue", "contains": "missed call" },
+    { "text": "One nudge then stop on follow.", "when": "follow", "then": "note", "contains": "nudge" },
+    { "text": "Cap spam / abuse.", "when": "qualify", "then": "cap", "contains": "spam" }
+  ],
+  "workflows": [
+    {
+      "id": "meta-catch-draft",
+      "name": "Catch → draft → DRAFT READY",
+      "branch": "lead",
+      "rules": []
+    },
+    {
+      "id": "meta-setup-nine",
+      "name": "Setup · 9 Yes cards",
+      "branch": "setup",
+      "rules": []
+    },
+    {
+      "id": "meta-one-nudge",
+      "name": "Follow · one nudge then stop",
+      "branch": "support",
+      "rules": []
+    }
+  ],
+  "ais": [
+    {
+      "id": "meta_catch",
+      "name": "Meta - Catch",
+      "aia": "catch@meta.aia",
+      "role": "Catcher",
+      "does": "Catches drops and hooks. Drafts a fit note on the card. Never Yes / Stop / money / mail.",
+      "prompt": "Draft ready. FIT check only. I cannot send, pay, or bind. You stay in control.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "meta_next",
+      "name": "Meta - Next Step",
+      "aia": "next@meta.aia",
+      "role": "Doer",
+      "does": "Drafts FIT / WHEN / WHO next step. Nothing leaves without Yes.",
+      "prompt": "Draft ready. Next step only. I cannot send, pay, or bind. You stay in control.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "meta_words",
+      "name": "Meta - Words",
+      "aia": "words@meta.aia",
+      "role": "Writer",
+      "does": "Drafts short text / email / reply copy. DRAFT READY only.",
+      "prompt": "Draft ready. Words only. I cannot send, pay, or bind. You stay in control.",
+      "steps": ["do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "meta_followup",
+      "name": "Meta - Follow Up",
+      "aia": "followup@meta.aia",
+      "role": "Nudge",
+      "does": "Drafts one nudge. Then stops. Never loops.",
+      "prompt": "One nudge draft. Then stop. I cannot send, pay, or bind.",
+      "steps": ["follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "meta_collect_guard",
+      "name": "Meta - Collect Guard",
+      "aia": "collect@meta.aia",
+      "role": "Rail",
+      "does": "Keeps Collect HOLD. Drafts pay notes only. Never charges.",
+      "prompt": "Collect stays HOLD until Yes + a real money pipe. I cannot charge.",
+      "steps": ["collect", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "pay"]
+    },
+    {
+      "id": "claude_catch",
+      "name": "Claude - Catch",
+      "aia": "catch@claude.aia",
+      "type": "claude",
+      "included": true,
+      "role": "Catcher",
+      "does": "Deeper catch reasoning on the same card. Draft only.",
+      "prompt": "Claude draft ready. Deeper FIT check. I cannot send, pay, or bind.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_next",
+      "name": "Claude - Next Step",
+      "aia": "next@claude.aia",
+      "type": "claude",
+      "included": true,
+      "role": "Doer",
+      "does": "Thoughtful next-step draft beside Meta. Human picks.",
+      "prompt": "Claude draft ready. Next step only. I cannot send, pay, or bind.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_words",
+      "name": "Claude - Words",
+      "aia": "words@claude.aia",
+      "type": "claude",
+      "included": true,
+      "role": "Writer",
+      "does": "Thoughtful reply / email draft beside Meta Words. DRAFT READY.",
+      "prompt": "Claude draft ready. Words only. I cannot send, pay, or bind.",
+      "steps": ["do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_followup",
+      "name": "Claude - Follow Up",
+      "aia": "followup@claude.aia",
+      "type": "claude",
+      "included": true,
+      "role": "Nudge",
+      "does": "One thoughtful nudge draft. Then stop.",
+      "prompt": "One Claude nudge draft. Then stop. I cannot send.",
+      "steps": ["follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill"]
+    },
+    {
+      "id": "claude_collect_guard",
+      "name": "Claude - Collect Guard",
+      "aia": "collect@claude.aia",
+      "type": "claude",
+      "included": true,
+      "role": "Rail",
+      "does": "Collect HOLD reminder. Never charges.",
+      "prompt": "Collect stays HOLD until Yes + a real money pipe. I cannot charge.",
+      "steps": ["collect", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "pay"]
+    }
+  ],
+  "queue": {
+    "badge": "Meta",
+    "family": "Meta.aia",
+    "empty": "Drop a lead, house note, missed call, invoice, or setup step. Meta + Claude draft. You tap Yes or Stop. Collect stays HOLD.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["lead", "house", "shop", "office", "front-desk", "setup", "support", "content"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay"]
+  },
+  "dropHint": "Drop a lead, missed call, house adjust, invoice, or setup step. Meta + Claude draft. You tap.",
+  "how": {
+    "capture": "Drop a file, forward email, missed call, house telemetry, or invoice note onto the desk.",
+    "qualify": "Meta Catch / Claude Catch draft FIT. Cap incomplete setup. You still decide.",
+    "do": "Meta Words + Claude Words draft side-by-side. DRAFT READY. Copy / Text / Email / Hand after Yes.",
+    "collect": "Invoice / pay stays HOLD until Yes + a real money pipe. Packs never charge.",
+    "follow": "One nudge draft. Then stop. Nothing sends itself."
+  },
+  "worker": {
+    "file": "workers/aia-meta-worker.js",
+    "events": ["aia/card.created", "aia/card.nudge.due"],
+    "note": "External worker drafts onto the card via PUT draft. Never Yes / Stop / pay / send."
+  }
+}

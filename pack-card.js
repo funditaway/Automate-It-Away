@@ -55,6 +55,30 @@
       next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
       rails: ["Four steps on this desk.", "Webhook only. eBay and mail stay off.", "Collect stays HOLD. No silent send. No fake on-chain."],
       keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
+    },
+    qia: {
+      id: "qia", name: "Quote ops",
+      who: "Who it is for", what: "What the work is", when: "When / SLA", where: "Territory / line",
+      how: "Draft the next ops step. Match and vetting wait on Yes. Bind stays off.",
+      next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
+      rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"], how: ["product", "need"] }
+    },
+    meta: {
+      id: "meta", name: "Meta.aia Official World Pack",
+      who: "Who it is for", what: "What the work is", when: "When", where: "Which desk",
+      how: "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD.",
+      next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes.",
+      rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
+    },
+    "meta-gemini": {
+      id: "meta-gemini", name: "Meta.aia + Gemini",
+      who: "Who it is for", what: "What the work is", when: "When", where: "Which desk",
+      how: "Meta and Gemini draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD.",
+      next: "Meta + Gemini DRAFT READY. You pick. Copy / Text / Email / Hand after Yes.",
+      rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+      keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"], how: ["need"] }
     }
   };
   function first(j, keys) {
@@ -74,6 +98,9 @@
     var raw = j.pack || custom.pack || (custom.packs && custom.packs[0]) || "";
     var s = String(raw || "").toLowerCase();
     if (s === "insurance" || s === "quote" || s === "year2" || s === "missed-call") s = "vita";
+    if (s === "quote-ops" || s === "quoteops") s = "qia";
+    if (s === "meta.aia" || s === "meta-ready" || s === "meta-world-desk" || s === "meta-claude" || s === "meta-official" || s === "meta-official-claude-included") s = "meta";
+    if (s === "gemini" || s === "meta-official-gemini-included" || s === "meta-gemini.aia") s = "meta-gemini";
     if (s === "family") s = "home";
     if (s === "resale" || s === "consignment") s = "consign";
     return s;

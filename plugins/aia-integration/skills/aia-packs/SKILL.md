@@ -2,14 +2,14 @@
 name: aia-packs
 description: >-
   Read and design Automate It Away pack JSON. Use when creating or editing packs,
-  explaining pack faces/rails/rules, or loading consign/vita/aia/fund/home/land packs.
+  explaining pack faces/rails/rules, or loading consign/vita/qia/aia/fund/home/land packs.
 ---
 
 # AIA packs
 
 A pack is how a card looks and which waits fire. Packs live at `/packs/{id}.json` in the AIA repo and on https://automateitaway.com/packs/{id}.json.
 
-Fetch with `aia_list_packs` (`id` = `consign`, `vita`, `aia`, `fund`, `home`, `land`, `wanted`, `aia-adoption`, `aia-implement`, …).
+Fetch with `aia_list_packs` (`id` = `consign`, `vita`, `qia`, `aia`, `fund`, `home`, `land`, `wanted`, `aia-adoption`, `aia-implement`, …).
 
 ## Shape
 

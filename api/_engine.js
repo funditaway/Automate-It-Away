@@ -20,7 +20,20 @@ const FACES = {
   fund: { id: "fund", key: "fund", name: "Fund", family: "Fund It Away" },
   land: { id: "land", key: "land", name: "Land", family: "Land It Away" },
   "aia-adoption": { id: "aia-adoption", key: "aia-adoption", name: "Try it on this desk", family: "Automate It Away" },
-  "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" }
+  "aia-implement": { id: "aia-implement", key: "aia-implement", name: "Four steps on this desk", family: "Automate It Away" },
+  qia: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  "quote-ops": { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  quoteops: { id: "qia", key: "qia", name: "Quote ops", family: "Quote It Away" },
+  meta: { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta.aia": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-ready": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-world-desk": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-claude": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-official": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-official-claude-included": { id: "meta", key: "meta", name: "Meta.aia Official World Pack", family: "Meta.aia" },
+  "meta-gemini": { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" },
+  gemini: { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" },
+  "meta-official-gemini-included": { id: "meta-gemini", key: "meta-gemini", name: "Meta.aia + Gemini", family: "Meta.aia" }
 };
 
 function moneyOf(job) {
@@ -106,6 +119,36 @@ const FACE_SPEC = {
     how: "Walk 1→2→3→4. AIA drafts. You tap Yes, Stop, or Kill.",
     next: "Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
     rails: ["Four steps on this desk.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  qia: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When / SLA" },
+    where: { key: "state", label: "Territory / line" },
+    how: "Draft the next ops step. Match and vetting wait on Yes. Bind stays off. Collect stays HOLD.",
+    next: "Draft intake, match, or vetting. Dispatch and approve wait on Yes. Collect stays HOLD.",
+    rails: ["Bind stays off the desk.", "Agent dispatch waits on Yes.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["whoFor", "contactName", "who"], what: ["need", "product", "title", "kind"], when: ["timing", "when"], where: ["state", "territory", "where"] }
+  },
+  meta: {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "Which desk" },
+    how: "Meta and Claude draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself.",
+    next: "Meta + Claude DRAFT READY. You pick. Copy / Text / Email / Hand after Yes. Collect stays HOLD.",
+    rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
+    keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
+  },
+  "meta-gemini": {
+    who: { key: "contactName", label: "Who it is for" },
+    what: { key: "need", label: "What the work is" },
+    when: { key: "timing", label: "When" },
+    where: { key: "deskName", label: "Which desk" },
+    how: "Meta and Gemini draft on the card. You tap Yes, Stop, or Kill. Collect stays HOLD. Nothing sends itself.",
+    next: "Meta + Gemini DRAFT READY. You pick. Copy / Text / Email / Hand after Yes. Collect stays HOLD.",
+    rails: ["Desk AIs draft. Humans decide.", "AIA never sends — only DRAFTS.", "Collect stays HOLD. No silent send."],
     keys: { who: ["contactName", "who"], what: ["need", "title", "kind", "notes"], when: ["timing", "when"], where: ["deskName", "where"] }
   }
 };
@@ -350,6 +393,45 @@ function brainOf(packId, kind, shop) {
       artifact: "draft on the card",
       draft: "Four steps. Find the leaks. Hook the pipes. Name a desk AI. You still tap. Collect stays HOLD.",
       next: "Walk 1→2→3→4. Queue cards count. Yes, Stop, or Kill stay human."
+    };
+  }
+  if (pack === "qia" || face.id === "qia") {
+    const vetting = /\b(vetting|license|agent application)\b/.test(k);
+    const billing = /\b(billing|stripe|renewal|tier)\b/.test(k);
+    return {
+      risk: vetting || billing || k === "match" ? "suitability" : "none",
+      artifact: k === "vetting" ? "vetting checklist" : k === "match" ? "match note" : k === "admin" ? "ops digest" : "quote packet",
+      draft: "Draft the Quote ops next step. Match and vetting wait on Yes. Bind stays off. Collect stays HOLD.",
+      next: vetting
+        ? "Vetting checklist on the Quote ops desk. Approve / deny is an owner tap. Target: 7 business days."
+        : k === "match"
+          ? "Match draft ready. Dispatch waits on Yes. Nothing routes itself."
+          : "Qualify line and territory. Draft only. Owner taps before anything leaves."
+    };
+  }
+  if (pack === "meta" || face.id === "meta") {
+    const house = k === "house" || /\b(thermostat|unlock|lights|adjust)\b/.test(k);
+    const office = k === "office" || /\b(invoice|bill|pay)\b/.test(k);
+    const shop = k === "shop" || /\b(missed|photo|stock)\b/.test(k);
+    return {
+      risk: house || office ? "suitability" : "none",
+      artifact: house ? "house card" : office ? "invoice note" : shop ? "shop reply draft" : "draft on the card",
+      draft: "Meta + Claude draft on the Meta.aia desk. DRAFT READY. You pick. Collect stays HOLD. Nothing sends itself.",
+      next: house
+        ? "House adjust draft ready. Unlock / start waits on Yes. Prefer local MQTT / LAN."
+        : office
+          ? "Invoice note ready. Pay stays HOLD until Yes + a real money pipe."
+          : shop
+            ? "Shop reply draft ready. Copy / Text / Email after Yes. Nothing sends itself."
+            : "Qualify fit and desk. Meta + Claude draft only. Owner taps before anything leaves."
+    };
+  }
+  if (pack === "meta-gemini" || pack === "gemini" || face.id === "meta-gemini") {
+    return {
+      risk: "none",
+      artifact: "dual draft card",
+      draft: "Meta + Gemini draft on the Meta.aia desk. DRAFT READY. You pick. Collect stays HOLD. Nothing sends itself.",
+      next: "Qualify fit and desk. Meta + Gemini draft only. Owner taps before anything leaves."
     };
   }
   const spec = packSpecOf(pack, shop);

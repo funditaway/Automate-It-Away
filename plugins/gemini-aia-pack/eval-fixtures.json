@@ -1,0 +1,62 @@
+{
+  "pack_id": "gemini-aia-pack",
+  "fixtures": [
+    {
+      "id": "fixture-triage-01",
+      "card_id": "gemini-triage-card",
+      "input": {
+        "item_id": "Q-201",
+        "channel": "email",
+        "text": "Urgent: Client says their policy billing address is wrong and their auto-pay failed this morning."
+      },
+      "expect": {
+        "valid_json": true,
+        "required_keys": [
+          "priority",
+          "queue_name",
+          "next_card_id",
+          "confidence"
+        ],
+        "priority": "urgent",
+        "next_card_id": "gemini-draft-card"
+      }
+    },
+    {
+      "id": "fixture-draft-02",
+      "card_id": "gemini-draft-card",
+      "input": {
+        "item_id": "Q-202",
+        "tone": "plain_direct",
+        "context": "Confirming we received their address update request and will send a summary once the billing profile is updated. Do not promise a specific time until verified."
+      },
+      "expect": {
+        "valid_json": false,
+        "contains_any": [
+          "address",
+          "updated",
+          "confirm"
+        ],
+        "avoids_any": [
+          "guaranteed",
+          "100% sure"
+        ]
+      }
+    },
+    {
+      "id": "fixture-deep-03",
+      "card_id": "gemini-deep-card",
+      "input": {
+        "item_id": "Q-203",
+        "goal": "Design a 3-step queue workflow for incoming attachments that classifies document type, checks missing fields, and flags items for human review when confidence is below 0.85."
+      },
+      "expect": {
+        "valid_json": false,
+        "contains_any": [
+          "0.85",
+          "needs_review",
+          "step"
+        ]
+      }
+    }
+  ]
+}

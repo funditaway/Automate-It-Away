@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini AIA Desk — Queue & Card Workspace</title>
+  <link rel="stylesheet" href="./gemini-aia-desk.css" />
+</head>
+<body>
+  <div class="aia-shell">
+    <header class="aia-topbar">
+      <div class="aia-brand">
+        <span class="aia-logo" aria-hidden="true">G</span>
+        <div>
+          <h1>Gemini AIA Desk</h1>
+          <p class="aia-subtitle">Registry-driven card queue &amp; audit console · drafts only · Yes / Stop stay human · v1.0.0</p>
+        </div>
+      </div>
+
+      <div class="aia-top-actions">
+        <label class="mode-pill" title="When live, POSTs to the local serve-queue on 127.0.0.1">
+          <input type="checkbox" id="live-api-toggle" />
+          Live API
+        </label>
+        <button id="btn-seed" class="btn btn-secondary" title="Add sample intake cards" type="button">+ Seed Intake</button>
+        <button id="btn-escalate" class="btn btn-warning" title="Run SLA aging check" type="button">Check SLA</button>
+        <button id="btn-process-all" class="btn btn-primary" type="button">Run Pending Cards</button>
+      </div>
+    </header>
+
+    <section class="aia-metrics-bar" aria-label="Queue Metrics">
+      <div class="metric-card">
+        <span class="metric-label">Total Cards</span>
+        <strong id="metric-total" class="metric-value">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Pending / Queued</span>
+        <strong id="metric-pending" class="metric-value text-blue">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Needs Approval</span>
+        <strong id="metric-approval" class="metric-value text-amber">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Escalated (SLA)</span>
+        <strong id="metric-escalated" class="metric-value text-red">0</strong>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Completed</span>
+        <strong id="metric-completed" class="metric-value text-green">0</strong>
+      </div>
+    </section>
+
+    <section class="aia-toolbar">
+      <div class="toolbar-left">
+        <label class="checkbox-wrap">
+          <input type="checkbox" id="select-all-checkbox" />
+          <span>Select All</span>
+        </label>
+
+        <select id="filter-status" class="aia-select" aria-label="Filter by status">
+          <option value="ALL">All Statuses</option>
+          <option value="QUEUED">Queued</option>
+          <option value="NEEDS_APPROVAL">Needs Approval</option>
+          <option value="ESCALATED">Escalated</option>
+          <option value="COMPLETED">Completed</option>
+        </select>
+
+        <input
+          type="search"
+          id="filter-search"
+          class="aia-input"
+          placeholder="Search card ID, title, or intent..."
+        />
+      </div>
+
+      <div class="toolbar-right" id="bulk-actions-bar" hidden>
+        <span id="selected-count" class="selected-badge">0 selected</span>
+        <button id="btn-bulk-approve" class="btn btn-sm btn-success" type="button">Approve Selected</button>
+        <button id="btn-bulk-run" class="btn btn-sm btn-primary" type="button">Execute Selected</button>
+        <button id="btn-bulk-archive" class="btn btn-sm btn-danger" type="button">Archive</button>
+      </div>
+    </section>
+
+    <p id="api-banner" class="api-banner" hidden></p>
+
+    <main class="aia-workspace">
+      <div class="aia-queue-column">
+        <div id="queue-list" class="queue-list"></div>
+      </div>
+
+      <aside class="aia-inspector-column">
+        <div id="inspector-empty" class="inspector-placeholder">
+          <p>Select a card from the queue to inspect payload schema, Gemini output, and audit events.</p>
+        </div>
+
+        <div id="inspector-content" class="inspector-panel" hidden>
+          <div class="inspector-header">
+            <div>
+              <span id="insp-id" class="mono-tag">CARD-000</span>
+              <h2 id="insp-title">Card Title</h2>
+            </div>
+            <span id="insp-status-badge" class="status-badge">QUEUED</span>
+          </div>
+
+          <div class="inspector-meta">
+            <div><span>Card Type:</span> <strong id="insp-type">—</strong></div>
+            <div><span>Priority:</span> <strong id="insp-priority">—</strong></div>
+            <div><span>Age / SLA:</span> <strong id="insp-age">—</strong></div>
+            <div><span>Model:</span> <strong class="mono">gemini-2.5-flash</strong></div>
+          </div>
+
+          <div class="inspector-section">
+            <h3>Input Payload</h3>
+            <pre id="insp-payload" class="code-block">{}</pre>
+          </div>
+
+          <div class="inspector-section">
+            <h3>Gemini Execution Output</h3>
+            <pre id="insp-output" class="code-block output-block">Awaiting execution...</pre>
+          </div>
+
+          <div class="inspector-actions">
+            <button id="btn-insp-run" class="btn btn-primary" type="button">Run Card</button>
+            <button id="btn-insp-approve" class="btn btn-success" type="button">Mark Draft Ready</button>
+          </div>
+          <p class="rail-note">Desk AIs draft only. Human Yes / Stop still required to ship. Collect stays HOLD.</p>
+
+          <div class="inspector-section">
+            <h3>Audit Trail</h3>
+            <ul id="insp-audit-list" class="audit-list"></ul>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./gemini-aia-desk.js"></script>
+</body>
+</html>

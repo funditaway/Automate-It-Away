@@ -84,7 +84,7 @@ function deskAiFace(on) {
     on: drafting,
     note: drafting
       ? "A Desk AI can draft."
-      : "A Desk AI can't draft on this phone yet."
+      : "A Desk AI can't draft on this account yet."
   };
 }
 

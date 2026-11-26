@@ -2,22 +2,25 @@
  * Verify command/data/ledger.ndjson.
  *
  * Recomputes every SHA-256 link and checks the Ed25519 signature against
- * the local sovereign public key. Exits 0 when the chain is intact.
+ * the trusted keyring (active + retired public keys). Exits 0 when intact.
  *
  *   node verifyLedger.js [path/to/ledger.ndjson]
  */
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadOrCreateKeypair } from './lib/keys.js'
+import { loadOrCreateKeypair, loadTrustedPublicKeys } from './lib/keys.js'
 import { verifyLedgerFile } from './lib/ledger.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
 export function verifyAt(filePath, keyDir) {
   const ledgerPath = resolve(filePath || join(here, 'data', 'ledger.ndjson'))
-  const keys = loadOrCreateKeypair(keyDir || join(dirname(ledgerPath), '.keys'))
-  const result = verifyLedgerFile(ledgerPath, keys.publicKeyPem)
-  return { ...result, publicKey: keys.publicKeyHex, filePath: ledgerPath }
+  const resolvedKeyDir = keyDir || join(dirname(ledgerPath), '.keys')
+  const keys = loadOrCreateKeypair(resolvedKeyDir)
+  const trust = loadTrustedPublicKeys(resolvedKeyDir)
+  if (!trust.has(keys.publicKeyHex)) trust.set(keys.publicKeyHex, keys.publicKeyPem)
+  const result = verifyLedgerFile(ledgerPath, trust)
+  return { ...result, publicKey: keys.publicKeyHex, filePath: ledgerPath, trustedKeys: trust.size }
 }
 
 function isMain() {
@@ -33,6 +36,7 @@ if (isMain()) {
       const state = result.missing ? 'empty (no file yet)' : `${result.count} entr${result.count === 1 ? 'y' : 'ies'}`
       console.log(`ledger ok — ${state}`)
       console.log(`tip ${result.tip}`)
+      console.log(`trusted keys ${result.trustedKeys}`)
       process.exit(0)
     }
     console.error('ledger INVALID')

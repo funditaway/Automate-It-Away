@@ -1,0 +1,135 @@
+{
+  "id": "qia",
+  "name": "Quote ops",
+  "family": "Quote It Away",
+  "type": "work",
+  "aisle": "Insurance",
+  "kind": "playbook",
+  "status": "preview",
+  "live": false,
+  "price": 0,
+  "priceLabel": "On this desk",
+  "blurb": "Assess · Integrate · Accelerate for Quote It Away. Intake, agent match, 7-day vetting, nudges, billing alerts, admin exceptions. Bind stays off. Collect stays HOLD.",
+  "face": {
+    "who": { "key": "contactName", "label": "Who it is for" },
+    "what": { "key": "need", "label": "What the work is" },
+    "when": { "key": "timing", "label": "When / SLA" },
+    "where": { "key": "state", "label": "Territory / line" },
+    "how": "Draft the next ops step. Match and vetting wait on Yes. Bind stays off. Stripe Collect stays HOLD. You still tap."
+  },
+  "help": [
+    "Assess: map intake, match, vetting, nudges, billing, and admin friction onto Queue cards.",
+    "Integrate: Playbook A quote→match, Playbook B agent vetting (7 business days), Playbook C admin exceptions.",
+    "Accelerate: lock repeatable rules and KPIs. Desk AIs draft only. Humans tap Yes, Stop, or Kill.",
+    "Customer quote intake drafts a packet workspace — never invents premium or bind.",
+    "Agent dispatch and vetting approval wait on owner Yes. No silent route. No silent Stripe charge."
+  ],
+  "capture": ["form", "quote", "note", "call", "hook"],
+  "qualify": ["line of business", "territory", "missing credentials", "this week", "7-day SLA"],
+  "do": ["intake draft", "match draft", "vetting checklist", "nudge draft", "exception note"],
+  "collect": ["Stripe tier / renewal stays HOLD", "bind stays off the desk"],
+  "follow": ["one nudge", "SLA reminder", "then stop"],
+  "taps": ["dispatch match", "approve agent", "deny agent", "illustration send", "bind", "billing note"],
+  "kill": ["not a fit", "already covered", "duplicate", "failed vetting", "spam"],
+  "pipes": ["webhook", "calendar"],
+  "artifacts": ["quote packet", "match note", "vetting checklist", "SLA alert", "ops digest"],
+  "kinds": ["intake", "match", "vetting", "nudge", "billing", "admin"],
+  "fields": {
+    "capture": ["title", "kind", "from", "contactName", "phone", "email", "notes", "pack", "timing", "product", "state"],
+    "qualify": ["timing", "risk", "why", "lineOfBusiness", "territory", "credentials"],
+    "do": ["draft", "artifact"],
+    "collect": ["amount", "confirm"],
+    "follow": ["followed"],
+    "rail": ["killReason", "whoTapped"]
+  },
+  "rails": [
+    "Bind stays off the desk. Drop cannot bind coverage or invent premium.",
+    "Agent match dispatch waits on owner Yes. Desk AIs only draft the match note.",
+    "Agent vetting approve / deny waits on owner Yes. Target: within 7 business days.",
+    "Stripe subscription, trial, and renewal alerts draft only. Collect stays HOLD until Yes + a real money pipe.",
+    "In-platform nudges and SLA escalations draft on the card. Nothing sends itself.",
+    "Admin digests and exception cards draft only. Moderation stays an owner tap.",
+    "Public drop never sees People, Stop, money, license numbers, or medical detail."
+  ],
+  "rules": [
+    { "text": "Cap incomplete quote intake.", "when": "qualify", "then": "cap", "contains": "missing VIN" },
+    { "text": "Cap incomplete property intake.", "when": "qualify", "then": "cap", "contains": "missing property" },
+    { "text": "Wait on agent match dispatch.", "when": "do", "then": "wait", "contains": "dispatch" },
+    { "text": "Wait on agent vetting approval.", "when": "do", "then": "wait", "contains": "vetting" },
+    { "text": "Escalate vetting near the 7-day SLA.", "when": "status", "then": "escalate", "contains": "vetting", "ifOlder": 120 },
+    { "text": "Wait on Stripe billing / renewal.", "when": "collect", "then": "wait", "contains": "stripe" },
+    { "text": "Wait on bind.", "when": "do", "then": "wait", "contains": "bind" },
+    { "text": "Queue admin on API quote failure.", "when": "inbound", "then": "queue", "contains": "quote api fail" }
+  ],
+  "workflows": [
+    {
+      "id": "quote-match",
+      "name": "Playbook A · Quote request & matching",
+      "branch": "intake",
+      "rules": []
+    },
+    {
+      "id": "agent-vetting",
+      "name": "Playbook B · Agent vetting · 7-business-day SLA",
+      "delay": 120,
+      "branch": "vetting",
+      "rules": []
+    },
+    {
+      "id": "admin-oversight",
+      "name": "Playbook C · Admin oversight & exceptions",
+      "branch": "admin",
+      "rules": []
+    }
+  ],
+  "ais": [
+    {
+      "name": "Intake AI",
+      "role": "Doer",
+      "does": "Drafts quote intake packets and coverage baselines. Nothing sent. No premium invented.",
+      "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "bind"]
+    },
+    {
+      "name": "Match AI",
+      "role": "Mapper",
+      "does": "Drafts agent match notes by line, territory, and capacity. Dispatch waits on Yes.",
+      "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
+      "steps": ["qualify", "do"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "bind"]
+    },
+    {
+      "name": "Vetting AI",
+      "role": "Rail",
+      "does": "Drafts vetting checklists and 7-day SLA reminders. Approve / deny stays human.",
+      "prompt": "Draft ready. I cannot send, pay, or bind anything. You stay in control.",
+      "steps": ["qualify", "do", "follow"],
+      "deny": ["send", "stop", "money", "mail", "yes", "kill", "bind"]
+    }
+  ],
+  "queue": {
+    "badge": "Quote ops",
+    "family": "Quote It Away",
+    "empty": "Drop intake, a match note, a vetting app, a nudge, billing alert, or admin exception. Bind stays off. Collect stays HOLD.",
+    "group": "kind",
+    "sort": "cap-first",
+    "chips": ["intake", "match", "vetting", "nudge", "billing", "admin"],
+    "taps": ["copy", "text", "email", "hand", "cap"],
+    "never": ["send", "stop", "pay", "bind"]
+  },
+  "dropHint": "Name the intake, match, vetting item, nudge, billing alert, or admin exception. QIA drafts. You tap.",
+  "how": {
+    "capture": "Drop a quote request, agent application, unanswered thread, billing alert, or admin exception.",
+    "qualify": "Check line of business, territory, credentials, and the 7-day vetting SLA.",
+    "do": "Desk AIs draft the packet, match note, checklist, or exception. Dispatch and approve wait on Yes.",
+    "collect": "Stripe tier / renewal and bind stay HOLD. Packs never charge or bind.",
+    "follow": "One nudge or SLA reminder. Then stop. Nothing sends itself."
+  },
+  "kpis": [
+    "Time from quote request to first agent response",
+    "Agent vetting turnaround within 7 business days",
+    "Quote completion and quote-to-policy selection rate",
+    "API integration success rate and support tickets per active user"
+  ]
+}

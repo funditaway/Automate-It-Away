@@ -22,7 +22,8 @@ function ok(cond, msg) { if (cond) { passed += 1; console.log("ok  " + msg); } e
 function read(rel) { return fs.readFileSync(path.join(root, rel), "utf8"); }
 
 const ON_NOTE = "A Desk AI can draft.";
-const OFF_NOTE = "A Desk AI can't draft on this phone yet.";
+const OFF_NOTE = "A Desk AI can't draft on this account yet.";
+const OLD_OFF_NOTE = "A Desk AI can't draft on this phone yet.";
 const CAN_DRAFT = /A Desk AI can draft\./;
 const KEY_DESK = "owner-key-a";
 const NO_KEY_DESK = "owner-key-b";
@@ -176,6 +177,7 @@ function staticChecks(src) {
   ok(/A Desk AI can draft\. You still tap Yes or Stop\./.test(paint), "paintAia keeps the existing can-draft words (no new words)");
   const api = read("api/health.js");
   ok(api.indexOf('"' + ON_NOTE + '"') >= 0 && api.indexOf('"' + OFF_NOTE + '"') >= 0, "api/health.js still sends the same on / off deskAi notes this check fakes");
+  ok(api.indexOf('"' + OLD_OFF_NOTE + '"') < 0, "api/health.js no longer sends the old on-this-phone note");
   ok(/deskAi:\s*deskAiFace\(requestingDeskCanDraft\(workspace\)\)/.test(api), "api/health.js status still answers deskAi for the requesting desk");
   ok(/const publicDraftOn = false;/.test(api), "api/health.js public health is still always off (so Create must not read it)");
   ok(/check-create-draft-line\.js/.test(read("scripts/check-desk-nav.js")), "check-desk-nav.js runs this check (npm test)");
