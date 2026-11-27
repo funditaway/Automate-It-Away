@@ -95,9 +95,26 @@ async function main() {
  else if (/API key not set/.test(statusHtml) || /Drafts are off — no XAI_API_KEY/.test(statusHtml) || /no XAI_API_KEY on this box/.test(statusHtml)) fail("status XAI");
  else if (/id="raw"|deskPublicDump|JSON\.stringify/.test(statusHtml)) fail("status raw dump");
  else if (/\bblob\b|Decentraweb|BLOB_|XAI_API_KEY|AIA_GROK_|GROK_API_KEY|env present/i.test(statusHtml)) fail("status stranger");
- else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) fail("status drafts-off voice");
+ else if (statusHtml.indexOf("A Desk AI can't draft on this account yet.") < 0) fail("status drafts-off voice");
  else if (!/AIA name sign-up is off for now/.test(statusHtml) || !/Saved on this desk/.test(statusHtml) || !/Photos and files are saved/.test(statusHtml)) fail("status desk voice");
  else pass("st.html");
+ // status.html says "account", not "phone". These run on their own, not behind the else-if chain above,
+ // so a leftover phone line fails even when an earlier branch already failed.
+ let stBad = 0;
+ const stFail = (m) => { stBad += 1; fail(m); };
+ const STATUS_ON_NEW = "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.";
+ const STATUS_OFF_NEW = "A Desk AI can't draft on this account yet.";
+ const STATUS_ON_OLD = "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop.";
+ const STATUS_OFF_OLD = "A Desk AI can't draft on this phone yet.";
+ if (statusHtml.indexOf(STATUS_ON_NEW) < 0) stFail("status.html can-draft line must say 'on this account'");
+ if (statusHtml.indexOf(STATUS_OFF_NEW) < 0) stFail("status.html drafts-off fallback must be exactly '" + STATUS_OFF_NEW + "'");
+ if (!/\?\s*"A Desk AI can draft on this account\. Drafts land on the card\. You still tap Yes or Stop\."\s*:\s*"A Desk AI can't draft on this account yet\."\)/.test(statusHtml)) stFail("status.html can-draft and drafts-off lines must both be the account wording, side by side");
+ if (statusHtml.indexOf(STATUS_ON_OLD) >= 0) stFail("status.html still has the old 'can draft on this phone' line");
+ if (statusHtml.indexOf(STATUS_OFF_OLD) >= 0) stFail("status.html still has the old \"can't draft on this phone yet\" fallback");
+ if (/Desk AI can(?:'t)? draft on this phone/.test(statusHtml)) stFail("status.html must not say a Desk AI drafts 'on this phone'");
+ if (/Desk AI can(?:'t)? draft on this desk/.test(statusHtml)) stFail("status.html must say 'on this account', not 'on this desk'");
+ if ((statusHtml.match(/draft on this account/g) || []).length !== 2) stFail("status.html must have exactly two 'draft on this account' lines");
+ if (!stBad) pass("st.html.account");
  const st = mockRes();
  await status({ method: "GET", headers: {}, query: {} }, st);
  if (st.statusCode !== 200 || !st.body || st.body.ok !== true) fail("status endpoint"); else pass("st");
@@ -279,7 +296,44 @@ const MUTANTS = [
   "    if (!row) {"],
  ["helper GET /api/rules sees the talk draft", "api/rules.js",
   "draft: isOwner(person) ? (row.ruleDraft || null) : null,",
-  "draft: row.ruleDraft || null,"]
+  "draft: row.ruleDraft || null,"],
+ ["status can-draft line reverted to phone", "status.html",
+  "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.",
+  "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."],
+ ["status drafts-off fallback reverted to phone", "status.html",
+  "A Desk AI can't draft on this account yet.",
+  "A Desk AI can't draft on this phone yet."],
+ ["status can-draft line says desk, not account", "status.html",
+  "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.",
+  "A Desk AI can draft on this desk. Drafts land on the card. You still tap Yes or Stop."],
+ ["status drafts-off fallback says desk, not account", "status.html",
+  "A Desk AI can't draft on this account yet.",
+  "A Desk AI can't draft on this desk yet."],
+ ["status can-draft line drops account", "status.html",
+  "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.",
+  "A Desk AI can draft on this. Drafts land on the card. You still tap Yes or Stop."],
+ ["status drafts-off fallback drops account", "status.html",
+  "A Desk AI can't draft on this account yet.",
+  "A Desk AI can't draft on this yet."],
+ ["only the can-draft line changed (fallback left on phone)", "status.html",
+  "A Desk AI can't draft on this account yet.",
+  "A Desk AI can't draft on this phone yet."],
+ ["only the fallback changed (can-draft line left on phone)", "status.html",
+  "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.",
+  "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."],
+ ["both lines on phone and the old requirement restored", "status.html",
+  "A Desk AI can draft on this account. Drafts land on the card. You still tap Yes or Stop.",
+  "A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop.",
+  [["status.html", "A Desk AI can't draft on this account yet.", "A Desk AI can't draft on this phone yet."], ["scripts/check-api-contract.js", " else if (statusHtml.indexOf(\"A Desk AI can't draft on this account yet.\") < 0) fail(\"status drafts-off voice\");", " else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) fail(\"status drafts-off voice\");"]]],
+ ["old fallback phone line left beside the new lines", "status.html",
+  "      const grokEl = document.getElementById(\"grok\");",
+  "      const grokEl = document.getElementById(\"grok\"); // A Desk AI can't draft on this phone yet."],
+ ["old can-draft phone line left beside the new lines", "status.html",
+  "      const grokEl = document.getElementById(\"grok\");",
+  "      const grokEl = document.getElementById(\"grok\"); // A Desk AI can draft on this phone. Drafts land on the card. You still tap Yes or Stop."],
+ ["old requirement restored (status.html left on account)", "scripts/check-api-contract.js",
+  " else if (statusHtml.indexOf(\"A Desk AI can't draft on this account yet.\") < 0) fail(\"status drafts-off voice\");",
+  " else if (!/A Desk AI can't draft on this phone yet/.test(statusHtml)) fail(\"status drafts-off voice\");"]
 ];
 
 function mutate() {
@@ -317,9 +371,20 @@ function mutate() {
    const orig = fs.readFileSync(p, "utf8");
    if (orig.indexOf(find) < 0) { console.log(name + " | ANCHOR GONE"); bad += 1; return; }
    if (orig.indexOf(find) !== orig.lastIndexOf(find)) { console.log(name + " | ANCHOR NOT UNIQUE"); bad += 1; return; }
-   fs.writeFileSync(p, orig.replace(find, repl));
+   // Optional row[4]: more [file, find, repl] edits applied together in the same copy.
+   const edits = [[file, find, repl]].concat(row[4] || []);
+   const before = {};
+   const now = {};
+   let anchorBad = false;
+   edits.forEach(function (x) {
+    if (before[x[0]] === undefined) { before[x[0]] = fs.readFileSync(path.join(dir, x[0]), "utf8"); now[x[0]] = before[x[0]]; }
+    if (now[x[0]].indexOf(x[1]) < 0 || now[x[0]].indexOf(x[1]) !== now[x[0]].lastIndexOf(x[1])) { anchorBad = true; return; }
+    now[x[0]] = now[x[0]].replace(x[1], x[2]);
+   });
+   if (anchorBad) { console.log(name + " | ANCHOR GONE OR NOT UNIQUE"); bad += 1; return; }
+   Object.keys(now).forEach(function (f) { fs.writeFileSync(path.join(dir, f), now[f]); });
    const r = run();
-   fs.writeFileSync(p, orig);
+   Object.keys(before).forEach(function (f) { fs.writeFileSync(path.join(dir, f), before[f]); });
    const first = ((r.stdout || "") + "\n" + (r.stderr || "")).split("\n").find(function (l) { return l.indexOf("FAIL") === 0; }) || "";
    total += 1;
    if (r.status) { caught += 1; console.log(name + " | CAUGHT | " + first.slice(0, 180)); }
