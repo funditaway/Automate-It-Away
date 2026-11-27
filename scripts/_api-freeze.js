@@ -33,10 +33,10 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const BASE = "a7bf2ed8157511a7124cb7d6b0ea7cbf8f61e664";
+const BASE = "11c9a1e42e74128f8eef5ce56e162b5dd02439b9";
 const PIN = {
   "api/_account.js": "734c606bef3c17cb14cb6330adce5677fa964112",
-  "api/_account-connect.js": "0de124217a15e5fdef9b5ad2e019227e2160b858",
+  "api/_account-connect.js": "39dde85d863c3de15b05571d35dcc4e87e6f5b7b",
   "api/_account-doors.js": "e210c079926b0efbb22cb5b9512649c81f43c6b9",
   "api/_account-follow.js": "2af2b60dea22484d495bf547deea9eada05e9466",
   "api/_account-http.js": "977fe25361e6eec276c25673af7c2dd525353482",
@@ -47,19 +47,17 @@ const PIN = {
   "api/_aia-register.js": "efbcdd99211615a2f1d530e9ca82f9b412c94979",
   "api/_aia-tld.js": "1429cd6442ca12f364062e09bbabb2f6c48a5e67",
   "api/_connect-wallet.js": "90f310ed4a7f8831249115681e0b75b18939ad97",
-  "api/_desks-http.js": "9c8f2b3196f2ef6dccec07b72c48abdce0cfb4f4",
-  "api/_engine.js": "e4bf64dcdaa30be095d2c6ba48d2cfadc20af164",
-  "api/_grok.js": "859f17febdf7a705b7bb80cbf75333ca8d10ff5c",
+  "api/_desks-http.js": "54d36ae4eb8842b75f1847bc72fa5c2b8c514adb",
+  "api/_engine.js": "df0441d3300b0ba4550bcc627a8c45346a1608b8",
+  "api/_grok.js": "9bfc353d37edf476dd6145965c569dccd6e4a141",
   "api/_handoff.js": "d38aef2cc068cf810b7932413a929c786f2e2fe2",
-  "api/_history.js": "dcdba2c7e5c60e9548ff1b53199f1548799aecd6",
-  "api/_install-history.js": "9e4ba85b4b177a2d472f042371ed09a626185a86",
   "api/_job-mask.js": "b34fb96e24646bcc88c3e9453d8a7c638266a132",
   "api/_lib.js": "706ce49878eedd29245f7d7fe2775833bf063e2f",
-  "api/_packs.js": "c3a71bc58acb9206bca7cc96dde53e9d4ac7b71b",
+  "api/_packs.js": "df4f4fe32ded262ead7a12d28e4eb0f9ff718c75",
   "api/_plans.js": "1fc8a398ea714523ae4ff1972f3b0791632ddd5c",
   "api/_roles.js": "554739b4738a37421f79f62c329878b031f6ed1b",
   "api/admin.js": "5726c860a06e4efb89fc87447f7a2cc4bc351cbc",
-  "api/connections.js": "cc09ac178460154f38f76c97b4f8b1e74f5d71bb",
+  "api/connections.js": "49d0f57a7398c2a45df38b8bc08677e2b8679f3f",
   "api/auth.js": "bfbb57545da2f16eeebab70f1f401675f5557cd3",
   "api/health.js": "1e2835f35a62a7a1148cfc20d468a54962e84726",
   "api/hook.js": "df27aad7e56930f9eefcdf706f3f58c7fa5c1756",
