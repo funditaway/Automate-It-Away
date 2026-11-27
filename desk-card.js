@@ -307,6 +307,19 @@ function mountCardThread(j) {
   if (!s) { s = document.createElement("script"); s.id = "card-thread-js"; s.src = "card-thread.js"; document.head.appendChild(s); }
   s.addEventListener("load", go);
 }
+// Build steps under the timeline (build-log-steps-ui.js, loaded once, only for a card that has steps; desk.html stays as it is).
+// Read-only list: nothing is drawn for a card with no steps.
+function mountBuildSteps(j) {
+  const log = j && j.custom && j.custom.buildLog;
+  if (!log || !Array.isArray(log.steps) || !log.steps.length) return;
+  const box = document.getElementById("card-timeline-sheet");
+  if (!box) return;
+  const go = function () { if (window.AIABuildSteps) window.AIABuildSteps.mount(box, j); };
+  if (window.AIABuildSteps) return go();
+  let s = document.getElementById("build-steps-js");
+  if (!s) { s = document.createElement("script"); s.id = "build-steps-js"; s.src = "build-log-steps-ui.js"; document.head.appendChild(s); }
+  s.addEventListener("load", go);
+}
 async function openJob(id) {
   const j = sheetCardOf(jobBy(id));
   if (!j) return;
@@ -370,6 +383,7 @@ async function openJob(id) {
     "</div>";
   if (window.AIACardTimeline) window.AIACardTimeline.mount("card-timeline-sheet", j);
   mountCardThread(j);
+  mountBuildSteps(j);
   document.getElementById("sheet").classList.add("on");
 }
 function localClockInput(iso) {
