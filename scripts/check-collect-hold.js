@@ -279,288 +279,165 @@ function visibleUnits(html) {
   const pageText = normSpace(walk(root));
   return { units: units, elements: elements, text: pageText };
 }
-function hasExactVisible(html, line) {
-  const want = normSpace(line);
-  if (!want) return false;
-  return visibleUnits(html).units.some(function (u) { return u === want; });
-}
+// Raw-source charge/payments guard. Scans the WHOLE examples.html source
+// case-insensitively (comments, attributes, hidden elements, scripts, styles
+// included). Hidden text counts on purpose. No extractor is used.
+//
+// Word list: the stems already used by this check, plus /\bpayments?\b/i.
+// Bare /\bpay\b/ is not used: the real page has "I cannot send, pay, or bind
+// anything."
+const CHARGE_WORD_RES = [
+  /\bcharg/i,
+  /\bbill/i,
+  /\bfees?\b/i,
+  /\binvoices?\b/i,
+  /\bdebit/i,
+  /\bsubscri/i,
+  /\brenew/i,
+  /\bpay\s+now\b/i,
+  /\bpaid\b/i,
+  /\$\s*\d/,
+  /[€£]\s*\d/,
+  /\d(?:[.,]\d+)?\s*[€£]/,
+  /\b\d+(?:[.,]\d+)?\s*(USD|EUR)\b/i,
+  /\b(USD|EUR)\s*\d+(?:[.,]\d+)?\b/i,
+  /\bpayments?\b/i
+];
 
-// No INLINE_TAGS allow-list. The holder's whole visible text — every
-// non-skipped descendant, whatever its tag (kbd, button, ins, font, custom
-// tags, div, etc.) — must equal the pinned line exactly.
-function attachVisible(node, parent) {
-  node.parent = parent || null;
-  if (node.name === "#text") {
-    node.rawJoin = node.text;
-    node.visible = normSpace(node.text);
-    return;
-  }
-  (node.children || []).forEach(function (ch) { attachVisible(ch, node); });
-  const raw = (node.children || []).map(function (ch) {
-    return ch.rawJoin != null ? ch.rawJoin : "";
-  }).join(" ");
-  node.rawJoin = raw;
-  node.visible = normSpace(raw);
-}
-function smallestContaining(node, want) {
-  if (!node || node.name === "#text") return null;
-  if (!node.visible || node.visible.indexOf(want) < 0) return null;
-  var found = null;
-  (node.children || []).forEach(function (ch) {
-    var sub = smallestContaining(ch, want);
-    if (sub) found = sub;
-  });
-  if (found) return found;
-  return node.name === "#root" ? null : node;
-}
-// On the card article only, other block-level siblings may exist (div.top,
-// h3, p.cta). Any other sibling is a tail. On details, a summary sibling is
-// allowed (open details still shows the notes line). Everywhere else, any
-// extra visible sibling fails — including custom tags, kbd, button, ins, font.
-const CARD_BLOCK_SIBLINGS = {
-  p: 1, div: 1, section: 1, article: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
-  ul: 1, ol: 1, table: 1, details: 1, header: 1, footer: 1, nav: 1, form: 1,
-  pre: 1, blockquote: 1, hr: 1, main: 1, aside: 1, figure: 1, fieldset: 1, dl: 1
-};
-function siblingHasVisible(parent, el) {
-  const onCard = parent.name === "article";
-  return (parent.children || []).some(function (ch) {
-    if (ch === el) return false;
-    if (ch.name === "#text") return !!normSpace(ch.text);
-    if (!ch.visible) return false;
-    if (onCard && CARD_BLOCK_SIBLINGS[ch.name]) return false;
-    if (parent.name === "details" && ch.name === "summary") return false;
-    return true;
-  });
-}
-function hasExactVisibleBlock(html, line) {
-  const want = normSpace(line);
-  if (!want) return false;
-  const root = visibleForest(html);
-  attachVisible(root, null);
-  var el = smallestContaining(root, want);
-  if (!el) return false;
-  while (el.parent && el.parent.name !== "#root" && el.parent.visible === want) {
-    el = el.parent;
-  }
-  if (el.visible !== want) return false;
-  const parent = el.parent;
-  if (!parent || parent.name === "#root") return true;
-  if (siblingHasVisible(parent, el)) return false;
-  return true;
-}
-function pinVisibleExactBlock(hay, marker, line, label) {
-  const card = cardWith(hay, marker, label);
-  if (!hasExactVisibleBlock(card, line)) {
-    throw new Error("missing visible exact block " + label + " payments off: " + line);
-  }
-  return card;
-}
+// Allowed phrases as they appear in today's raw source, with literal counts
+// from a full-file audit (7 word-list hits, all inside these phrases).
+// Do not widen this list without a new audit.
+const RAW_ALLOWED_PHRASES = [
+  [PAY_CONSIGN, 1],
+  [PAY_QUOTE, 1],
+  [PAY_META, 1],
+  ["Payments are off for now.", 4],
+  ["Switching a plan does not charge.", 1]
+];
 
-function pinVisibleExact(hay, marker, line, label) {
-  const card = cardWith(hay, marker, label);
-  if (!hasExactVisible(card, line)) {
-    throw new Error("missing visible exact " + label + " payments off: " + line);
-  }
-  return card;
-}
-function forbidVisibleElsewhere(hay, marker, line, label) {
-  const card = cardWith(hay, marker, label);
-  const start = hay.indexOf(card);
-  if (start < 0) throw new Error(label + " card missing");
-  const rest = hay.slice(0, start) + hay.slice(start + card.length);
-  if (visibleUnits(rest).text.includes(normSpace(line))) {
-    throw new Error(line + " is visible outside " + label);
-  }
-}
-function extraChargeHits(text) {
-  const hits = [];
-  const rules = [
-    [/nothing is charged/i, "Nothing is charged"],
-    [/charged monthly/i, "charged monthly"],
-    [/you are charged/i, "You are charged"],
-    [/\bwe charge/i, "we charge"],
-    [/\$\s*\d[\d,]*(?:\.\d+)?\s*(?:\/\s*|per\s+)(?:mo(?:nth)?|yr|year|wk|week|da(?:y)?)/i, "price-per-period"]
-  ];
-  rules.forEach(function (row) {
-    if (row[0].test(text)) hits.push(row[1]);
-  });
-  return hits;
-}
-function forbidExtraChargeLines(hay, allowedLines, label) {
-  let text = visibleUnits(hay).text;
-  allowedLines.forEach(function (line) {
-    const n = normSpace(line);
-    let idx;
-    while ((idx = text.indexOf(n)) >= 0) {
-      text = normSpace(text.slice(0, idx) + " " + text.slice(idx + n.length));
+function allowedPhraseRanges(hay) {
+  const ranges = [];
+  RAW_ALLOWED_PHRASES.forEach(function (row) {
+    const phrase = row[0], want = row[1];
+    let from = 0, n = 0;
+    while (true) {
+      const i = hay.indexOf(phrase, from);
+      if (i < 0) break;
+      ranges.push([i, i + phrase.length]);
+      n += 1;
+      from = i + phrase.length;
+    }
+    if (n !== want) {
+      throw new Error(
+        "examples.html raw source: " + JSON.stringify(phrase) +
+        " appears " + n + " time(s), expected " + want
+      );
     }
   });
-  const hits = extraChargeHits(text);
-  if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
+  return ranges;
 }
 
-// App / webhook row: the div.how whose label is <b>App / webhook</b>.
-// Its full current visible text, pinned exactly (no prefix, no tail):
-const PAY_APP = "App / webhook When the www hook writes a card. If it is tagged Lead. Then a named desk AI drafts. Buyer binds their own keys and devices on Connections. Yes / Stop / Kill before outbound or hardware. Not a listed SKU. Not a bindings product. The app or webhook is the live connection. Payments are off for now. Build an add-on →";
-const PAY_OFF = "Payments are off for now.";
-const ALLOWED_PHRASES = [
-  "Switching a plan does not charge.",
-  PAY_OFF
-];
-// Stem-based charge wording. Bare /\bpay\b/ is not used: the real page has
-// "I cannot send, pay, or bind anything." Currency covers $, EUR symbol, pound,
-// USD, EUR. payment(s) is handled separately: any visible unit containing
-// /\bpayments?\b/i must be an allowed exact unit (the three pinned card
-// lines in their own card, PAY_APP, or "Switching a plan does not charge.").
-function unlistedChargeHits(text) {
-  const hits = [];
-  const rules = [
-    [/\bcharg/i, "charge wording"],
-    [/\bbill/i, "bill wording"],
-    [/\bfees?\b/i, "fee wording"],
-    [/\binvoices?\b/i, "invoice wording"],
-    [/\bdebit/i, "debit wording"],
-    [/\bsubscri/i, "subscription wording"],
-    [/\brenew/i, "renew wording"],
-    [/\bpay\s+now\b/i, "pay now"],
-    [/\bpaid\b/i, "paid wording"],
-    [/\$\s*\d/, "dollar amount"],
-    [/[€£]\s*\d/, "euro/pound amount"],
-    [/\d(?:[.,]\d+)?\s*[€£]/, "euro/pound amount"],
-    [/\b\d+(?:[.,]\d+)?\s*(USD|EUR)\b/i, "USD/EUR amount"],
-    [/\b(USD|EUR)\s*\d+(?:[.,]\d+)?\b/i, "USD/EUR amount"]
-  ];
-  rules.forEach(function (row) {
-    if (row[0].test(text)) hits.push(row[1]);
-  });
-  return hits;
+function rangeCovers(index, ranges) {
+  return ranges.some(function (r) { return index >= r[0] && index < r[1]; });
 }
-function cardPinnedLine(article) {
-  const t = article.visible || "";
-  if (t.indexOf("Consign It Away") >= 0 && t.indexOf("First vertical") >= 0) return PAY_CONSIGN;
-  if (t.indexOf("Quote ops") >= 0) return PAY_QUOTE;
-  if (t.indexOf("Meta.aia") >= 0 || t.indexOf("World Pack") >= 0) return PAY_META;
-  return null;
-}
-function enclosingCard(node) {
-  var n = node;
-  while (n) {
-    if (n.name === "article" && /\bcard\b/.test(n.className || "")) return n;
-    n = n.parent;
-  }
-  return null;
-}
-function isAppRow(node) {
-  if (!node || node.name !== "div" || !/\bhow\b/.test(node.className || "")) return false;
-  return (node.children || []).some(function (ch) {
-    return ch.name === "b" && ch.visible === "App / webhook";
-  });
-}
-function insideAppRow(node) {
-  var n = node;
-  while (n) {
-    if (isAppRow(n)) return true;
-    n = n.parent;
-  }
-  return false;
-}
-function isAllowedExact(node) {
-  const t = node.visible;
-  if (!t) return false;
-  if (t === ALLOWED_PHRASES[0] || t === PAY_OFF) return true;
-  if (t === PAY_APP && isAppRow(node)) return true;
-  const card = enclosingCard(node);
-  const pin = card ? cardPinnedLine(card) : null;
-  return !!(pin && t === pin);
-}
-// Outside the App row, a text node may end with PAY_OFF (no tail after it).
-// The prefix is still stem-scanned. The App row is pinned to PAY_APP exactly,
-// so a prefix or tail there still fails. "Switching a plan does not charge."
-// is whole-container only.
-function isPaymentsOffSuffixText(node) {
-  if (!node || node.name !== "#text") return false;
-  if (insideAppRow(node)) return false;
-  const t = node.visible;
-  if (!t || t === PAY_OFF) return false;
-  return t.length > PAY_OFF.length && t.slice(-PAY_OFF.length) === PAY_OFF;
-}
-function allAllowedLines() {
-  return [PAY_CONSIGN, PAY_QUOTE, PAY_META, PAY_APP].concat(ALLOWED_PHRASES);
-}
-function isPaymentsOffSuffixElement(node) {
-  if (!node || node.name === "#text" || node.name === "#root") return false;
-  if (insideAppRow(node)) return false;
-  const t = node.visible;
-  if (!t || t === PAY_OFF) return false;
-  return t.length > PAY_OFF.length && t.slice(-PAY_OFF.length) === PAY_OFF;
-}
-// Only an exact *element* descendant (not a raw text node) exempts an ancestor.
-// A text node that equals an allowed phrase plus a sibling tail is a
-// whole-container miss ("Switching a plan does not charge.<span> Upgrading does.</span>").
-function hasAllowedExactDescendant(node) {
-  return (node.children || []).some(function (ch) {
-    if (ch.name === "#text") return false;
-    if (isAllowedExact(ch) || isPaymentsOffSuffixElement(ch)) return true;
-    return hasAllowedExactDescendant(ch);
-  });
-}
-// Whole-page charge guard. An allowed line is removed only when it is the
-// whole visible text of its container (pinned card lines only inside their
-// own card; PAY_APP only on the App / webhook div.how; "Switching a plan
-// does not charge." as that block's entire visible text). An allowed phrase
-// plus a prefix or a tail in the same container fails. Any remaining unit
-// containing /\bpayments?\b/i fails.
-function forbidUnlistedChargeWording(hay, label) {
-  const root = visibleForest(hay);
-  attachVisible(root, null);
-  var remainder = [];
-  var tail = null;
-  var paymentsHit = null;
-  function considerPhrase(t, node) {
-    allAllowedLines().forEach(function (line) {
-      const n = normSpace(line);
-      if (t.indexOf(n) >= 0 && t !== n) {
-        if (node && hasAllowedExactDescendant(node)) return;
-        if (node && line === PAY_OFF && isPaymentsOffSuffixElement(node)) return;
-        tail = t;
+
+function forbidRawChargeHits(hay) {
+  const ranges = allowedPhraseRanges(hay);
+  CHARGE_WORD_RES.forEach(function (re) {
+    const flags = re.flags.indexOf("g") >= 0 ? re.flags : re.flags + "g";
+    const g = new RegExp(re.source, flags);
+    let m;
+    while ((m = g.exec(hay))) {
+      if (!rangeCovers(m.index, ranges)) {
+        const around = hay.slice(Math.max(0, m.index - 24), m.index + Math.max(m[0].length, 1) + 24)
+          .replace(/\s+/g, " ");
+        throw new Error("examples.html raw source: unlisted charge/payments wording at " + m.index + ": " + around);
       }
-    });
+      if (!m[0].length) g.lastIndex += 1;
+    }
+  });
+}
+
+// Visible-text snapshot of examples.html, compared to
+// scripts/fixtures/examples-visible.txt (generated from the real page).
+//
+// Normalization: walk the current extractor's visible forest in document
+// order. Emit one line per block-level element. A block flushes its direct
+// text and inline descendants, passed through normSpace (decode already
+// happened in the forest; whitespace including NBSP collapses to a single
+// space; trim). Child blocks are emitted as their own lines. Empty lines
+// are dropped. The file ends with a trailing newline.
+// Any added, moved, removed, or reworded visible copy fails. On mismatch,
+// print the first differing line (fixture vs page) so a copy PR can update
+// the fixture.
+const SNAPSHOT_BLOCK = {
+  html: 1, body: 1, header: 1, footer: 1, main: 1, nav: 1, section: 1, article: 1,
+  aside: 1, div: 1, p: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
+  ul: 1, ol: 1, li: 1, dl: 1, dt: 1, dd: 1, table: 1, thead: 1, tbody: 1, tfoot: 1,
+  tr: 1, td: 1, th: 1, form: 1, fieldset: 1, pre: 1, blockquote: 1, hr: 1,
+  figure: 1, figcaption: 1, address: 1, details: 1
+};
+const VISIBLE_SNAPSHOT_PATH = "scripts/fixtures/examples-visible.txt";
+
+function visibleSnapshot(html) {
+  const root = visibleForest(html);
+  const lines = [];
+  function flush(buf) {
+    const t = normSpace(buf.join(" "));
+    if (t) lines.push(t);
+    buf.length = 0;
   }
-  function walk(node) {
-    if (node.name !== "#root" && isAllowedExact(node)) return;
+  function walk(node, buf) {
+    if (!node) return;
     if (node.name === "#text") {
-      const t = node.visible;
-      if (!t) return;
-      if (isAllowedExact(node)) return;
-      if (isPaymentsOffSuffixText(node)) {
-        const prefix = normSpace(t.slice(0, t.length - PAY_OFF.length));
-        if (prefix) {
-          considerPhrase(prefix, null);
-          remainder.push(prefix);
-        }
-        return;
-      }
-      if (/\bpayments?\b/i.test(t)) paymentsHit = t;
-      considerPhrase(t, null);
-      remainder.push(t);
+      if (node.text) buf.push(node.text);
       return;
     }
-    if (node.visible) {
-      if (!isPaymentsOffSuffixElement(node)
-          && /\bpayments?\b/i.test(node.visible)
-          && !hasAllowedExactDescendant(node)) {
-        paymentsHit = node.visible;
-      }
-      considerPhrase(node.visible, node);
+    if (SNAPSHOT_BLOCK[node.name]) {
+      const inner = [];
+      (node.children || []).forEach(function (ch) {
+        if (ch.name === "#text") {
+          walk(ch, inner);
+        } else if (SNAPSHOT_BLOCK[ch.name]) {
+          flush(inner);
+          walk(ch, inner);
+          flush(inner);
+        } else {
+          walk(ch, inner);
+        }
+      });
+      flush(inner);
+      return;
     }
-    (node.children || []).forEach(walk);
+    (node.children || []).forEach(function (ch) { walk(ch, buf); });
   }
-  walk(root);
-  if (tail) throw new Error("invented " + label + ": allowed line with a tail: " + tail);
-  if (paymentsHit) throw new Error("invented " + label + ": payment wording: " + paymentsHit);
-  const hits = unlistedChargeHits(normSpace(remainder.join(" ")));
-  if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
+  walk(root, []);
+  return lines.join("\n") + (lines.length ? "\n" : "");
+}
+
+function firstSnapshotDiff(expected, actual) {
+  const e = expected.split("\n");
+  const a = actual.split("\n");
+  let i = 0;
+  while (i < e.length && i < a.length && e[i] === a[i]) i += 1;
+  return {
+    line: i + 1,
+    old: i < e.length ? e[i] : "(end)",
+    neu: i < a.length ? a[i] : "(end)"
+  };
+}
+
+function pinVisibleSnapshot(hay) {
+  const expected = fs.readFileSync(path.join(root, VISIBLE_SNAPSHOT_PATH), "utf8");
+  const actual = visibleSnapshot(hay);
+  if (actual !== expected) {
+    const d = firstSnapshotDiff(expected, actual);
+    throw new Error(
+      "examples.html visible text drifted at line " + d.line +
+      "\n  fixture: " + d.old +
+      "\n  page:    " + d.neu
+    );
+  }
 }
 
 function pinCardLine(hay, marker, line, label) {
@@ -582,17 +459,8 @@ function checkExamplesPayments(hay) {
   pinCardLine(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
   pinCardLine(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
   if (hasCollectHoldVariant(hay)) throw new Error("invented examples.html Collect jargon variant");
-  pinVisibleExact(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
-  pinVisibleExact(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
-  pinVisibleExact(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
-  forbidVisibleElsewhere(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
-  forbidVisibleElsewhere(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
-  forbidVisibleElsewhere(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
-  forbidExtraChargeLines(hay, [PAY_CONSIGN, PAY_QUOTE, PAY_META], "examples.html extra charge wording");
-  pinVisibleExactBlock(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
-  pinVisibleExactBlock(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
-  pinVisibleExactBlock(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
-  forbidUnlistedChargeWording(hay, "examples.html unlisted charge wording");
+  forbidRawChargeHits(hay);
+  pinVisibleSnapshot(hay);
 }
 
 const index = read("index.html");
@@ -998,6 +866,40 @@ const examplesMutants = [
   }],
   ["App row prefix before Payments are off for now.", function (s) {
     return s.replace("Payments are off for now. <a href", "Note: Payments are off for now. <a href");
+  }]
+,
+  ["footer Payments enabled. prefix on Payments are off for now.", function (s) {
+    return s.replace("<p class=\"note\">These cards are labeled DEMO.", "<p class=\"note\">Payments enabled. Payments are off for now. These cards are labeled DEMO.");
+  }],
+  ["footer Payment enabled. prefix on Payments are off for now.", function (s) {
+    return s.replace("<p class=\"note\">These cards are labeled DEMO.", "<p class=\"note\">Payment enabled. Payments are off for now. These cards are labeled DEMO.");
+  }],
+  ["Quote ops h3: Payments turned on. Payments are off for now.", function (s) {
+    return s.replace("<h3>Intake · match · 7-day vetting</h3>", "<h3>Payments turned on. Payments are off for now.</h3>");
+  }],
+  ["lead end: Payments are live. Payments are off for now.", function (s) {
+    return s.replace("or bind coverage.", "or bind coverage. Payments are live. Payments are off for now.");
+  }],
+  ["App row Payments phrase deleted", function (s) {
+    return s.replace(" The app or webhook is the live connection. Payments are off for now. ", " The app or webhook is the live connection. ");
+  }],
+  ["App row removed", function (s) {
+    return s.replace("    <div class=\"how\"><b>App / webhook</b><span>When the www hook writes a card. If it is tagged Lead. Then a named desk AI drafts. Buyer binds their own keys and devices on Connections. Yes / Stop / Kill before outbound or hardware. Not a listed SKU. Not a bindings product. The app or webhook is the live connection. Payments are off for now. <a href=\"help.html#build-pack\">Build an add-on →</a></span></div>\n", "");
+  }],
+  ["lead noscript-in-noscript then You will be charged $5.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><noscript><noscript></noscript>You will be charged $5.</noscript>");
+  }],
+  ["lead iframe-in-iframe then You will be charged $5.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><iframe><iframe></iframe>You will be charged $5.</iframe>");
+  }],
+  ["lead unclosed datalist then footer Billed monthly.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><datalist><option>x ").replace("<p class=\"note\">These cards are labeled DEMO.", "<p class=\"note\">Billed monthly. These cards are labeled DEMO.");
+  }],
+  ["G3 Quote notes then unclosed into a div Ever.", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + "<div>Ever.</div>");
+  }],
+  ["G3 Quote notes then unclosed into a p Ever.", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + "<p>Ever.");
   }]
 
 ];
