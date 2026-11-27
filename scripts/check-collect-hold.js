@@ -81,7 +81,9 @@ const VOID_TAGS = {
 const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1, title: 1, iframe: 1, datalist: 1 };
 // option is not skipped: its end tag is omittable, and option text is visible
 // (a <select><option> is shown on screen). skipToClose must never wait only
-// on an omittable end tag; datalist (required </datalist>) still is skipped.
+// on an omittable end tag. datalist is skipped, but the skip ends at its own
+// </datalist> or at the nearest open ancestor's close tag, whichever is first
+// — it must never run to EOF just because </datalist> is missing.
 
 function parseOpenTag(tag) {
   const m = tag.match(/^<\s*([^\s/>]+)/);
@@ -111,11 +113,15 @@ function tagIsHidden(tag) {
 // visibility:hidden, aria-hidden="true") do not count. A "/" on a non-void
 // open tag is ignored, as in HTML. A p is closed by the next block start
 // (p, div, section, article, h1-h6, ul, ol, table, details, header, footer,
-// nav, form, pre, blockquote, hr) or by the parent's close tag. skipToClose
-// skip tracks the nesting depth of its own tag name and ends only at the
-// matching close (an inner </div> cannot end it early). Raw-text elements
-// (script, style, title, textarea) end at their literal close tag. </head>
-// also ends at <body. No jsdom, no extra deps.
+// nav, form, pre, blockquote, hr) or by the parent's close tag. Raw-text
+// elements (script, style, title, textarea, noscript, iframe) end at the
+// FIRST case-insensitive matching close tag; inner markup is not depth-
+// tracked. That matches a browser with scripting on for noscript, and iframe
+// as raw text: content after that first close is visible. datalist ends at
+// its own </datalist> or the nearest open ancestor's close tag, whichever
+// is first, and never runs to EOF just because </datalist> is missing.
+// template and other non-raw skips still track the nesting depth of their
+// own tag name. </head> also ends at <body. No jsdom, no extra deps.
 function visibleForest(html) {
   const root = { name: "#root", children: [] };
   const stack = [root];
@@ -144,19 +150,53 @@ function visibleForest(html) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
   function skipToClose(name) {
-    // Raw-text elements end at their literal close tag; inner markup is not
-    // parsed (a "</div>" or "</span>" inside a script must not end the skip).
-    const RAW_TEXT = { script: 1, style: 1, title: 1, textarea: 1 };
+    // Raw-text elements end at the FIRST case-insensitive matching close
+    // tag; inner markup is not parsed or depth-tracked (a nested
+    // </noscript> or </iframe> does not wait for a second close). Content
+    // after that first close is visible. Matches a browser with scripting
+    // on for noscript, and iframe as raw text.
+    const RAW_TEXT = { script: 1, style: 1, title: 1, textarea: 1, noscript: 1, iframe: 1 };
     if (RAW_TEXT[name]) {
       const closeRe = new RegExp("</" + escapeRe(name) + "\\s*>", "i");
       const m = closeRe.exec(src.slice(i));
       i = m ? i + m.index + m[0].length : n;
       return;
     }
-    // Every other skip tracks the nesting depth of ITS OWN tag name and
-    // ends only at the matching close. An inner </div> (or any other tag)
-    // cannot end a noscript/template/iframe/datalist/head early; a nested
-    // <template> inside a <template> waits for the outer close.
+    // datalist: end at </datalist> or at the nearest open ancestor's close
+    // tag, whichever comes first. Never run to EOF just because
+    // </datalist> is missing (browser implies a close at the parent, e.g.
+    // </p> in <p>...<datalist><option>x</p>).
+    if (name === "datalist") {
+      const parentName = current().name !== "#root" ? current().name : null;
+      let pos = i;
+      while (pos < n) {
+        if (src.startsWith("<!--", pos)) {
+          const endC = src.indexOf("-->", pos + 4);
+          pos = endC < 0 ? n : endC + 3;
+          continue;
+        }
+        const lt = src.indexOf("<", pos);
+        if (lt < 0) break;
+        const gt = src.indexOf(">", lt);
+        if (gt < 0) break;
+        const tag = src.slice(lt, gt + 1);
+        if (/^<\/datalist\s*>/i.test(tag)) {
+          i = gt + 1;
+          return;
+        }
+        if (parentName && new RegExp("^</" + escapeRe(parentName) + "\\s*>", "i").test(tag)) {
+          i = lt;
+          return;
+        }
+        pos = gt + 1;
+      }
+      // No own close and no parent close: do not run to EOF.
+      return;
+    }
+    // Every other non-raw skip (template, head, …) tracks the nesting
+    // depth of ITS OWN tag name and ends only at the matching close. An
+    // inner </div> cannot end a template/head early; a nested <template>
+    // inside a <template> waits for the outer close.
     let depth = 1;
     while (i < n && depth > 0) {
       if (src.startsWith("<!--", i)) {
@@ -900,6 +940,18 @@ const examplesMutants = [
   }],
   ["G3 Quote notes then unclosed into a p Ever.", function (s) {
     return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + "<p>Ever.");
+  }],
+  ["Z-H01 lead noscript-in-noscript then Bind is on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><noscript><noscript></noscript>Bind is on.</noscript> ");
+  }],
+  ["Z-H09 noscript-in-noscript reworded Quote notes beside the real line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<noscript><noscript></noscript><p class=\"notes\">Dispatch and approve wait on Yes. Bind on.</p></noscript><p class=\"notes\">" + PAY_QUOTE + "</p>");
+  }],
+  ["Z-H03 lead iframe-in-iframe then Bind is on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><iframe><iframe></iframe>Bind is on.</iframe> ");
+  }],
+  ["Z-H04 footer unclosed datalist then Bind is on.", function (s) {
+    return s.replace("Bind and premium stay off the desk.</p>", "Bind and premium stay off the desk.<datalist><option>x</p><p>Bind is on.</p>");
   }]
 
 ];
@@ -922,6 +974,13 @@ const examplesAccepted = [
   }],
   ["valid empty p/ before the Quote notes", function (s) {
     return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p/>" + "<p class=\"notes\">" + PAY_QUOTE + "</p>");
+  }],
+  ["valid empty noscript before the Quote ops payments-off line", function (s) {
+    // Strict-side accept: the real Quote ops card line sits after a
+    // </noscript>. An empty <noscript></noscript> is inserted immediately
+    // before that card's <p class="notes">. Visible text is unchanged and
+    // must still equal the fixture.
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<noscript></noscript><p class=\"notes\">" + PAY_QUOTE + "</p>");
   }]
 ];
 let examplesAcceptedOk = 0;
