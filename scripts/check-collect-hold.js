@@ -54,6 +54,185 @@ const CARD_CONSIGN = '<div class="top"><span>Consign It Away</span><span>First v
 const CARD_QUOTE = '<div class="top"><span>Quote It Away</span><span>Quote ops</span></div>';
 const CARD_META = '<div class="top"><span>Meta.aia</span><span>World Pack</span></div>';
 
+function decodeEntities(s) {
+  return String(s)
+    .replace(/&nbsp;?/gi, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, function (_, n) {
+      const code = n[0].toLowerCase() === "x" ? parseInt(n.slice(1), 16) : parseInt(n, 10);
+      if (!Number.isFinite(code) || code <= 0) return "";
+      try { return String.fromCodePoint(code); } catch (err) { return ""; }
+    });
+}
+function normSpace(s) {
+  return decodeEntities(s)
+    .replace(/[\s\u00a0\u202f\u2007\u2009\u200a\u200b\ufeff]+/g, " ")
+    .trim();
+}
+
+const VOID_TAGS = {
+  area: 1, base: 1, br: 1, col: 1, embed: 1, hr: 1, img: 1, input: 1,
+  link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1
+};
+const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1 };
+
+function parseOpenTag(tag) {
+  const m = tag.match(/^<\s*([^\s/>]+)/);
+  const name = m ? m[1].toLowerCase() : "";
+  const attrs = {};
+  const inner = tag.replace(/^<\s*[^\s/>]+/, "").replace(/\/?\s*>$/, "");
+  const attrRe = /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+  let am;
+  while ((am = attrRe.exec(inner))) {
+    attrs[am[1].toLowerCase()] = am[2] != null ? am[2] : am[3] != null ? am[3] : am[4] != null ? am[4] : "";
+  }
+  return { name: name, attrs: attrs };
+}
+function tagIsHidden(tag) {
+  const attrs = parseOpenTag(tag).attrs;
+  if (Object.prototype.hasOwnProperty.call(attrs, "hidden")) return true;
+  if (String(attrs["aria-hidden"] || "").toLowerCase() === "true") return true;
+  const style = String(attrs.style || "");
+  if (/display\s*:\s*none/i.test(style)) return true;
+  if (/visibility\s*:\s*hidden/i.test(style)) return true;
+  return false;
+}
+
+// Node-only visible-text extractor. Comments, attributes, script/style/noscript/
+// template/head, and hidden elements (hidden, display:none, visibility:hidden,
+// aria-hidden="true") do not count. No jsdom, no extra deps.
+function visibleForest(html) {
+  const root = { name: "#root", children: [] };
+  const stack = [root];
+  let i = 0;
+  const n = String(html).length;
+  const src = String(html);
+  function ignoring() {
+    return stack.some(function (el) { return el.skip || el.hidden; });
+  }
+  function current() { return stack[stack.length - 1]; }
+  function skipToClose(name) {
+    const re = new RegExp("</" + name + "\\s*>", "i");
+    const slice = src.slice(i);
+    const m = re.exec(slice);
+    i = m ? i + m.index + m[0].length : n;
+  }
+  while (i < n) {
+    if (src.startsWith("<!--", i)) {
+      const end = src.indexOf("-->", i + 4);
+      i = end < 0 ? n : end + 3;
+      continue;
+    }
+    if (src[i] === "<") {
+      const end = src.indexOf(">", i);
+      if (end < 0) break;
+      const tag = src.slice(i, end + 1);
+      i = end + 1;
+      if (/^<!|^<\?/.test(tag)) continue;
+      if (/^<\s*\//.test(tag)) {
+        const name = (tag.match(/^<\s*\/\s*([^\s>]+)/) || [null, ""])[1].toLowerCase();
+        for (let s = stack.length - 1; s > 0; s--) {
+          if (stack[s].name === name) {
+            stack.length = s;
+            break;
+          }
+        }
+        continue;
+      }
+      const parsed = parseOpenTag(tag);
+      const selfClose = /\/\s*>$/.test(tag) || VOID_TAGS[parsed.name];
+      const el = {
+        name: parsed.name,
+        hidden: tagIsHidden(tag),
+        skip: !!SKIP_TAGS[parsed.name],
+        children: []
+      };
+      if (el.skip) {
+        if (!selfClose) skipToClose(parsed.name);
+        continue;
+      }
+      if (!ignoring() && !el.hidden) current().children.push(el);
+      if (!selfClose) stack.push(el);
+      continue;
+    }
+    const next = src.indexOf("<", i);
+    const raw = src.slice(i, next < 0 ? n : next);
+    i = next < 0 ? n : next;
+    if (!ignoring() && raw) current().children.push({ name: "#text", text: raw });
+  }
+  return root;
+}
+function visibleUnits(html) {
+  const units = [];
+  function walk(node) {
+    if (node.name === "#text") {
+      const t = normSpace(node.text);
+      if (t) units.push(t);
+      return node.text;
+    }
+    const parts = (node.children || []).map(walk);
+    const raw = parts.join(" ");
+    const t = normSpace(raw);
+    if (node.name !== "#root" && t) units.push(t);
+    return raw;
+  }
+  const root = visibleForest(html);
+  const pageText = normSpace(walk(root));
+  return { units: units, text: pageText };
+}
+function hasExactVisible(html, line) {
+  const want = normSpace(line);
+  if (!want) return false;
+  return visibleUnits(html).units.some(function (u) { return u === want; });
+}
+
+function pinVisibleExact(hay, marker, line, label) {
+  const card = cardWith(hay, marker, label);
+  if (!hasExactVisible(card, line)) {
+    throw new Error("missing visible exact " + label + " payments off: " + line);
+  }
+  return card;
+}
+function forbidVisibleElsewhere(hay, marker, line, label) {
+  const card = cardWith(hay, marker, label);
+  const start = hay.indexOf(card);
+  if (start < 0) throw new Error(label + " card missing");
+  const rest = hay.slice(0, start) + hay.slice(start + card.length);
+  if (visibleUnits(rest).text.includes(normSpace(line))) {
+    throw new Error(line + " is visible outside " + label);
+  }
+}
+function extraChargeHits(text) {
+  const hits = [];
+  const rules = [
+    [/nothing is charged/i, "Nothing is charged"],
+    [/charged monthly/i, "charged monthly"],
+    [/you are charged/i, "You are charged"],
+    [/\bwe charge/i, "we charge"],
+    [/\$\s*\d[\d,]*(?:\.\d+)?\s*(?:\/\s*|per\s+)(?:mo(?:nth)?|yr|year|wk|week|da(?:y)?)/i, "price-per-period"]
+  ];
+  rules.forEach(function (row) {
+    if (row[0].test(text)) hits.push(row[1]);
+  });
+  return hits;
+}
+function forbidExtraChargeLines(hay, allowedLines, label) {
+  let text = visibleUnits(hay).text;
+  allowedLines.forEach(function (line) {
+    const n = normSpace(line);
+    let idx;
+    while ((idx = text.indexOf(n)) >= 0) {
+      text = normSpace(text.slice(0, idx) + " " + text.slice(idx + n.length));
+    }
+  });
+  const hits = extraChargeHits(text);
+  if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
+}
+
 function pinCardLine(hay, marker, line, label) {
   const card = cardWith(hay, marker, label);
   must(card, line, label + " payments off");
@@ -73,6 +252,13 @@ function checkExamplesPayments(hay) {
   pinCardLine(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
   pinCardLine(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
   if (hasCollectHoldVariant(hay)) throw new Error("invented examples.html Collect jargon variant");
+  pinVisibleExact(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
+  pinVisibleExact(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
+  pinVisibleExact(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
+  forbidVisibleElsewhere(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
+  forbidVisibleElsewhere(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
+  forbidVisibleElsewhere(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
+  forbidExtraChargeLines(hay, [PAY_CONSIGN, PAY_QUOTE, PAY_META], "examples.html extra charge wording");
 }
 
 const index = read("index.html");
@@ -216,6 +402,57 @@ const examplesMutants = [
   ["Collect&#160;HOLD numeric entity in the lead", function (s) { return s.replace("<p class=\"lead\">", "<p class=\"lead\">Collect&#160;HOLD. "); }],
   ["move Consign payments-off line outside the card", function (s) {
     return s.replace(PAY_CONSIGN, "Photo to listing draft.").replace("<p class=\"lead\">", "<p class=\"lead\">" + PAY_CONSIGN + " ");
+  }],
+  ["comment copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.<!-- " + PAY_QUOTE + " --></p>");
+  }],
+  ["attribute copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" title=\"" + PAY_QUOTE + "\">Dispatch and approve wait on Yes. Bind off.</p>");
+  }],
+  ["hidden attribute on the Quote ops notes p", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" hidden>" + PAY_QUOTE + "</p>");
+  }],
+  ["display:none on the Quote ops notes p", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" style=\"display:none\">" + PAY_QUOTE + "</p>");
+  }],
+  ["visibility:hidden on the Quote ops notes p", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" style=\"visibility:hidden\">" + PAY_QUOTE + "</p>");
+  }],
+  ["aria-hidden on the Quote ops notes p", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" aria-hidden=\"true\">" + PAY_QUOTE + "</p>");
+  }],
+  ["template copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><template>" + PAY_QUOTE + "</template>");
+  }],
+  ["script copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><script>" + PAY_QUOTE + "</script>");
+  }],
+  ["style copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><style>" + PAY_QUOTE + "</style>");
+  }],
+  ["noscript copy of Quote ops payments-off on that card", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><noscript>" + PAY_QUOTE + "</noscript>");
+  }],
+  ["hidden p on the Quote ops card keeps the payments-off line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><p hidden>" + PAY_QUOTE + "</p>");
+  }],
+  ["trailing Ever. on the Quote ops payments-off line", function (s) {
+    return s.replace(PAY_QUOTE, PAY_QUOTE + " Ever.");
+  }],
+  ["leading prefix on the Quote ops payments-off line", function (s) {
+    return s.replace(PAY_QUOTE, "Note: " + PAY_QUOTE);
+  }],
+  ["extra charge line in the page lead", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">You are charged monthly. ");
+  }],
+  ["extra charge line in the page footer", function (s) {
+    return s.replace("<p class=\"note\">", "<p class=\"note\">Nothing is charged. ");
+  }],
+  ["copy Meta.aia payments-off line into the page lead", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">" + PAY_META + " ");
+  }],
+  ["copy Quote ops payments-off line outside any card", function (s) {
+    return s.replace("<p class=\"note\">", "<p class=\"note\">" + PAY_QUOTE + " ");
   }]
 ];
 let examplesCaught = 0;
