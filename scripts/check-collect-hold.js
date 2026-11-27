@@ -20,6 +20,61 @@ function sliceBetween(hay, startNeedle, endNeedle, label) {
   return hay.slice(start, end);
 }
 
+function articleCards(hay) {
+  const out = [];
+  const re = /<article class="card">[\s\S]*?<\/article>/g;
+  let m;
+  while ((m = re.exec(hay))) out.push(m[0]);
+  return out;
+}
+function cardWith(hay, marker, label) {
+  const hits = articleCards(hay).filter(function (c) { return c.includes(marker); });
+  if (hits.length !== 1) throw new Error(label + " card missing or not unique");
+  return hits[0];
+}
+function foldText(s) {
+  return String(s)
+    .replace(/&nbsp;?/gi, " ")
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, function (_, n) {
+      const code = n[0].toLowerCase() === "x" ? parseInt(n.slice(1), 16) : parseInt(n, 10);
+      if (code === 9 || code === 10 || code === 13 || code === 12 || code === 32 || code === 160) return " ";
+      return String.fromCharCode(code);
+    })
+    .replace(/[\s\u00a0\u202f\u2007\u2009\u200a\ufeff]+/g, " ")
+    .toLowerCase();
+}
+function hasCollectHoldVariant(hay) {
+  return /\bcollect\s*hold\b/.test(foldText(hay));
+}
+
+const PAY_CONSIGN = "Photo to listing draft. Payments are off for now.";
+const PAY_QUOTE = "Dispatch and approve wait on Yes. Bind off. Payments are off for now. Nothing is charged.";
+const PAY_META = "The card is the UI. Desk AIs draft. You Yes / Stop. Payments are off for now. Nothing is charged.";
+const CARD_CONSIGN = '<div class="top"><span>Consign It Away</span><span>First vertical</span></div>';
+const CARD_QUOTE = '<div class="top"><span>Quote It Away</span><span>Quote ops</span></div>';
+const CARD_META = '<div class="top"><span>Meta.aia</span><span>World Pack</span></div>';
+
+function pinCardLine(hay, marker, line, label) {
+  const card = cardWith(hay, marker, label);
+  must(card, line, label + " payments off");
+  articleCards(hay).forEach(function (c) {
+    if (c !== card && c.includes(line)) throw new Error(line + " is not pinned to " + label + " alone");
+  });
+  return card;
+}
+
+// Real examples.html helper used by the main path and by every in-script mutant.
+function checkExamplesPayments(hay) {
+  must(hay, PAY_CONSIGN, "examples.html Consign payments off");
+  mustNot(hay, "Collect HOLD", "examples.html Collect jargon");
+  must(hay, PAY_QUOTE, "examples.html Quote ops payments off");
+  must(hay, PAY_META, "examples.html Meta.aia payments off");
+  pinCardLine(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
+  pinCardLine(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
+  pinCardLine(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
+  if (hasCollectHoldVariant(hay)) throw new Error("invented examples.html Collect jargon variant");
+}
+
 const index = read("index.html");
 const help = read("help.html");
 const consign = read("consign.html");
@@ -101,10 +156,7 @@ Object.keys(leftover).forEach(function (name) {
 });
 must(leftover["setup.html"], "Photo to listing draft. Payments are off for now.", "setup.html Consign payments off");
 mustNot(leftover["setup.html"], "Collect HOLD", "setup.html Collect jargon");
-must(leftover["examples.html"], "Photo to listing draft. Payments are off for now.", "examples.html Consign payments off");
-mustNot(leftover["examples.html"], "Collect HOLD", "examples.html Collect jargon");
-must(leftover["examples.html"], "Dispatch and approve wait on Yes. Bind off. Payments are off for now. Nothing is charged.", "examples.html Quote ops payments off");
-must(leftover["examples.html"], "The card is the UI. Desk AIs draft. You Yes / Stop. Payments are off for now. Nothing is charged.", "examples.html Meta.aia payments off");
+checkExamplesPayments(leftover["examples.html"]);
 must(leftover["setup-demo.js"], "Photo to comps to listing draft. Payments are off for now.", "setup-demo estate payments off");
 must(leftover["api/_packs.js"], "Photo in. Listing draft. Collect HOLD until Yes + a real money pipe.", "marketplace consign HOLD");
 must(leftover["pack-card.js"], "Draft a listing. Collect HOLD until Yes + a real money pipe.", "pack-card consign HOLD");
@@ -128,32 +180,53 @@ must(yesNo, "pricing.html", "ACCOUNT-YES-NO names pricing.html leftover");
 must(packMd, "setup.html", "PACK.md names setup.html leftover");
 must(packMd, "pricing.html", "PACK.md names pricing.html leftover");
 
-const PAY_QUOTE = "Dispatch and approve wait on Yes. Bind off. Payments are off for now. Nothing is charged.";
-const PAY_META = "The card is the UI. Desk AIs draft. You Yes / Stop. Payments are off for now. Nothing is charged.";
-function examplesPaymentsErrors(hay) {
-  const errs = [];
-  if (!hay.includes(PAY_QUOTE)) errs.push("missing examples.html Quote ops payments off: " + PAY_QUOTE);
-  if (!hay.includes(PAY_META)) errs.push("missing examples.html Meta.aia payments off: " + PAY_META);
-  if (hay.includes("Collect HOLD")) errs.push("invented examples.html Collect jargon: Collect HOLD");
-  return errs;
+function swapOnce(hay, a, b) {
+  if (hay.split(a).length !== 2 || hay.split(b).length !== 2) throw new Error("swap does not apply");
+  return hay.replace(a, "\0SWAP\0").replace(b, a).replace("\0SWAP\0", b);
 }
+function caughtExamples(hay) {
+  try {
+    checkExamplesPayments(hay);
+    return null;
+  } catch (err) {
+    return err;
+  }
+}
+
+const examplesSrc = leftover["examples.html"];
 const examplesMutants = [
-  ["Quote ops Collect HOLD restored", PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off. Collect HOLD."],
-  ["Meta.aia Collect HOLD restored", PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop. Collect HOLD."],
-  ["Quote ops payments line reworded", PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off. Payments are paused for now. Nothing is charged."],
-  ["Meta.aia payments line reworded", PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop. Payments are paused for now. Nothing is charged."],
-  ["Quote ops payments line dropped", PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off."],
-  ["Meta.aia payments line dropped", PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop."]
+  ["Quote ops Collect HOLD restored", function (s) { return s.replace(PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off. Collect HOLD."); }],
+  ["Meta.aia Collect HOLD restored", function (s) { return s.replace(PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop. Collect HOLD."); }],
+  ["Quote ops payments line reworded", function (s) { return s.replace(PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off. Payments are paused for now. Nothing is charged."); }],
+  ["Meta.aia payments line reworded", function (s) { return s.replace(PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop. Payments are paused for now. Nothing is charged."); }],
+  ["Quote ops payments line dropped", function (s) { return s.replace(PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off."); }],
+  ["Meta.aia payments line dropped", function (s) { return s.replace(PAY_META, "The card is the UI. Desk AIs draft. You Yes / Stop."); }],
+  ["swap Quote ops and Meta.aia payments-off lines", function (s) { return swapOnce(s, PAY_QUOTE, PAY_META); }],
+  ["remove Consign payments-off from that card only", function (s) { return s.replace(PAY_CONSIGN, "Photo to listing draft."); }],
+  ["duplicate Quote ops line onto Meta.aia and remove it from Quote ops", function (s) {
+    return s.replace(PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off.").replace(PAY_META, PAY_META + " " + PAY_QUOTE);
+  }],
+  ["move Quote ops payments-off line outside the card", function (s) {
+    return s.replace(PAY_QUOTE, "Dispatch and approve wait on Yes. Bind off.").replace("<p class=\"lead\">", "<p class=\"lead\">" + PAY_QUOTE + " ");
+  }],
+  ["reword Consign payments-off on that card only", function (s) { return s.replace(PAY_CONSIGN, "Photo to listing draft. Payments are paused for now."); }],
+  ["Collect hold case variant kept beside the Quote ops line", function (s) { return s.replace(PAY_QUOTE, PAY_QUOTE + " Collect hold."); }],
+  ["Collect&nbsp;HOLD entity variant kept beside the Quote ops line", function (s) { return s.replace(PAY_QUOTE, PAY_QUOTE + " Collect&nbsp;HOLD."); }],
+  ["COLLECT HOLD case variant in the lead", function (s) { return s.replace("<p class=\"lead\">", "<p class=\"lead\">COLLECT HOLD. "); }],
+  ["Collect&#160;HOLD numeric entity in the lead", function (s) { return s.replace("<p class=\"lead\">", "<p class=\"lead\">Collect&#160;HOLD. "); }],
+  ["move Consign payments-off line outside the card", function (s) {
+    return s.replace(PAY_CONSIGN, "Photo to listing draft.").replace("<p class=\"lead\">", "<p class=\"lead\">" + PAY_CONSIGN + " ");
+  }]
 ];
 let examplesCaught = 0;
 examplesMutants.forEach(function (row) {
-  const name = row[0], from = row[1], to = row[2];
-  const src = leftover["examples.html"];
-  if (src.split(from).length !== 2) throw new Error("mutant does not apply: " + name);
-  const errs = examplesPaymentsErrors(src.replace(from, to));
-  if (!errs.length) throw new Error("mutant NOT caught: " + name);
+  const name = row[0], apply = row[1];
+  const mutated = apply(examplesSrc);
+  if (mutated === examplesSrc) throw new Error("mutant does not apply: " + name);
+  const err = caughtExamples(mutated);
+  if (!err) throw new Error("mutant NOT caught: " + name);
   examplesCaught += 1;
-  console.log("ok mutant caught: " + name + " (" + errs[0] + ")");
+  console.log("ok mutant caught: " + name + " (" + err.message + ")");
 });
 if (examplesCaught !== examplesMutants.length) throw new Error("examples payments mutants " + examplesCaught + "/" + examplesMutants.length);
 console.log("check-collect-hold examples payments mutants: " + examplesCaught + "/" + examplesMutants.length + " caught");
