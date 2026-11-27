@@ -142,15 +142,6 @@
       <div class="card"><h2>AIA subscription</h2><div class="row" id="plans"></div></div>
       <div class="card" id="owned"></div>
       <div class="card" id="member"></div>
-      <div class="card" id="phones">
-        <h2>Phones on this account</h2>
-        <p class="meta">Up to 8 phones. Same AIA account. Leave this phone or every phone. Sessions last 14 days.</p>
-        <div id="phone-list"></div>
-        <div class="row">
-          <button class="edit" type="button" id="leave-all">Leave every phone</button>
-        </div>
-        <p class="meta" id="phone-hint"></p>
-      </div>
       <div class="card" id="export-card">
         <h2>Export the book</h2>
         <p class="meta">Copy of this account. No desk code. No password hash. Nothing sends from here. Payments are off for now.</p>
@@ -160,13 +151,14 @@
       <div class="card" id="mfa-card">
         <h2>Authenticator</h2>
         <p class="meta">Off for now. No email codes. No SMS codes.</p>
-        <p><button class="edit" type="button" id="mfa-on">Turn on authenticator</button></p>
+        <p><button class="edit" type="button" id="mfa-on" disabled>Turn on authenticator</button></p>
         <p class="meta" id="mfa-hint">Authenticator is off for now.</p>
       </div>
     </div>
     <section id="acct-follow" aria-label="Pause, activity, undo, and export" hidden></section>
     <section id="acct-connections" aria-label="Connections and setup cards" hidden></section>
     <section id="acct-settings" aria-label="My account settings" hidden></section>
+    <section id="acct-security" aria-label="Sign-in" hidden></section>
   </main>
   <nav id="desk-nav" aria-label="Desk">
     <a href="/desk" data-tab="queue"><span>Queue</span></a>
@@ -186,6 +178,7 @@
   <script src="account-settings.js"></script>
   <script src="account-connections.js"></script>
   <script src="account-follow.js"></script>
+  <script src="account-security.js"></script>
   <script>
     const slugEl=document.getElementById("slug");
     const pinEl=document.getElementById("pin");
@@ -266,29 +259,7 @@
       document.getElementById("owned").innerHTML="<h2>Desks you own</h2>"+(owned.length?owned.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">Owner</div></div>";}).join(""):"<p class=\"meta\">Open a desk as owner.</p>");
       const sitting=d.desksMember||(d.mine&&d.mine.member)||[];
       document.getElementById("member").innerHTML="<h2>Desks you sit on</h2>"+(sitting.length?sitting.map(function(w){return "<div class=\"item\"><strong>"+esc(w.name)+"</strong><div class=\"meta\">"+esc(w.kind)+"</div></div>";}).join(""):"<p class=\"meta\">Join a desk as a member.</p>");
-      if(Array.isArray(d.sessions)) paintPhones(d.sessions);
-      else loadPhones();
-    }
-    function phoneLine(s){
-      const when=String(s.seenAt||s.createdAt||"").replace("T"," ").slice(0,16);
-      const who=s.name||s.role||"Seat";
-      const desk=s.workspace||"";
-      const now=s.current?" · this phone":"";
-      return "<div class=\"item\"><strong>"+esc(who)+now+"</strong><div class=\"meta\">"+esc(desk)+(when?" · seen "+esc(when):"")+"</div></div>";
-    }
-    function paintPhones(rows){
-      const box=document.getElementById("phone-list");
-      if(!box) return;
-      const list=Array.isArray(rows)?rows:[];
-      box.innerHTML=list.length?list.map(phoneLine).join(""):"<p class=\"meta\">No other phones on this account yet. This phone is the trail once Open saves a session.</p>";
-    }
-    async function loadPhones(){
-      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
-      const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"sessions"})});
-      const d=await r.json().catch(function(){return {};});
-      if(r.ok) paintPhones(d.sessions||[]);
-      else document.getElementById("phone-hint").textContent=d.error||"Could not list phones.";
+      if(window.AIAAccountSecurity&&AIAAccountSecurity.load) AIAAccountSecurity.load();
     }
     function wipePhone(){
       ["aia_ws","aia_pin","aia_session","aia_name","aia_role","aia_photo","aia_acct","aia_desk_name","aia_email","aia_wallet_address","aia_wallet_chain"].forEach(function(k){localStorage.removeItem(k);});
@@ -329,7 +300,6 @@
       e.preventDefault();
       leavePhone(false);
     };
-    document.getElementById("leave-all").onclick=function(){leavePhone(true);};
     document.getElementById("export-book").onclick=async function(){
       const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
       const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
@@ -349,16 +319,7 @@
         hint.textContent="Exported. No desk code. No password hash. Payments are off for now.";
       }catch(e){hint.textContent="Could not reach the desk.";}
     };
-    document.getElementById("mfa-on").onclick=async function(){
-      const slug=localStorage.getItem("aia_ws")||slugEl.value||"";
-      const pin=localStorage.getItem("aia_pin")||pinEl.value||"";
-      const hint=document.getElementById("mfa-hint");
-      try{
-        const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pin),body:JSON.stringify({action:"mfa",on:true})});
-        const d=await r.json().catch(function(){return {};});
-        hint.textContent=(d.error||d.hint||"Authenticator is off for now on this account.")+(d.hold||r.status===409?" Authenticator stays HOLD.":"");
-      }catch(e){hint.textContent="Could not reach the desk.";}
-    };
+    document.getElementById("mfa-on").onclick=function(){ return; };
     async function act(action, extra){
       const slug=String(slugEl.value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
       const r=await fetch("/api/account",{method:"POST",headers:hdr(slug,pinEl.value),body:JSON.stringify(Object.assign({action:action,slug:slug,pin:pinEl.value},extra||{}))});
