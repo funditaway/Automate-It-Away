@@ -78,7 +78,7 @@ const VOID_TAGS = {
   area: 1, base: 1, br: 1, col: 1, embed: 1, hr: 1, img: 1, input: 1,
   link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1
 };
-const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1 };
+const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1, title: 1, iframe: 1, datalist: 1, option: 1 };
 
 function parseOpenTag(tag) {
   const m = tag.match(/^<\s*([^\s/>]+)/);
@@ -103,16 +103,32 @@ function tagIsHidden(tag) {
 }
 
 // Node-only visible-text extractor. Comments, attributes, script/style/noscript/
-// template/head, and hidden elements (hidden, display:none, visibility:hidden,
-// aria-hidden="true") do not count. No jsdom, no extra deps.
+// template/head/title/iframe/datalist/option, closed details (summary stays),
+// a dialog that is not open, and hidden elements (hidden, display:none,
+// visibility:hidden, aria-hidden="true") do not count. A "/" on a non-void
+// open tag is ignored, as in HTML. No jsdom, no extra deps.
 function visibleForest(html) {
   const root = { name: "#root", children: [] };
   const stack = [root];
   let i = 0;
   const n = String(html).length;
   const src = String(html);
-  function ignoring() {
-    return stack.some(function (el) { return el.skip || el.hidden; });
+  function blocked() {
+    return stack.some(function (el) { return el.skip || el.hidden || el.dialogClosed; });
+  }
+  function insideClosedDetails(incomingName) {
+    var closed = false, inSummary = false;
+    for (var s = 0; s < stack.length; s++) {
+      if (stack[s].detailsClosed) { closed = true; inSummary = false; }
+      if (stack[s].name === "summary") inSummary = true;
+    }
+    if (!closed) return false;
+    if (inSummary) return false;
+    if (incomingName === "summary") return false;
+    return true;
+  }
+  function ignoring(incomingName) {
+    return blocked() || insideClosedDetails(incomingName);
   }
   function current() { return stack[stack.length - 1]; }
   function skipToClose(name) {
@@ -144,30 +160,35 @@ function visibleForest(html) {
         continue;
       }
       const parsed = parseOpenTag(tag);
-      const selfClose = /\/\s*>$/.test(tag) || VOID_TAGS[parsed.name];
+      // HTML ignores a trailing slash on non-void tags, so <p hidden/> stays open.
+      const selfClose = !!VOID_TAGS[parsed.name];
+      const attrs = parsed.attrs;
       const el = {
         name: parsed.name,
         hidden: tagIsHidden(tag),
         skip: !!SKIP_TAGS[parsed.name],
+        detailsClosed: parsed.name === "details" && !Object.prototype.hasOwnProperty.call(attrs, "open"),
+        dialogClosed: parsed.name === "dialog" && !Object.prototype.hasOwnProperty.call(attrs, "open"),
         children: []
       };
       if (el.skip) {
         if (!selfClose) skipToClose(parsed.name);
         continue;
       }
-      if (!ignoring() && !el.hidden) current().children.push(el);
+      if (!ignoring(parsed.name) && !el.hidden && !el.dialogClosed) current().children.push(el);
       if (!selfClose) stack.push(el);
       continue;
     }
     const next = src.indexOf("<", i);
     const raw = src.slice(i, next < 0 ? n : next);
     i = next < 0 ? n : next;
-    if (!ignoring() && raw) current().children.push({ name: "#text", text: raw });
+    if (!ignoring("#text") && raw) current().children.push({ name: "#text", text: raw });
   }
   return root;
 }
 function visibleUnits(html) {
   const units = [];
+  const elements = [];
   function walk(node) {
     if (node.name === "#text") {
       const t = normSpace(node.text);
@@ -177,17 +198,43 @@ function visibleUnits(html) {
     const parts = (node.children || []).map(walk);
     const raw = parts.join(" ");
     const t = normSpace(raw);
-    if (node.name !== "#root" && t) units.push(t);
+    if (node.name !== "#root" && t) {
+      units.push(t);
+      elements.push({ name: node.name, text: t });
+    }
     return raw;
   }
   const root = visibleForest(html);
   const pageText = normSpace(walk(root));
-  return { units: units, text: pageText };
+  return { units: units, elements: elements, text: pageText };
 }
 function hasExactVisible(html, line) {
   const want = normSpace(line);
   if (!want) return false;
   return visibleUnits(html).units.some(function (u) { return u === want; });
+}
+
+// Local blocks only (not article/section/main wrappers). If no such block
+// contains the line, visibility is left to pinVisibleExact / the extractor.
+const BLOCK_TAGS = {
+  p: 1, div: 1, li: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
+  blockquote: 1, pre: 1, dt: 1, dd: 1, figcaption: 1, td: 1, th: 1, address: 1
+};
+function hasExactVisibleBlock(html, line) {
+  const want = normSpace(line);
+  if (!want) return false;
+  const holders = visibleUnits(html).elements.filter(function (el) {
+    return BLOCK_TAGS[el.name] && el.text.includes(want);
+  });
+  if (!holders.length) return true;
+  return holders.every(function (el) { return el.text === want; });
+}
+function pinVisibleExactBlock(hay, marker, line, label) {
+  const card = cardWith(hay, marker, label);
+  if (!hasExactVisibleBlock(card, line)) {
+    throw new Error("missing visible exact block " + label + " payments off: " + line);
+  }
+  return card;
 }
 
 function pinVisibleExact(hay, marker, line, label) {
@@ -233,6 +280,44 @@ function forbidExtraChargeLines(hay, allowedLines, label) {
   if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
 }
 
+const ALLOWED_OUTSIDE_CHARGE = [
+  "Payments are off for now.",
+  "Switching a plan does not charge."
+];
+function unlistedChargeHits(text) {
+  const hits = [];
+  const rules = [
+    [/\bcharg/i, "charge wording"],
+    [/\bbilled\b/i, "billed"],
+    [/\bpayments?\s+are\s+live\b/i, "Payments are live"],
+    [/\$\s*\d/i, "price"],
+    [/\bfee applies\b/i, "fee applies"]
+  ];
+  rules.forEach(function (row) {
+    if (row[0].test(text)) hits.push(row[1]);
+  });
+  return hits;
+}
+function forbidUnlistedChargeWording(hay, label) {
+  let rest = hay;
+  [CARD_CONSIGN, CARD_QUOTE, CARD_META].forEach(function (marker) {
+    const card = cardWith(rest, marker, label);
+    const start = rest.indexOf(card);
+    if (start < 0) throw new Error(label + " card missing");
+    rest = rest.slice(0, start) + rest.slice(start + card.length);
+  });
+  let text = visibleUnits(rest).text;
+  ALLOWED_OUTSIDE_CHARGE.forEach(function (line) {
+    const n = normSpace(line);
+    let idx;
+    while ((idx = text.indexOf(n)) >= 0) {
+      text = normSpace(text.slice(0, idx) + " " + text.slice(idx + n.length));
+    }
+  });
+  const hits = unlistedChargeHits(text);
+  if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
+}
+
 function pinCardLine(hay, marker, line, label) {
   const card = cardWith(hay, marker, label);
   must(card, line, label + " payments off");
@@ -259,6 +344,10 @@ function checkExamplesPayments(hay) {
   forbidVisibleElsewhere(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
   forbidVisibleElsewhere(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
   forbidExtraChargeLines(hay, [PAY_CONSIGN, PAY_QUOTE, PAY_META], "examples.html extra charge wording");
+  pinVisibleExactBlock(hay, CARD_CONSIGN, PAY_CONSIGN, "examples.html Consign card");
+  pinVisibleExactBlock(hay, CARD_QUOTE, PAY_QUOTE, "examples.html Quote ops card");
+  pinVisibleExactBlock(hay, CARD_META, PAY_META, "examples.html Meta.aia card");
+  forbidUnlistedChargeWording(hay, "examples.html unlisted charge wording");
 }
 
 const index = read("index.html");
@@ -453,6 +542,81 @@ const examplesMutants = [
   }],
   ["copy Quote ops payments-off line outside any card", function (s) {
     return s.replace("<p class=\"note\">", "<p class=\"note\">" + PAY_QUOTE + " ");
+  }],
+  ["P-T02 tail in inline span on Quote ops", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + "<span> Ever.</span></p>");
+  }],
+  ["P-T03 tail after br on Quote ops", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + "<br>Ever.</p>");
+  }],
+  ["P-T04 tail in a link on Quote ops", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + " <a href=\"#\">Just kidding.</a></p>");
+  }],
+  ["P-T05 prefix in b on Quote ops", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\"><b>Yes.</b> " + PAY_QUOTE + "</p>");
+  }],
+  ["P-T07 Quote ops line wrapped in span plus visible tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\"><span>" + PAY_QUOTE + "</span> Ever.</p>");
+  }],
+  ["P-T08 Consign tail in em", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_CONSIGN + "</p>", "<p class=\"notes\">" + PAY_CONSIGN + " <em>Except today.</em></p>");
+  }],
+  ["P-T11 Quote ops tail is a charge in a span", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + " <span>Then $5 is charged.</span></p>");
+  }],
+  ["P-T14 Meta tail in span", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_META + "</p>", "<p class=\"notes\">" + PAY_META + "<span> Ever.</span></p>");
+  }],
+  ["P-C01 lead: You will be charged $5.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">You will be charged $5. ");
+  }],
+  ["P-C03 footer: $5 a month.", function (s) {
+    return s.replace("<p class=\"note\">", "<p class=\"note\">$5 a month. ");
+  }],
+  ["P-C05 footer: Billed monthly.", function (s) {
+    return s.replace("<p class=\"note\">", "<p class=\"note\">Billed monthly. ");
+  }],
+  ["P-C06 lead: Your card is charged today.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Your card is charged today. ");
+  }],
+  ["P-C09 lead: Payments are live.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments are live. ");
+  }],
+  ["P-C10 lead: A $5 fee applies.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">A $5 fee applies. ");
+  }],
+  ["P-C11 lead: You'll be charged.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">You'll be charged. ");
+  }],
+  ["P-C16 step 6 flipped: Switching a plan does charge.", function (s) {
+    return s.replace("Switching a plan does not charge.", "Switching a plan does charge.");
+  }],
+  ["P-C17 lead: Charged per month.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Charged per month. ");
+  }],
+  ["P-E01 self-closing hidden p keeps the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\" hidden/>" + PAY_QUOTE + "</p>");
+  }],
+  ["P-E02 self-closing hidden span wraps the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\"><span hidden />" + PAY_QUOTE + "</p>");
+  }],
+  ["P-E03 self-closing template holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><template/>" + PAY_QUOTE + "</template>");
+  }],
+  ["P-E08 closed details holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><details><summary>More</summary><p>" + PAY_QUOTE + "</p></details>");
+  }],
+  ["P-E09 unopened dialog holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><dialog><p>" + PAY_QUOTE + "</p></dialog>");
+  }],
+  ["P-E10 title in body holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><title>" + PAY_QUOTE + "</title>");
+  }],
+  ["P-E11 iframe holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><iframe>" + PAY_QUOTE + "</iframe>");
+  }],
+  ["P-E12 datalist option holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><datalist><option>" + PAY_QUOTE + "</option></datalist>");
   }]
 ];
 let examplesCaught = 0;
