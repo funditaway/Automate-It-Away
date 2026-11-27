@@ -286,7 +286,28 @@ const BUILD_LOG_STATUSES = ["landed", "draft", "hold", "waiting-on-" + "J" + "am
 function isBuildLogStatus(s) {
   return BUILD_LOG_STATUSES.indexOf(s) >= 0;
 }
-const BUILD_LOG_KEYS = { action: 1, pr: 1, head: 1, mainSha: 1, verdict: 1, hold: 1, status: 1, name: 1, actorKind: 1 };
+const BUILD_LOG_KEYS = { action: 1, pr: 1, head: 1, mainSha: 1, verdict: 1, hold: 1, status: 1, name: 1, actorKind: 1, step: 1, work: 1, done: 1, deploy: 1 };
+// Step posts: one card per piece of work, rows only ever appended. Allowlisted words only.
+const BUILD_STEPS = { "draft-opened": "Draft opened", "new-head": "New head", "probe": "Probe", "named": "Named", "landed": "Landed", "deployed": "Deployed", "ramp": "Ramp", "decision": "Decision" };
+const BUILD_STEP_VERDICTS = ["PASS", "FAIL", "GREEN", "ORANGE", "RED", "HOLD"];
+const BUILD_STEP_KEYS = { action: 1, step: 1, pr: 1, work: 1, head: 1, verdict: 1, deploy: 1, done: 1 };
+const BUILD_STEP_NEEDS_HEAD = { "new-head": 1, "probe": 1 };
+const BUILD_STEP_MAX = 200;
+function buildStepLine(row) {
+  let line = BUILD_STEPS[row.step];
+  if (row.verdict) line += ": " + row.verdict;
+  if (row.head) line += " on " + row.head.slice(0, 8);
+  if (row.deploy) line += ". Deploy " + row.deploy;
+  if (row.done) line += ". Done.";
+  return line;
+}
+function findBuildStepCard(workspace, pr, work) {
+  return (mem.jobs || []).find(function (j) {
+    const b = j && j.custom && j.custom.buildLog;
+    if (!j || j.workspace !== workspace || !b || !Array.isArray(b.steps)) return false;
+    return pr ? Number(b.pr) === pr : b.work === work;
+  }) || null;
+}
 const BUILD_MONEY_KEYS = { amount: 1, ask: 1, charged: 1, money: 1, provider: 1, hook: 1, to: 1, email: 1, collect: 1, payout: 1, wallet: 1 };
 function buildLogTitle(status, name, pr) {
   const label = name + " (#" + pr + ")";
@@ -469,6 +490,121 @@ module.exports = async function handler(req, res) {
         if (!BUILD_LOG_KEYS[k]) {
           return res.status(400).json({ ok: false, error: "That field is not used here." });
         }
+      }
+      if (body.step !== undefined || body.work !== undefined || body.done !== undefined || body.deploy !== undefined) {
+        const refuse = function (code, error) { return res.status(code).json({ ok: false, error: error }); };
+        for (let si = 0; si < bodyKeys.length; si++) {
+          if (!BUILD_STEP_KEYS[bodyKeys[si]]) return refuse(400, "That field is not used here.");
+        }
+        if (typeof body.step !== "string" || !BUILD_STEPS[body.step] || !Object.prototype.hasOwnProperty.call(BUILD_STEPS, body.step)) {
+          return refuse(400, "Step must be draft-opened, new-head, probe, named, landed, deployed, ramp, or decision.");
+        }
+        const hasPr = body.pr !== undefined && body.pr !== null && body.pr !== "";
+        const hasWork = body.work !== undefined && body.work !== null && body.work !== "";
+        if (hasPr && hasWork) return refuse(400, "Send the PR or the work name, not both.");
+        if (!hasPr && !hasWork) return refuse(400, "Send the PR or a work name.");
+        let stepPr = null;
+        let stepWork = "";
+        if (hasPr) {
+          stepPr = parseBuildPr(body.pr);
+          if (!stepPr) return refuse(400, "PR must be a positive whole number.");
+        } else {
+          if (typeof body.work !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.work)) {
+            return refuse(400, "Work name must be 1 to 40 lowercase letters, numbers, or dashes.");
+          }
+          stepWork = body.work;
+        }
+        let stepHead = "";
+        if (body.head !== undefined && body.head !== null && body.head !== "") {
+          stepHead = parseBuildSha(body.head);
+          if (!stepHead) return refuse(400, "Head must be the full 40-character commit.");
+        } else if (BUILD_STEP_NEEDS_HEAD[body.step]) {
+          return refuse(400, "Head must be the full 40-character commit.");
+        }
+        let stepVerdict = "";
+        if (body.verdict !== undefined && body.verdict !== null && body.verdict !== "") {
+          if (typeof body.verdict !== "string" || BUILD_STEP_VERDICTS.indexOf(body.verdict) < 0) {
+            return refuse(400, "The result must be PASS, FAIL, GREEN, ORANGE, RED, or HOLD.");
+          }
+          stepVerdict = body.verdict;
+        }
+        let stepDeploy = "";
+        if (body.deploy !== undefined && body.deploy !== null && body.deploy !== "") {
+          if (typeof body.deploy !== "string" || !/^dpl_[A-Za-z0-9]{6,40}$/.test(body.deploy)) {
+            return refuse(400, "Deploy must be a dpl_ id.");
+          }
+          stepDeploy = body.deploy;
+        }
+        if (body.done !== undefined && typeof body.done !== "boolean") return refuse(400, "Done must be true or false.");
+        const stepCard = findBuildStepCard(workspace, stepPr, stepWork);
+        if (stepCard && stepCard.custom.buildLog.steps.length >= BUILD_STEP_MAX) {
+          return refuse(409, "This card already has " + BUILD_STEP_MAX + " steps. Nothing was saved.");
+        }
+        const stepNow = new Date().toISOString();
+        const stepRow = { step: body.step, at: stepNow, head: stepHead, verdict: stepVerdict, deploy: stepDeploy, done: body.done === true, by: actorName(person, {}) };
+        const stepLine = buildStepLine(stepRow);
+        const stepActor = { actorKind: "helper", actorLabel: "helper" };
+        const stepTitle = "Build log: " + (stepPr ? "#" + stepPr : stepWork);
+        let stepJob = stepCard;
+        const stepCreated = !stepJob;
+        if (stepJob) {
+          stepJob.custom.buildLog.steps.push(stepRow);
+          stepJob.why = stepLine;
+          stepJob.result = stepLine;
+          stepJob.status = "shipped";
+          stepJob.waitingOn = "";
+          stepJob.charged = false;
+          stepJob.amount = null;
+          stepJob.updatedAt = stepNow;
+          stepJob.doneAt = stepNow;
+          stepJob.whoTapped = actorName(person, {});
+          stepJob.whoTappedId = actorId(person);
+        } else {
+          const stepFacts = { desk: workspace, steps: [stepRow] };
+          if (stepPr) stepFacts.pr = stepPr;
+          else stepFacts.work = stepWork;
+          stepJob = {
+            id: "job_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            workspace: workspace,
+            title: stepTitle,
+            why: stepLine,
+            result: stepLine,
+            status: "shipped",
+            waitingOn: "",
+            charged: false,
+            amount: null,
+            from: "build-log",
+            kind: "note",
+            createdAt: stepNow,
+            updatedAt: stepNow,
+            doneAt: stepNow,
+            custom: { buildLog: stepFacts },
+            thread: [],
+            whoTapped: actorName(person, {}),
+            whoTappedId: actorId(person)
+          };
+          mem.jobs.unshift(stepJob);
+        }
+        addTalk(stepJob, "helper", stepLine, "note", stepActor);
+        log("Build", stepTitle + " · " + stepLine, "OK", workspace);
+        await save();
+        return res.status(stepCreated ? 201 : 200).json({
+          ok: true,
+          created: stepCreated,
+          charged: false,
+          sent: false,
+          step: stepRow,
+          job: {
+            id: stepJob.id,
+            title: stepJob.title,
+            status: stepJob.status,
+            workspace: stepJob.workspace,
+            why: stepJob.why,
+            result: stepJob.result,
+            custom: { buildLog: stepJob.custom.buildLog },
+            thread: stepJob.thread || []
+          }
+        });
       }
       const pr = parseBuildPr(body.pr);
       if (!pr) return res.status(400).json({ ok: false, error: "PR must be a positive whole number." });
