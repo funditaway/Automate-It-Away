@@ -295,5 +295,15 @@ function runMutants() {
   process.exit(caught === total && !bad ? 0 : 1);
 }
 
+// Queue step 1: the all-desks Queue's state labels and Yes / Stop / Kill taps (screens only) run here.
+function queueControl() {
+  const { spawnSync } = require("child_process");
+  const h = fs.mkdtempSync(path.join(os.tmpdir(), "aia-qc-child-"));
+  const r = spawnSync(process.execPath, [path.join(root, "scripts/check-queue-control.js")], { cwd: root, env: { PATH: process.env.PATH || "", HOME: h, TMPDIR: h }, encoding: "utf8", timeout: 120000 });
+  fs.rmSync(h, { recursive: true, force: true });
+  const tail = ((r.stdout || "") + "\n" + (r.stderr || "")).split("\n").filter((l) => l.indexOf("FAIL") === 0).slice(0, 3).join(" | ");
+  ok(r.status === 0, "[queue control] check-queue-control passes" + (r.status === 0 ? "" : " (" + tail.slice(0, 300) + ")"));
+}
+
 if (MUTATE) runMutants();
-else main().then(finish).catch((e) => { console.error("FAIL crash " + (e && e.stack || e)); process.exit(1); });
+else main().then(queueControl).then(finish).catch((e) => { console.error("FAIL crash " + (e && e.stack || e)); process.exit(1); });
