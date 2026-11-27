@@ -157,7 +157,9 @@ function visibleForest(html) {
     // on for noscript, and iframe as raw text.
     const RAW_TEXT = { script: 1, style: 1, title: 1, textarea: 1, noscript: 1, iframe: 1 };
     if (RAW_TEXT[name]) {
-      const closeRe = new RegExp("</" + escapeRe(name) + "\\s*>", "i");
+      // Browsers also close at an end tag carrying attributes or a slash
+      // (</name data-x>, </name/>), not only </name> or </name >.
+      const closeRe = new RegExp("</" + escapeRe(name) + "(?=[\\s/>])[^>]*>", "i");
       const m = closeRe.exec(src.slice(i));
       i = m ? i + m.index + m[0].length : n;
       return;
@@ -275,7 +277,7 @@ function visibleForest(html) {
       }
       // textarea is raw-text and visible: do not parse inner markup.
       if (parsed.name === "textarea" && !selfClose) {
-        const closeRe = new RegExp("</textarea\\s*>", "i");
+        const closeRe = new RegExp("</textarea(?=[\\s/>])[^>]*>", "i");
         const slice = src.slice(i);
         const m = closeRe.exec(slice);
         const raw = src.slice(i, m ? i + m.index : n);
@@ -952,6 +954,15 @@ const examplesMutants = [
   }],
   ["Z-H04 footer unclosed datalist then Bind is on.", function (s) {
     return s.replace("Bind and premium stay off the desk.</p>", "Bind and premium stay off the desk.<datalist><option>x</p><p>Bind is on.</p>");
+  }],
+  ["V03 lead </noscript data-x> then Bind is on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><noscript>x</noscript data-x=\"1\">Bind is on.<noscript></noscript> ");
+  }],
+  ["V03b lead </noscript/> then Bind is on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><noscript>x</noscript/>Bind is on.<noscript></noscript> ");
+  }],
+  ["V11 lead </iframe data-x> then Bind is on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><iframe>x</iframe data-x=\"1\">Bind is on.<iframe></iframe> ");
   }]
 
 ];
