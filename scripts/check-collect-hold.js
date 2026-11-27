@@ -112,8 +112,10 @@ function tagIsHidden(tag) {
 // open tag is ignored, as in HTML. A p is closed by the next block start
 // (p, div, section, article, h1-h6, ul, ol, table, details, header, footer,
 // nav, form, pre, blockquote, hr) or by the parent's close tag. skipToClose
-// ends at </tag> or the parent's close (and </head> also at <body); it never
-// waits only on an omittable end tag. No jsdom, no extra deps.
+// skip tracks the nesting depth of its own tag name and ends only at the
+// matching close (an inner </div> cannot end it early). Raw-text elements
+// (script, style, title, textarea) end at their literal close tag. </head>
+// also ends at <body. No jsdom, no extra deps.
 function visibleForest(html) {
   const root = { name: "#root", children: [] };
   const stack = [root];
@@ -142,25 +144,40 @@ function visibleForest(html) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
   function skipToClose(name) {
-    // End at </name>, or at the parent's close, whichever is first.
-    // Never wait only on an omittable end tag (option is not skipped;
-    // head also ends at <body). An unclosed skip does not eat the
-    // rest of the page past the parent.
-    const slice = src.slice(i);
-    const closeRe = new RegExp("</" + escapeRe(name) + "\\s*>", "i");
-    const m = closeRe.exec(slice);
-    let end = m ? i + m.index + m[0].length : n;
-    const parent = current();
-    if (parent && parent.name && parent.name !== "#root") {
-      const pre = new RegExp("</" + escapeRe(parent.name) + "\\s*>", "i");
-      const pm = pre.exec(slice);
-      if (pm && i + pm.index < end) end = i + pm.index;
+    // Raw-text elements end at their literal close tag; inner markup is not
+    // parsed (a "</div>" or "</span>" inside a script must not end the skip).
+    const RAW_TEXT = { script: 1, style: 1, title: 1, textarea: 1 };
+    if (RAW_TEXT[name]) {
+      const closeRe = new RegExp("</" + escapeRe(name) + "\\s*>", "i");
+      const m = closeRe.exec(src.slice(i));
+      i = m ? i + m.index + m[0].length : n;
+      return;
     }
-    if (name === "head") {
-      const bm = /<body[\s>]/i.exec(slice);
-      if (bm && i + bm.index < end) end = i + bm.index;
+    // Every other skip tracks the nesting depth of ITS OWN tag name and
+    // ends only at the matching close. An inner </div> (or any other tag)
+    // cannot end a noscript/template/iframe/datalist/head early; a nested
+    // <template> inside a <template> waits for the outer close.
+    let depth = 1;
+    while (i < n && depth > 0) {
+      if (src.startsWith("<!--", i)) {
+        const end = src.indexOf("-->", i + 4);
+        i = end < 0 ? n : end + 3;
+        continue;
+      }
+      const lt = src.indexOf("<", i);
+      if (lt < 0) { i = n; return; }
+      i = lt;
+      if (name === "head" && /^<body[\s>]/i.test(src.slice(i))) return;
+      const gt = src.indexOf(">", i);
+      if (gt < 0) { i = n; return; }
+      const tag = src.slice(i, gt + 1);
+      i = gt + 1;
+      if (/^<!|^<\?/.test(tag)) continue;
+      const tname = (tag.match(/^<\s*\/?\s*([^\s/>]+)/) || [null, ""])[1].toLowerCase();
+      if (tname !== name) continue;
+      if (/^<\s*\//.test(tag)) depth--;
+      else if (!VOID_TAGS[name]) depth++;
     }
-    i = end;
   }
   const P_CLOSE_BY = {
     p: 1, div: 1, section: 1, article: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
@@ -216,6 +233,19 @@ function visibleForest(html) {
         if (!selfClose) skipToClose(parsed.name);
         continue;
       }
+      // textarea is raw-text and visible: do not parse inner markup.
+      if (parsed.name === "textarea" && !selfClose) {
+        const closeRe = new RegExp("</textarea\\s*>", "i");
+        const slice = src.slice(i);
+        const m = closeRe.exec(slice);
+        const raw = src.slice(i, m ? i + m.index : n);
+        i = m ? i + m.index + m[0].length : n;
+        if (!ignoring("textarea") && !el.hidden && !el.dialogClosed) {
+          current().children.push(el);
+          if (raw) el.children.push({ name: "#text", text: raw });
+        }
+        continue;
+      }
       if (!ignoring(parsed.name) && !el.hidden && !el.dialogClosed) current().children.push(el);
       if (!selfClose) stack.push(el);
       continue;
@@ -255,10 +285,9 @@ function hasExactVisible(html, line) {
   return visibleUnits(html).units.some(function (u) { return u === want; });
 }
 
-const INLINE_TAGS = {
-  span: 1, a: 1, b: 1, i: 1, em: 1, strong: 1, small: 1, label: 1, abbr: 1,
-  cite: 1, code: 1, q: 1, sub: 1, sup: 1, mark: 1, u: 1, s: 1, time: 1, data: 1
-};
+// No INLINE_TAGS allow-list. The holder's whole visible text — every
+// non-skipped descendant, whatever its tag (kbd, button, ins, font, custom
+// tags, div, etc.) — must equal the pinned line exactly.
 function attachVisible(node, parent) {
   node.parent = parent || null;
   if (node.name === "#text") {
@@ -284,19 +313,26 @@ function smallestContaining(node, want) {
   if (found) return found;
   return node.name === "#root" ? null : node;
 }
-function siblingHasVisible(parent, el, inlineOnly) {
+// On the card article only, other block-level siblings may exist (div.top,
+// h3, p.cta). Any other sibling is a tail. On details, a summary sibling is
+// allowed (open details still shows the notes line). Everywhere else, any
+// extra visible sibling fails — including custom tags, kbd, button, ins, font.
+const CARD_BLOCK_SIBLINGS = {
+  p: 1, div: 1, section: 1, article: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
+  ul: 1, ol: 1, table: 1, details: 1, header: 1, footer: 1, nav: 1, form: 1,
+  pre: 1, blockquote: 1, hr: 1, main: 1, aside: 1, figure: 1, fieldset: 1, dl: 1
+};
+function siblingHasVisible(parent, el) {
+  const onCard = parent.name === "article";
   return (parent.children || []).some(function (ch) {
     if (ch === el) return false;
     if (ch.name === "#text") return !!normSpace(ch.text);
     if (!ch.visible) return false;
-    if (inlineOnly) return !!INLINE_TAGS[ch.name];
+    if (onCard && CARD_BLOCK_SIBLINGS[ch.name]) return false;
+    if (parent.name === "details" && ch.name === "summary") return false;
     return true;
   });
 }
-// Smallest element containing the full line must equal the line. Walk up through
-// pure wrappers (parent text === line). Extra visible text in the same parent
-// outside that element fails, except other blocks beside a card-level container
-// (so h3 / .cta stay allowed). A span/small/label/section holder is fine.
 function hasExactVisibleBlock(html, line) {
   const want = normSpace(line);
   if (!want) return false;
@@ -310,17 +346,7 @@ function hasExactVisibleBlock(html, line) {
   if (el.visible !== want) return false;
   const parent = el.parent;
   if (!parent || parent.name === "#root") return true;
-  // Structural parents (article, details, section, div, ...) may have other
-  // block/summary siblings (open details + summary, h3, .cta). Only an inline
-  // or text sibling is a tail. Phrasing parents (p, label, li, headings) fail
-  // on any extra visible sibling text.
-  const STRUCTURAL_PARENTS = {
-    article: 1, section: 1, div: 1, details: 1, main: 1, header: 1, footer: 1,
-    aside: 1, nav: 1, form: 1, ul: 1, ol: 1, table: 1, fieldset: 1, body: 1,
-    figure: 1, dl: 1, dialog: 1
-  };
-  const structural = !!STRUCTURAL_PARENTS[parent.name];
-  if (siblingHasVisible(parent, el, structural)) return false;
+  if (siblingHasVisible(parent, el)) return false;
   return true;
 }
 function pinVisibleExactBlock(hay, marker, line, label) {
@@ -374,13 +400,19 @@ function forbidExtraChargeLines(hay, allowedLines, label) {
   if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
 }
 
+// App / webhook row: the div.how whose label is <b>App / webhook</b>.
+// Its full current visible text, pinned exactly (no prefix, no tail):
+const PAY_APP = "App / webhook When the www hook writes a card. If it is tagged Lead. Then a named desk AI drafts. Buyer binds their own keys and devices on Connections. Yes / Stop / Kill before outbound or hardware. Not a listed SKU. Not a bindings product. The app or webhook is the live connection. Payments are off for now. Build an add-on →";
+const PAY_OFF = "Payments are off for now.";
 const ALLOWED_PHRASES = [
-  "Payments are off for now.",
-  "Switching a plan does not charge."
+  "Switching a plan does not charge.",
+  PAY_OFF
 ];
 // Stem-based charge wording. Bare /\bpay\b/ is not used: the real page has
 // "I cannot send, pay, or bind anything." Currency covers $, EUR symbol, pound,
-// USD, EUR (symbol and code forms; a cheap extension of the brief's "any $ amount").
+// USD, EUR. payment(s) is handled separately: any visible unit containing
+// /\bpayments?\b/i must be an allowed exact unit (the three pinned card
+// lines in their own card, PAY_APP, or "Switching a plan does not charge.").
 function unlistedChargeHits(text) {
   const hits = [];
   const rules = [
@@ -393,7 +425,6 @@ function unlistedChargeHits(text) {
     [/\brenew/i, "renew wording"],
     [/\bpay\s+now\b/i, "pay now"],
     [/\bpaid\b/i, "paid wording"],
-    [/\bpayments?\s+(are|is)\s+(on|live|enabled)\b/i, "payments on/live"],
     [/\$\s*\d/, "dollar amount"],
     [/[€£]\s*\d/, "euro/pound amount"],
     [/\d(?:[.,]\d+)?\s*[€£]/, "euro/pound amount"],
@@ -420,51 +451,114 @@ function enclosingCard(node) {
   }
   return null;
 }
+function isAppRow(node) {
+  if (!node || node.name !== "div" || !/\bhow\b/.test(node.className || "")) return false;
+  return (node.children || []).some(function (ch) {
+    return ch.name === "b" && ch.visible === "App / webhook";
+  });
+}
+function insideAppRow(node) {
+  var n = node;
+  while (n) {
+    if (isAppRow(n)) return true;
+    n = n.parent;
+  }
+  return false;
+}
 function isAllowedExact(node) {
   const t = node.visible;
   if (!t) return false;
-  if (t === ALLOWED_PHRASES[0] || t === ALLOWED_PHRASES[1]) return true;
+  if (t === ALLOWED_PHRASES[0] || t === PAY_OFF) return true;
+  if (t === PAY_APP && isAppRow(node)) return true;
   const card = enclosingCard(node);
   const pin = card ? cardPinnedLine(card) : null;
   return !!(pin && t === pin);
 }
+// Outside the App row, a text node may end with PAY_OFF (no tail after it).
+// The prefix is still stem-scanned. The App row is pinned to PAY_APP exactly,
+// so a prefix or tail there still fails. "Switching a plan does not charge."
+// is whole-container only.
+function isPaymentsOffSuffixText(node) {
+  if (!node || node.name !== "#text") return false;
+  if (insideAppRow(node)) return false;
+  const t = node.visible;
+  if (!t || t === PAY_OFF) return false;
+  return t.length > PAY_OFF.length && t.slice(-PAY_OFF.length) === PAY_OFF;
+}
 function allAllowedLines() {
-  return [PAY_CONSIGN, PAY_QUOTE, PAY_META].concat(ALLOWED_PHRASES);
+  return [PAY_CONSIGN, PAY_QUOTE, PAY_META, PAY_APP].concat(ALLOWED_PHRASES);
+}
+function isPaymentsOffSuffixElement(node) {
+  if (!node || node.name === "#text" || node.name === "#root") return false;
+  if (insideAppRow(node)) return false;
+  const t = node.visible;
+  if (!t || t === PAY_OFF) return false;
+  return t.length > PAY_OFF.length && t.slice(-PAY_OFF.length) === PAY_OFF;
+}
+// Only an exact *element* descendant (not a raw text node) exempts an ancestor.
+// A text node that equals an allowed phrase plus a sibling tail is a
+// whole-container miss ("Switching a plan does not charge.<span> Upgrading does.</span>").
+function hasAllowedExactDescendant(node) {
+  return (node.children || []).some(function (ch) {
+    if (ch.name === "#text") return false;
+    if (isAllowedExact(ch) || isPaymentsOffSuffixElement(ch)) return true;
+    return hasAllowedExactDescendant(ch);
+  });
 }
 // Whole-page charge guard. An allowed line is removed only when it is the
-// whole visible text of a unit (pinned lines only inside their own card).
-// An allowed phrase plus a tail in the same text unit fails.
+// whole visible text of its container (pinned card lines only inside their
+// own card; PAY_APP only on the App / webhook div.how; "Switching a plan
+// does not charge." as that block's entire visible text). An allowed phrase
+// plus a prefix or a tail in the same container fails. Any remaining unit
+// containing /\bpayments?\b/i fails.
 function forbidUnlistedChargeWording(hay, label) {
   const root = visibleForest(hay);
   attachVisible(root, null);
   var remainder = [];
   var tail = null;
-  const allowed = {};
-  allAllowedLines().forEach(function (line) { allowed[normSpace(line)] = true; });
+  var paymentsHit = null;
+  function considerPhrase(t, node) {
+    allAllowedLines().forEach(function (line) {
+      const n = normSpace(line);
+      if (t.indexOf(n) >= 0 && t !== n) {
+        if (node && hasAllowedExactDescendant(node)) return;
+        if (node && line === PAY_OFF && isPaymentsOffSuffixElement(node)) return;
+        tail = t;
+      }
+    });
+  }
   function walk(node) {
+    if (node.name !== "#root" && isAllowedExact(node)) return;
     if (node.name === "#text") {
       const t = node.visible;
       if (!t) return;
       if (isAllowedExact(node)) return;
-      // Fail only when leftover text follows the phrase in this text node
-      // (a tail). A prefix before the phrase is allowed: the real App/webhook
-      // span ends its first text node with "Payments are off for now." and a
-      // following <a> sibling. Flagging ancestor elements would trip that.
-      allAllowedLines().forEach(function (line) {
-        const n = normSpace(line);
-        const idx = t.indexOf(n);
-        if (idx < 0) return;
-        const after = normSpace(t.slice(idx + n.length));
-        if (after) tail = t;
-      });
+      if (isPaymentsOffSuffixText(node)) {
+        const prefix = normSpace(t.slice(0, t.length - PAY_OFF.length));
+        if (prefix) {
+          considerPhrase(prefix, null);
+          remainder.push(prefix);
+        }
+        return;
+      }
+      if (/\bpayments?\b/i.test(t)) paymentsHit = t;
+      considerPhrase(t, null);
       remainder.push(t);
       return;
     }
-    if (node.name !== "#root" && isAllowedExact(node)) return;
+    if (node.visible) {
+      if (!isPaymentsOffSuffixElement(node)
+          && /\bpayments?\b/i.test(node.visible)
+          && !hasAllowedExactDescendant(node)) {
+        paymentsHit = node.visible;
+      }
+      considerPhrase(node.visible, node);
+    }
     (node.children || []).forEach(walk);
   }
   walk(root);
   if (tail) throw new Error("invented " + label + ": allowed line with a tail: " + tail);
+  if (paymentsHit) throw new Error("invented " + label + ": payment wording: " + paymentsHit);
   const hits = unlistedChargeHits(normSpace(remainder.join(" ")));
   if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
 }
@@ -849,6 +943,61 @@ const examplesMutants = [
   }],
   ["implicit p close still fails a Quote notes tail", function (s) {
     return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + " Ever.");
+  }]
+,
+  ["G1 noscript in a div holds an inner div then the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><div><noscript><div>Turn on JS.</div><p class=\"notes\">" + PAY_QUOTE + "</p></noscript></div>");
+  }],
+  ["G1 template in a div holds an inner div then the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><div><template><div></div><p class=\"notes\">" + PAY_QUOTE + "</p></template></div>");
+  }],
+  ["G1 nested template-in-template holds the Quote ops line", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><template><template></template><p class=\"notes\">" + PAY_QUOTE + "</p></template>");
+  }],
+  ["G2 div.notes: line in a span plus a custom x-tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<div class=\"notes\"><span>" + PAY_QUOTE + "</span><x-tail> Ever.</x-tail></div>");
+  }],
+  ["G2 span holder plus a kbd tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><kbd> Ever.</kbd>");
+  }],
+  ["G2 span holder plus a button tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><button> Ever.</button>");
+  }],
+  ["G2 span holder plus an ins tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><ins> Ever.</ins>");
+  }],
+  ["G2 span holder plus a font tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><font> Ever.</font>");
+  }],
+  ["G2 span holder plus a custom x-tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><x-tail> Ever.</x-tail>");
+  }],
+  ["G2 kbd prefix plus a span holder", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<kbd>Yes. </kbd><span>" + PAY_QUOTE + "</span>");
+  }],
+  ["R-B25 lead: Payments turned on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments turned on. ");
+  }],
+  ["R-B26 lead: Payments go live today.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments go live today. ");
+  }],
+  ["R-B27 lead: Payments enabled", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments enabled ");
+  }],
+  ["R-B28 lead: Payment enabled.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payment enabled. ");
+  }],
+  ["R-B29 lead: Payments enabled today.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments enabled today. ");
+  }],
+  ["allowed Switching a plan does not charge. plus a span tail", function (s) {
+    return s.replace("Switching a plan does not charge.", "Switching a plan does not charge.<span> Upgrading does.</span>");
+  }],
+  ["App row Payments are off for now. plus a span tail", function (s) {
+    return s.replace("Payments are off for now. <a href", "Payments are off for now.<span> Until checkout.</span> <a href");
+  }],
+  ["App row prefix before Payments are off for now.", function (s) {
+    return s.replace("Payments are off for now. <a href", "Note: Payments are off for now. <a href");
   }]
 
 ];
