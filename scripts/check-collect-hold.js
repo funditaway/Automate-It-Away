@@ -78,7 +78,10 @@ const VOID_TAGS = {
   area: 1, base: 1, br: 1, col: 1, embed: 1, hr: 1, img: 1, input: 1,
   link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1
 };
-const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1, title: 1, iframe: 1, datalist: 1, option: 1 };
+const SKIP_TAGS = { script: 1, style: 1, noscript: 1, template: 1, head: 1, title: 1, iframe: 1, datalist: 1 };
+// option is not skipped: its end tag is omittable, and option text is visible
+// (a <select><option> is shown on screen). skipToClose must never wait only
+// on an omittable end tag; datalist (required </datalist>) still is skipped.
 
 function parseOpenTag(tag) {
   const m = tag.match(/^<\s*([^\s/>]+)/);
@@ -103,10 +106,14 @@ function tagIsHidden(tag) {
 }
 
 // Node-only visible-text extractor. Comments, attributes, script/style/noscript/
-// template/head/title/iframe/datalist/option, closed details (summary stays),
-// a dialog that is not open, and hidden elements (hidden, display:none,
+// template/head/title/iframe/datalist, closed details (summary stays), a dialog
+// that is not open, and hidden elements (hidden, display:none,
 // visibility:hidden, aria-hidden="true") do not count. A "/" on a non-void
-// open tag is ignored, as in HTML. No jsdom, no extra deps.
+// open tag is ignored, as in HTML. A p is closed by the next block start
+// (p, div, section, article, h1-h6, ul, ol, table, details, header, footer,
+// nav, form, pre, blockquote, hr) or by the parent's close tag. skipToClose
+// ends at </tag> or the parent's close (and </head> also at <body); it never
+// waits only on an omittable end tag. No jsdom, no extra deps.
 function visibleForest(html) {
   const root = { name: "#root", children: [] };
   const stack = [root];
@@ -131,11 +138,42 @@ function visibleForest(html) {
     return blocked() || insideClosedDetails(incomingName);
   }
   function current() { return stack[stack.length - 1]; }
+  function escapeRe(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
   function skipToClose(name) {
-    const re = new RegExp("</" + name + "\\s*>", "i");
+    // End at </name>, or at the parent's close, whichever is first.
+    // Never wait only on an omittable end tag (option is not skipped;
+    // head also ends at <body). An unclosed skip does not eat the
+    // rest of the page past the parent.
     const slice = src.slice(i);
-    const m = re.exec(slice);
-    i = m ? i + m.index + m[0].length : n;
+    const closeRe = new RegExp("</" + escapeRe(name) + "\\s*>", "i");
+    const m = closeRe.exec(slice);
+    let end = m ? i + m.index + m[0].length : n;
+    const parent = current();
+    if (parent && parent.name && parent.name !== "#root") {
+      const pre = new RegExp("</" + escapeRe(parent.name) + "\\s*>", "i");
+      const pm = pre.exec(slice);
+      if (pm && i + pm.index < end) end = i + pm.index;
+    }
+    if (name === "head") {
+      const bm = /<body[\s>]/i.exec(slice);
+      if (bm && i + bm.index < end) end = i + bm.index;
+    }
+    i = end;
+  }
+  const P_CLOSE_BY = {
+    p: 1, div: 1, section: 1, article: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
+    ul: 1, ol: 1, table: 1, details: 1, header: 1, footer: 1, nav: 1, form: 1,
+    pre: 1, blockquote: 1, hr: 1
+  };
+  function closeImpliedP() {
+    for (var s = stack.length - 1; s > 0; s--) {
+      if (stack[s].name === "p") {
+        stack.length = s;
+        return;
+      }
+    }
   }
   while (i < n) {
     if (src.startsWith("<!--", i)) {
@@ -161,6 +199,8 @@ function visibleForest(html) {
       }
       const parsed = parseOpenTag(tag);
       // HTML ignores a trailing slash on non-void tags, so <p hidden/> stays open.
+      // A following block start (or another p) implicitly closes an open p.
+      if (P_CLOSE_BY[parsed.name]) closeImpliedP();
       const selfClose = !!VOID_TAGS[parsed.name];
       const attrs = parsed.attrs;
       const el = {
@@ -169,6 +209,7 @@ function visibleForest(html) {
         skip: !!SKIP_TAGS[parsed.name],
         detailsClosed: parsed.name === "details" && !Object.prototype.hasOwnProperty.call(attrs, "open"),
         dialogClosed: parsed.name === "dialog" && !Object.prototype.hasOwnProperty.call(attrs, "open"),
+        className: attrs["class"] || "",
         children: []
       };
       if (el.skip) {
@@ -214,20 +255,73 @@ function hasExactVisible(html, line) {
   return visibleUnits(html).units.some(function (u) { return u === want; });
 }
 
-// Local blocks only (not article/section/main wrappers). If no such block
-// contains the line, visibility is left to pinVisibleExact / the extractor.
-const BLOCK_TAGS = {
-  p: 1, div: 1, li: 1, h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
-  blockquote: 1, pre: 1, dt: 1, dd: 1, figcaption: 1, td: 1, th: 1, address: 1
+const INLINE_TAGS = {
+  span: 1, a: 1, b: 1, i: 1, em: 1, strong: 1, small: 1, label: 1, abbr: 1,
+  cite: 1, code: 1, q: 1, sub: 1, sup: 1, mark: 1, u: 1, s: 1, time: 1, data: 1
 };
+function attachVisible(node, parent) {
+  node.parent = parent || null;
+  if (node.name === "#text") {
+    node.rawJoin = node.text;
+    node.visible = normSpace(node.text);
+    return;
+  }
+  (node.children || []).forEach(function (ch) { attachVisible(ch, node); });
+  const raw = (node.children || []).map(function (ch) {
+    return ch.rawJoin != null ? ch.rawJoin : "";
+  }).join(" ");
+  node.rawJoin = raw;
+  node.visible = normSpace(raw);
+}
+function smallestContaining(node, want) {
+  if (!node || node.name === "#text") return null;
+  if (!node.visible || node.visible.indexOf(want) < 0) return null;
+  var found = null;
+  (node.children || []).forEach(function (ch) {
+    var sub = smallestContaining(ch, want);
+    if (sub) found = sub;
+  });
+  if (found) return found;
+  return node.name === "#root" ? null : node;
+}
+function siblingHasVisible(parent, el, inlineOnly) {
+  return (parent.children || []).some(function (ch) {
+    if (ch === el) return false;
+    if (ch.name === "#text") return !!normSpace(ch.text);
+    if (!ch.visible) return false;
+    if (inlineOnly) return !!INLINE_TAGS[ch.name];
+    return true;
+  });
+}
+// Smallest element containing the full line must equal the line. Walk up through
+// pure wrappers (parent text === line). Extra visible text in the same parent
+// outside that element fails, except other blocks beside a card-level container
+// (so h3 / .cta stay allowed). A span/small/label/section holder is fine.
 function hasExactVisibleBlock(html, line) {
   const want = normSpace(line);
   if (!want) return false;
-  const holders = visibleUnits(html).elements.filter(function (el) {
-    return BLOCK_TAGS[el.name] && el.text.includes(want);
-  });
-  if (!holders.length) return true;
-  return holders.every(function (el) { return el.text === want; });
+  const root = visibleForest(html);
+  attachVisible(root, null);
+  var el = smallestContaining(root, want);
+  if (!el) return false;
+  while (el.parent && el.parent.name !== "#root" && el.parent.visible === want) {
+    el = el.parent;
+  }
+  if (el.visible !== want) return false;
+  const parent = el.parent;
+  if (!parent || parent.name === "#root") return true;
+  // Structural parents (article, details, section, div, ...) may have other
+  // block/summary siblings (open details + summary, h3, .cta). Only an inline
+  // or text sibling is a tail. Phrasing parents (p, label, li, headings) fail
+  // on any extra visible sibling text.
+  const STRUCTURAL_PARENTS = {
+    article: 1, section: 1, div: 1, details: 1, main: 1, header: 1, footer: 1,
+    aside: 1, nav: 1, form: 1, ul: 1, ol: 1, table: 1, fieldset: 1, body: 1,
+    figure: 1, dl: 1, dialog: 1
+  };
+  const structural = !!STRUCTURAL_PARENTS[parent.name];
+  if (siblingHasVisible(parent, el, structural)) return false;
+  return true;
 }
 function pinVisibleExactBlock(hay, marker, line, label) {
   const card = cardWith(hay, marker, label);
@@ -280,41 +374,98 @@ function forbidExtraChargeLines(hay, allowedLines, label) {
   if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
 }
 
-const ALLOWED_OUTSIDE_CHARGE = [
+const ALLOWED_PHRASES = [
   "Payments are off for now.",
   "Switching a plan does not charge."
 ];
+// Stem-based charge wording. Bare /\bpay\b/ is not used: the real page has
+// "I cannot send, pay, or bind anything." Currency covers $, EUR symbol, pound,
+// USD, EUR (symbol and code forms; a cheap extension of the brief's "any $ amount").
 function unlistedChargeHits(text) {
   const hits = [];
   const rules = [
     [/\bcharg/i, "charge wording"],
-    [/\bbilled\b/i, "billed"],
-    [/\bpayments?\s+are\s+live\b/i, "Payments are live"],
-    [/\$\s*\d/i, "price"],
-    [/\bfee applies\b/i, "fee applies"]
+    [/\bbill/i, "bill wording"],
+    [/\bfees?\b/i, "fee wording"],
+    [/\binvoices?\b/i, "invoice wording"],
+    [/\bdebit/i, "debit wording"],
+    [/\bsubscri/i, "subscription wording"],
+    [/\brenew/i, "renew wording"],
+    [/\bpay\s+now\b/i, "pay now"],
+    [/\bpaid\b/i, "paid wording"],
+    [/\bpayments?\s+(are|is)\s+(on|live|enabled)\b/i, "payments on/live"],
+    [/\$\s*\d/, "dollar amount"],
+    [/[€£]\s*\d/, "euro/pound amount"],
+    [/\d(?:[.,]\d+)?\s*[€£]/, "euro/pound amount"],
+    [/\b\d+(?:[.,]\d+)?\s*(USD|EUR)\b/i, "USD/EUR amount"],
+    [/\b(USD|EUR)\s*\d+(?:[.,]\d+)?\b/i, "USD/EUR amount"]
   ];
   rules.forEach(function (row) {
     if (row[0].test(text)) hits.push(row[1]);
   });
   return hits;
 }
+function cardPinnedLine(article) {
+  const t = article.visible || "";
+  if (t.indexOf("Consign It Away") >= 0 && t.indexOf("First vertical") >= 0) return PAY_CONSIGN;
+  if (t.indexOf("Quote ops") >= 0) return PAY_QUOTE;
+  if (t.indexOf("Meta.aia") >= 0 || t.indexOf("World Pack") >= 0) return PAY_META;
+  return null;
+}
+function enclosingCard(node) {
+  var n = node;
+  while (n) {
+    if (n.name === "article" && /\bcard\b/.test(n.className || "")) return n;
+    n = n.parent;
+  }
+  return null;
+}
+function isAllowedExact(node) {
+  const t = node.visible;
+  if (!t) return false;
+  if (t === ALLOWED_PHRASES[0] || t === ALLOWED_PHRASES[1]) return true;
+  const card = enclosingCard(node);
+  const pin = card ? cardPinnedLine(card) : null;
+  return !!(pin && t === pin);
+}
+function allAllowedLines() {
+  return [PAY_CONSIGN, PAY_QUOTE, PAY_META].concat(ALLOWED_PHRASES);
+}
+// Whole-page charge guard. An allowed line is removed only when it is the
+// whole visible text of a unit (pinned lines only inside their own card).
+// An allowed phrase plus a tail in the same text unit fails.
 function forbidUnlistedChargeWording(hay, label) {
-  let rest = hay;
-  [CARD_CONSIGN, CARD_QUOTE, CARD_META].forEach(function (marker) {
-    const card = cardWith(rest, marker, label);
-    const start = rest.indexOf(card);
-    if (start < 0) throw new Error(label + " card missing");
-    rest = rest.slice(0, start) + rest.slice(start + card.length);
-  });
-  let text = visibleUnits(rest).text;
-  ALLOWED_OUTSIDE_CHARGE.forEach(function (line) {
-    const n = normSpace(line);
-    let idx;
-    while ((idx = text.indexOf(n)) >= 0) {
-      text = normSpace(text.slice(0, idx) + " " + text.slice(idx + n.length));
+  const root = visibleForest(hay);
+  attachVisible(root, null);
+  var remainder = [];
+  var tail = null;
+  const allowed = {};
+  allAllowedLines().forEach(function (line) { allowed[normSpace(line)] = true; });
+  function walk(node) {
+    if (node.name === "#text") {
+      const t = node.visible;
+      if (!t) return;
+      if (isAllowedExact(node)) return;
+      // Fail only when leftover text follows the phrase in this text node
+      // (a tail). A prefix before the phrase is allowed: the real App/webhook
+      // span ends its first text node with "Payments are off for now." and a
+      // following <a> sibling. Flagging ancestor elements would trip that.
+      allAllowedLines().forEach(function (line) {
+        const n = normSpace(line);
+        const idx = t.indexOf(n);
+        if (idx < 0) return;
+        const after = normSpace(t.slice(idx + n.length));
+        if (after) tail = t;
+      });
+      remainder.push(t);
+      return;
     }
-  });
-  const hits = unlistedChargeHits(text);
+    if (node.name !== "#root" && isAllowedExact(node)) return;
+    (node.children || []).forEach(walk);
+  }
+  walk(root);
+  if (tail) throw new Error("invented " + label + ": allowed line with a tail: " + tail);
+  const hits = unlistedChargeHits(normSpace(remainder.join(" ")));
   if (hits.length) throw new Error("invented " + label + ": " + hits.join(", "));
 }
 
@@ -617,7 +768,89 @@ const examplesMutants = [
   }],
   ["P-E12 datalist option holds the Quote ops line", function (s) {
     return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">Dispatch and approve wait on Yes. Bind off.</p><datalist><option>" + PAY_QUOTE + "</option></datalist>");
+  }],
+  ["X1 select in the lead then footer You will be charged $5.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><select><option>One<option>Two</select> ").replace("<p class=\"note\">", "<p class=\"note\">You will be charged $5. ");
+  }],
+  ["X2 select in the lead then footer Nothing is charged.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><select><option>One<option>Two</select> ").replace("<p class=\"note\">", "<p class=\"note\">Nothing is charged. ");
+  }],
+  ["X3 select in the lead then Meta line in the footer", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><select><option>One<option>Two</select> ").replace("<p class=\"note\">", "<p class=\"note\">" + PAY_META + " ");
+  }],
+  ["R-C17 select in the lead then Consign line after it", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><select><option>A</select> " + PAY_CONSIGN + " ");
+  }],
+  ["R-C13 visible select option You will be charged $5. in the lead", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\"><select><option>You will be charged $5.</option></select> ");
+  }],
+  ["R-A02 card has no p.notes: line in a span plus a tail span", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span>" + PAY_QUOTE + "</span><span> Ever.</span>");
+  }],
+  ["R-A03 span.notes with a b tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span class=\"notes\">" + PAY_QUOTE + "<b> Ever.</b></span>");
+  }],
+  ["R-A04 section.notes with a span tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<section class=\"notes\">" + PAY_QUOTE + "<span> Ever.</span></section>");
+  }],
+  ["R-A05 small holder with a span tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<small>" + PAY_QUOTE + "<span> Ever.</span></small>");
+  }],
+  ["R-A09 Consign line in a label with an em tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_CONSIGN + "</p>", "<label>" + PAY_CONSIGN + "<em> Except today.</em></label>");
+  }],
+  ["R-A11 prefix in b inside a span holder", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<span><b>Yes.</b> " + PAY_QUOTE + "</span>");
+  }],
+  ["R-B18 Quote ops cta: You will be charged $5.", function (s) {
+    return s.replace("<p class=\"cta\"><a href=\"qia.html\">", "<p class=\"cta\">You will be charged $5. <a href=\"qia.html\">");
+  }],
+  ["R-B20 Consign h3: You will be charged $5.", function (s) {
+    return s.replace("<h3>Estate · assets · auto</h3>", "<h3>Estate · assets · auto. You will be charged $5.</h3>");
+  }],
+  ["R-B08 lead: An invoice is sent monthly.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">An invoice is sent monthly. ");
+  }],
+  ["R-B09 lead: We bill you monthly.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">We bill you monthly. ");
+  }],
+  ["R-B10 lead: Billing starts today.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Billing starts today. ");
+  }],
+  ["R-B11 lead: Payments are on.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Payments are on. ");
+  }],
+  ["R-B15 lead: Your card is debited monthly.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Your card is debited monthly. ");
+  }],
+  ["R-B16 lead: Subscription renews monthly.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Subscription renews monthly. ");
+  }],
+  ["R-B17 lead: Pay now to continue.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Pay now to continue. ");
+  }],
+  ["R-B24 lead: Paid plans only.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Paid plans only. ");
+  }],
+  ["R-B12 lead: euro 5 a month.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">€5 a month. ");
+  }],
+  ["R-B13 lead: Plans cost 5 USD.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">Plans cost 5 USD. ");
+  }],
+  ["R-B14 lead: A small fee.", function (s) {
+    return s.replace("<p class=\"lead\">", "<p class=\"lead\">A small fee. ");
+  }],
+  ["R-B01 allowed Switching a plan does not charge. plus a tail", function (s) {
+    return s.replace("Switching a plan does not charge.", "Switching a plan does not charge. Upgrading does.");
+  }],
+  ["R-B02 allowed Payments are off for now. plus a tail", function (s) {
+    return s.replace("Payments are off for now. <a href", "Payments are off for now. Until checkout. <a href");
+  }],
+  ["implicit p close still fails a Quote notes tail", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE + " Ever.");
   }]
+
 ];
 let examplesCaught = 0;
 examplesMutants.forEach(function (row) {
@@ -632,4 +865,26 @@ examplesMutants.forEach(function (row) {
 if (examplesCaught !== examplesMutants.length) throw new Error("examples payments mutants " + examplesCaught + "/" + examplesMutants.length);
 console.log("check-collect-hold examples payments mutants: " + examplesCaught + "/" + examplesMutants.length + " caught");
 
+const examplesAccepted = [
+  ["valid Quote notes without a closing p, next p.cta closes it", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p class=\"notes\">" + PAY_QUOTE);
+  }],
+  ["valid empty p/ before the Quote notes", function (s) {
+    return s.replace("<p class=\"notes\">" + PAY_QUOTE + "</p>", "<p/>" + "<p class=\"notes\">" + PAY_QUOTE + "</p>");
+  }]
+];
+let examplesAcceptedOk = 0;
+examplesAccepted.forEach(function (row) {
+  const name = row[0], apply = row[1];
+  const mutated = apply(examplesSrc);
+  if (mutated === examplesSrc) throw new Error("accepted case does not apply: " + name);
+  const err = caughtExamples(mutated);
+  if (err) throw new Error("accepted HTML rejected: " + name + " (" + err.message + ")");
+  examplesAcceptedOk += 1;
+  console.log("ok accepted: " + name);
+});
+if (examplesAcceptedOk !== examplesAccepted.length) throw new Error("accepted HTML " + examplesAcceptedOk + "/" + examplesAccepted.length);
+console.log("check-collect-hold accepted HTML: " + examplesAcceptedOk + "/" + examplesAccepted.length);
+
 console.log("check-collect-hold: ok");
+
