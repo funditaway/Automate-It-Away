@@ -1,0 +1,48 @@
+Automate It Away
+How Setup Help Desk Auto
+Every kind of work. Same desk.
+DEMO cards only. Fake names, 555 numbers, @example.com. Shops, projects being built on AIA, world users, connections, Desk AIs, and people. Read the draft. Copy, text, email, or hand it off. Stop cancels it. The desk does not send money or bind coverage.
+Projects being built
+Runtime P1
+Automate It Away
+The desk is the runtime. Jobs, audit, rules, Stop. Desk AIs stay crew.
+Consign It Away First vertical
+Estate · assets · auto
+Photo to listing draft. Payments are off for now.
+Quote It Away Insurance
+Fact-find + packet
+No premium. No bind. Illustration stays off the desk.
+Quote It Away Quote ops
+Intake · match · 7-day vetting
+Dispatch and approve wait on Yes. Bind off. Payments are off for now. Nothing is charged.
+Open Quote ops → · Use on this desk
+Meta.aia World Pack
+Name your desk · Meta + Claude draft
+The card is the UI. Desk AIs draft. You Yes / Stop. Payments are off for now. Nothing is charged.
+Open Meta.aia → · Use on this desk
+Fund It Away Credit wait
+Deal file · term sheet
+Separate book. Desk does not fund.
+Tony Oddo land Flood wait
+Parcel · lots
+Flood and title stay a person call.
+People · Desk AIs · connections
+People Invite family, friend, helper, or staff. One account sits on two desks. Owner owns Stop. Open People →
+Desk AI Owner Approve. Desk AIs that draft. Humans that decide. Draft ready. I cannot send, pay, or bind anything. You stay in control. Not a public Bot API.
+Connections Webhook is live. Named services are off for now. Draft accounts draft only. Log in does not send. Open Connections →
+Small add-on example
+App / webhook When the www hook writes a card. If it is tagged Lead. Then a named desk AI drafts. Buyer binds their own keys and devices on Connections. Yes / Stop / Kill before outbound or hardware. Not a listed SKU. Not a bindings product. The app or webhook is the live connection. Payments are off for now. Build an add-on →
+World users Owner can list a desk for public drop search. Private desks never appear. Family cards stay private.
+Shuffle six Whole deck First-day setup Drop work
+How to use the account
+1. Open a desk Desk name + desk code. Email is not required to start.
+2. Email + password is a second door Same account. Min 8 characters. No email or SMS reset.
+3. Stay on this phone This phone remembers you. Up to 8 phones on the same account.
+4. One account per person Own desks and sit on others from that login. Invite a helper. They get their own code. Owner owns Stop.
+5. Authenticator app: coming soon No live MFA. No email codes. No SMS codes.
+6. Plan stays free Switching a plan does not charge.
+7. Send it yourself Copy draft, Text it, Email it, Hand to, Stop. AIA does not send.
+8. People and Desk AIs Invite from /people. Approve a Desk AI. It drafts then waits Off desk. Yes / Stop / Kill stay human.
+9. Connections Copy the inbound hook. Named vendors stay hold. Draft accounts draft only.
+Open a Queue Talk Share an add-on Update an add-on ? ? First-day setup Sign in to your Queue
+These cards are labeled DEMO. They are not live clients. Insurance cards say Insurance / Quote It Away. Bind and premium stay off the desk.
